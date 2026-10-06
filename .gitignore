@@ -10,3 +10,5 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+.claude/worktrees/
+.playwright-mcp/
