@@ -4,7 +4,8 @@
     <venv>/python ml/train_all.py              # default run (< 10 min CPU), writes backend/models/*
     <venv>/python ml/train_all.py --quick      # smoke run, writes nothing
     <venv>/python ml/train_all.py --no-loao    # skip leave-one-attack-out (iteration only; artefacts say so)
-    <venv>/python ml/train_all.py --full-loao  # LOAO GNN with the run-2 budget (60 epochs, patience 15; ~+6 min)
+    <venv>/python ml/train_all.py --full-loao  # LOAO GNN with 60 epochs / patience 15 (~14 min); writes ONLY
+                                               # models/validation_v2_full_loao.json (main models are identical)
 
 LOAO budget: the default run retrains the GNN ten times (once per held-out family) with at most
 LOAO_GNN_EPOCHS epochs and early-stopping patience LOAO_GNN_PATIENCE on validation worlds; the main GNN
@@ -57,7 +58,7 @@ N_TRAIN, N_VAL, N_TEST = 90, 30, 30
 MODELS = BACKEND / "models"
 VERSION = "v2.1"
 GENERATOR = "backend/ml/datagen.py v2.1 (world-level payday calendar)"
-LOAO_GNN_EPOCHS, LOAO_GNN_PATIENCE = 30, 8
+LOAO_GNN_EPOCHS, LOAO_GNN_PATIENCE = 20, 6
 FULL_LOAO_GNN_EPOCHS, FULL_LOAO_GNN_PATIENCE = 60, 15
 RF_PARAMS = dict(n_estimators=100, max_depth=10, min_samples_leaf=5, max_features="sqrt",
                  class_weight="balanced_subsample", random_state=SEED, n_jobs=-1)
@@ -219,7 +220,7 @@ def train_gnn(train: list[dict[str, Any]], val: list[dict[str, Any]], mean: np.n
         fam = np.array([f or "" for t in train for f in t["fam"]])
         y_tr = y_tr[~((fam == exclude_family) & (y_tr == 1))]
     pos_weight = torch.tensor(min(p["pos_weight_cap"], (len(y_tr) - y_tr.sum()) / max(1, y_tr.sum())))
-    val_batch = [_batch([t], mean, std) for t in val]
+    val_batch = [_batch(val, mean, std)]          # disjoint union of the validation worlds: one forward pass
     y_val = np.concatenate([t["y"] for t in val])
     if exclude_family:
         fam_v = np.array([f or "" for t in val for f in t["fam"]])
@@ -511,6 +512,15 @@ def main() -> None:
     # ── artefacts ──
     MODELS.mkdir(exist_ok=True)
     trained_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    if args.full_loao:
+        # deterministic training -> the main models equal the committed ones; only the LOAO report differs
+        rep = {"label": LABEL, "trained_at": trained_at, "command": command, "version": VERSION, "seed": SEED,
+               "loao_config": {"status": "run", "gnn": f"max {loao_epochs} epochs, patience {loao_patience}"},
+               "loao": loao_res, "summary_test": {d: {k: summary[d][k] for k in ("precision", "recall", "f1", "pr_auc")}
+                                                  for d in DETECTORS}, "timings": timings}
+        (MODELS / "validation_v2_full_loao.json").write_text(json.dumps(rep, indent=2, default=float), encoding="utf-8")
+        log(f"full-budget LOAO report written (total {timings['total_s']}s)")
+        return
     split = (f"split-by-world: {N_TRAIN} train / {N_VAL} validation / {N_TEST} test worlds (disjoint, seed {SEED}); "
              "leave-one-attack-family-out on test worlds")
     dataset = {

@@ -1,6 +1,6 @@
 {
   "label": "SYNTHETIC VALIDATION \u2014 computer-generated worlds; not real-bank accuracy.",
-  "trained_at": "2026-10-06T19:55:21Z",
+  "trained_at": "2026-10-06T20:11:11Z",
   "seed": 20261006,
   "split": "split-by-world: 90 train / 30 validation / 30 test worlds (disjoint, seed 20261006); leave-one-attack-family-out on test worlds",
   "dataset": {
@@ -31,7 +31,7 @@
     },
     "evaluation_offset_hours": "attack start drawn uniformly 0.25-72 h before the evaluation time"
   },
-  "command": "python ml/train_all.py --no-loao",
+  "command": "python ml/train_all.py",
   "version": "v2.1",
   "thresholds": {
     "random_forest": 0.5882,
@@ -1128,9 +1128,202 @@
     "note": "Ground-truth roles exist only where the generator assigns one; roles are only assigned to accounts flagged by >= 2 families."
   },
   "loao_config": {
-    "status": "not run (--no-loao)"
+    "status": "run",
+    "random_forest": "same RF_PARAMS as the main model",
+    "gnn": "max 20 epochs, early-stopping patience 6 (main GNN: 120 / 15)"
   },
-  "loao": {},
+  "loao": {
+    "fan_in": {
+      "test_mules": 10,
+      "random_forest": {
+        "recall_unseen": 0.7,
+        "pr_auc_unseen": 0.7225,
+        "recall_seen": 0.8,
+        "pr_auc_seen": 0.8198
+      },
+      "gnn": {
+        "recall_unseen": 0.3,
+        "pr_auc_unseen": 0.3312,
+        "recall_seen": 0.7,
+        "pr_auc_seen": 0.6775,
+        "best_epoch": 19,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.7
+    },
+    "fan_out": {
+      "test_mules": 84,
+      "random_forest": {
+        "recall_unseen": 0.6786,
+        "pr_auc_unseen": 0.7632,
+        "recall_seen": 0.75,
+        "pr_auc_seen": 0.7675
+      },
+      "gnn": {
+        "recall_unseen": 0.5714,
+        "pr_auc_unseen": 0.6748,
+        "recall_seen": 0.8929,
+        "pr_auc_seen": 0.9241,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.1905
+    },
+    "circular": {
+      "test_mules": 46,
+      "random_forest": {
+        "recall_unseen": 1.0,
+        "pr_auc_unseen": 0.9699,
+        "recall_seen": 1.0,
+        "pr_auc_seen": 0.9827
+      },
+      "gnn": {
+        "recall_unseen": 0.9565,
+        "pr_auc_unseen": 0.9674,
+        "recall_seen": 0.9783,
+        "pr_auc_seen": 0.9796,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.087
+    },
+    "velocity_chain": {
+      "test_mules": 36,
+      "random_forest": {
+        "recall_unseen": 1.0,
+        "pr_auc_unseen": 0.9802,
+        "recall_seen": 1.0,
+        "pr_auc_seen": 0.9889
+      },
+      "gnn": {
+        "recall_unseen": 0.9444,
+        "pr_auc_unseen": 0.979,
+        "recall_seen": 0.9722,
+        "pr_auc_seen": 0.9909,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.0833
+    },
+    "cross_channel": {
+      "test_mules": 29,
+      "random_forest": {
+        "recall_unseen": 0.7931,
+        "pr_auc_unseen": 0.799,
+        "recall_seen": 0.7931,
+        "pr_auc_seen": 0.8169
+      },
+      "gnn": {
+        "recall_unseen": 0.7586,
+        "pr_auc_unseen": 0.8196,
+        "recall_seen": 0.8966,
+        "pr_auc_seen": 0.9449,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.2069
+    },
+    "shared_device": {
+      "test_mules": 52,
+      "random_forest": {
+        "recall_unseen": 0.9038,
+        "pr_auc_unseen": 0.9207,
+        "recall_seen": 0.9615,
+        "pr_auc_seen": 0.9601
+      },
+      "gnn": {
+        "recall_unseen": 0.1731,
+        "pr_auc_unseen": 0.251,
+        "recall_seen": 1.0,
+        "pr_auc_seen": 0.999,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.9231
+    },
+    "behavioural_drift": {
+      "test_mules": 7,
+      "random_forest": {
+        "recall_unseen": 0.8571,
+        "pr_auc_unseen": 0.699,
+        "recall_seen": 0.8571,
+        "pr_auc_seen": 0.8179
+      },
+      "gnn": {
+        "recall_unseen": 0.4286,
+        "pr_auc_unseen": 0.2715,
+        "recall_seen": 1.0,
+        "pr_auc_seen": 0.9571,
+        "best_epoch": 19,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 1.0
+    },
+    "volume_spike": {
+      "test_mules": 7,
+      "random_forest": {
+        "recall_unseen": 0.7143,
+        "pr_auc_unseen": 0.4281,
+        "recall_seen": 1.0,
+        "pr_auc_seen": 0.8071
+      },
+      "gnn": {
+        "recall_unseen": 0.0,
+        "pr_auc_unseen": 0.014,
+        "recall_seen": 0.8571,
+        "pr_auc_seen": 0.6192,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.8571
+    },
+    "smurfing": {
+      "test_mules": 29,
+      "random_forest": {
+        "recall_unseen": 0.2759,
+        "pr_auc_unseen": 0.3011,
+        "recall_seen": 0.4828,
+        "pr_auc_seen": 0.4631
+      },
+      "gnn": {
+        "recall_unseen": 0.3448,
+        "pr_auc_unseen": 0.3411,
+        "recall_seen": 0.6897,
+        "pr_auc_seen": 0.7187,
+        "best_epoch": 19,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.2069
+    },
+    "dormant": {
+      "test_mules": 10,
+      "random_forest": {
+        "recall_unseen": 0.5,
+        "pr_auc_unseen": 0.2445,
+        "recall_seen": 0.9,
+        "pr_auc_seen": 0.6143
+      },
+      "gnn": {
+        "recall_unseen": 0.3,
+        "pr_auc_unseen": 0.1154,
+        "recall_seen": 0.9,
+        "pr_auc_seen": 0.8251,
+        "best_epoch": 17,
+        "epochs_run": 20,
+        "budget": "max 20 epochs, patience 6"
+      },
+      "rules_reference_recall": 0.5
+    }
+  },
   "old_protocol": {
     "old_protocol_random_row_split": {
       "precision": 0.8709,
@@ -1169,14 +1362,14 @@
     "note": "Same worlds. 'Old protocol' sees only injected transactions (attack-window graph, audit A1) and splits pooled rows at random (A3). The same model applied to honest windowed features of the test worlds shows how much of the old score was leakage."
   },
   "timings": {
-    "generate_s": 31.2,
-    "features_s": 23.9,
-    "rf_s": 3.2,
-    "gnn_s": 86.6,
-    "shap_s": 1.9,
-    "loao_s": 0.0,
+    "generate_s": 8.8,
+    "features_s": 7.6,
+    "rf_s": 0.6,
+    "gnn_s": 42.4,
+    "shap_s": 1.6,
+    "loao_s": 125.3,
     "old_protocol_s": 1.5,
-    "total_s": 171.5
+    "total_s": 192.0
   },
   "gnn_training": {
     "best_epoch": 58,

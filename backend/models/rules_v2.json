@@ -1,5 +1,5 @@
 {
-  "trained_at": "2026-10-06T19:55:21Z",
+  "trained_at": "2026-10-06T20:11:11Z",
   "seed": 20261006,
   "data": "SYNTHETIC",
   "split": "split-by-world: 90 train / 30 validation / 30 test worlds (disjoint, seed 20261006); leave-one-attack-family-out on test worlds",
