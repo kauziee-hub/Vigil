@@ -8,6 +8,7 @@ import { ContactPage } from "./pages/ContactPage";
 import { DetectionPage } from "./pages/DetectionPage";
 import { GovernancePage } from "./pages/GovernancePage";
 import { GuardPage } from "./pages/GuardPage";
+import { HealthPage } from "./pages/HealthPage";
 import { InterventionsPage } from "./pages/InterventionsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { OverviewPage } from "./pages/OverviewPage";
@@ -17,10 +18,6 @@ import { ScenarioLabPage } from "./pages/ScenarioLabPage";
 
 // Network Intelligence carries three.js + Cytoscape: code-split so every other page stays light.
 const NetworkPage = lazy(() => import("./pages/NetworkPage").then((m) => ({ default: m.NetworkPage })));
-
-function Pending({ title }: { title: string }) {
-  return <div className="notice info">{title} is being rebuilt in this branch.</div>;
-}
 
 /** Old v1 routes → their v2 homes (FINAL_PARALLEL_PLAN §1). */
 function Redirect({ to }: { to: (p: Record<string, string | undefined>) => string }) {
@@ -52,7 +49,7 @@ export default function App() {
             <Route path="/governance" element={<GovernancePage />} />
             <Route path="/governance/decision/:decisionId" element={<RecordPage />} />
             <Route path="/lab" element={<ScenarioLabPage />} />
-            <Route path="/health" element={<Pending title="System Health" />} />
+            <Route path="/health" element={<HealthPage />} />
             {/* v1 → v2 redirects */}
             <Route path="/investigate" element={<Navigate to="/investigations" replace />} />
             <Route path="/investigate/:id" element={<Redirect to={(p) => `/investigations/decision/${p.id}`} />} />
