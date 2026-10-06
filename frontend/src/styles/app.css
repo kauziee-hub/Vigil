@@ -370,7 +370,7 @@ table.cm td.bad { background: var(--st-high-bg); }
 .net-hud { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 4; max-width: 44%; }
 .net-hud .hud { background: rgba(10, 17, 27, 0.86); border: 1px solid var(--line-2); padding: 6px 9px; font: var(--fs-xs)/1.6 var(--font-data); color: #a2b2c5; pointer-events: auto; }
 .net-hud .hud b { color: #dce5ef; font-weight: 500; }
-.net-legend { position: absolute; left: 10px; bottom: 10px; z-index: 4; background: rgba(10, 17, 27, 0.88); border: 1px solid var(--line-2); padding: 7px 9px; display: grid; grid-template-columns: repeat(2, auto); gap: 3px 14px; font-size: var(--fs-xs); color: #a2b2c5; max-width: 420px; }
+.net-legend { position: absolute; left: 10px; bottom: 10px; z-index: 4; background: rgba(10, 17, 27, 0.88); border: 1px solid var(--line-2); padding: 6px 9px; display: grid; grid-template-columns: repeat(3, auto); gap: 2px 12px; font-size: 10px; color: #a2b2c5; max-width: 560px; }
 .net-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .net-legend svg { flex: none; }
 .net-label { position: absolute; left: 0; top: 0; pointer-events: none; font: 500 10.5px/1.2 var(--font-data); color: #dce5ef; background: rgba(7, 13, 22, 0.78); padding: 1px 4px; border: 1px solid rgba(54, 80, 111, 0.7); white-space: nowrap; transform: translate(-50%, -150%); z-index: 3; will-change: transform; }
@@ -382,6 +382,17 @@ table.cm td.bad { background: var(--st-high-bg); }
 .net-replay .now { font-family: var(--font-data); min-width: 170px; color: #a2b2c5; }
 .net.has-replay .net-legend { bottom: 54px; }
 .net-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-3); text-align: center; padding: 20px; z-index: 2; }
+.net-canvas { position: absolute; inset: 0; }
+.net-canvas > .graph-box { border: 0; border-radius: 0; background: #0b1320; height: 100% !important; }
+.net.has-drawer .net-canvas { right: 400px; }
+.net.has-drawer .net-replay { right: 410px; }
+.net-steps { position: absolute; right: 10px; top: 10px; z-index: 4; width: 300px; max-height: calc(100% - 80px); overflow-y: auto; background: rgba(10, 17, 27, 0.9); border: 1px solid var(--line-2); padding: 7px 9px; font-size: var(--fs-xs); color: #a2b2c5; }
+.net.has-drawer .net-steps { right: 410px; }
+.net-steps .st { padding: 2px 0 2px 6px; border-left: 2px solid transparent; opacity: 0.45; }
+.net-steps .st.done { opacity: 1; }
+.net-steps .st.now { border-left-color: #8fb0dc; background: rgba(143, 176, 220, 0.12); color: #dce5ef; }
+.net-toolbar .select.sm { height: 24px; }
+.trace-col { border: 1px solid var(--line); padding: 8px 10px; border-radius: var(--r2); background: var(--surface-2); min-width: 0; }
 
 /* 2D graph */
 .graph-box { position: relative; width: 100%; height: 100%; min-height: 260px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; border-radius: var(--r2); }

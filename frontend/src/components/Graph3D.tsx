@@ -79,6 +79,8 @@ interface Built {
   group: THREE.Group;
   center: THREE.Vector3;
   span: number;
+  size: THREE.Vector3;
+  k: number;                                                    // world-units scale for glyphs (∝ layout span)
 }
 
 export function Graph3D(p: Graph3DProps) {
@@ -106,7 +108,11 @@ export function Graph3D(p: Graph3DProps) {
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(BG, 500, 1400);
-    const camera = new THREE.PerspectiveCamera(42, 1, 1, 6000);
+    const w0 = el.clientWidth || 800, h0 = el.clientHeight || 600;
+    renderer.setSize(w0, h0, false);
+    renderer.domElement.style.width = `${w0}px`;
+    renderer.domElement.style.height = `${h0}px`;
+    const camera = new THREE.PerspectiveCamera(42, w0 / h0, 1, 6000);
     camera.position.set(0, 120, 520);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -192,7 +198,7 @@ export function Graph3D(p: Graph3DProps) {
             tmp.lerpVectors(from, to, f);
             dummy.position.copy(tmp);
             dummy.quaternion.identity();
-            const s = 0.9 + b.edgeR[it.e] * 0.9;
+            const s = 0.9 * b.k + b.edgeR[it.e] * 0.9;
             dummy.scale.set(s, s, s);
             dummy.updateMatrix();
             particles.setMatrixAt(i, dummy.matrix);
@@ -343,8 +349,12 @@ export function Graph3D(p: Graph3DProps) {
     if (!keepCamera) {
       const b = c.built;
       c.controls.target.copy(b.center);
-      c.camera.position.copy(b.center).add(new THREE.Vector3(b.span * 0.12, b.span * 0.32, b.span * 1.05 + 120));
-      c.scene.fog = new THREE.Fog(BG, b.span * 0.9 + 200, b.span * 2.6 + 900);
+      const dist = fitDistance(c.camera, b.size);
+      c.camera.position.copy(b.center).add(new THREE.Vector3(0.1, 0.32, 1).normalize().multiplyScalar(dist));
+      c.scene.fog = new THREE.Fog(BG, dist * 0.75, dist * 2.4);
+      c.controls.maxDistance = Math.max(2200, dist * 3);
+      c.camera.far = Math.max(6000, dist * 6);
+      c.camera.updateProjectionMatrix();
       c.controls.update();
     }
     applyStyle();
@@ -362,7 +372,7 @@ export function Graph3D(p: Graph3DProps) {
     if (i === undefined) return;
     const target = c.built.pos[i].clone();
     const dir = c.camera.position.clone().sub(c.controls.target).normalize();
-    const dist = Math.max(90, Math.min(260, c.built.span * 0.45));
+    const dist = Math.max(c.built.radius[i] * 16, Math.min(900, c.built.span * 0.4));
     c.tween = { t0: performance.now(), dur: 650, fromP: c.camera.position.clone(), toP: target.clone().add(dir.multiplyScalar(dist)),
                 fromT: c.controls.target.clone(), toT: target };
     c.request();
@@ -447,7 +457,7 @@ export function Graph3D(p: Graph3DProps) {
       b.shaft.setMatrixAt(i, dummy.matrix);
       b.shaft.setColorAt(i, col);
       // arrowhead at the target surface
-      const aw = vis ? 1.3 + b.edgeR[i] * 2.4 : 0.0001;
+      const aw = vis ? 1.3 * b.k + b.edgeR[i] * 2.4 : 0.0001;
       dummy.position.copy(to);
       dummy.scale.set(aw, aw, aw * 2.3);
       dummy.updateMatrix();
@@ -495,11 +505,13 @@ function build(s: GraphScene, geos: Map<ShapeKey, THREE.BufferGeometry>, nodeMat
   const nodes = s.nodes;
   const index = new Map(nodes.map((n, i) => [n.id, i]));
   const pos = nodes.map((n) => new THREE.Vector3(n.x, n.y, n.z));
-  const radius = nodes.map(nodeRadius);
   const box = new THREE.Box3();
   pos.forEach((v) => box.expandByPoint(v));
   const center = box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
   const span = box.isEmpty() ? 200 : Math.max(120, box.getSize(new THREE.Vector3()).length());
+  // glyph scale follows the layout's extent so nodes stay legible whatever units the server uses
+  const k = Math.max(1, Math.min(6, span / 620));
+  const radius = nodes.map((n) => nodeRadius(n) * k);
 
   // nodes: one InstancedMesh per role shape
   const byShape = new Map<ShapeKey, number[]>();
@@ -556,7 +568,7 @@ function build(s: GraphScene, geos: Map<ShapeKey, THREE.BufferGeometry>, nodeMat
     dir.subVectors(pos[b], pos[a]).normalize();
     edgeFrom.push(pos[a].clone().addScaledVector(dir, radius[a] * 1.05));
     edgeTo.push(pos[b].clone().addScaledVector(dir, -radius[b] * 1.15));
-    edgeR.push(0.28 + 1.25 * Math.sqrt(e.amount_paise / maxAmt));
+    edgeR.push((0.28 + 1.25 * Math.sqrt(e.amount_paise / maxAmt)) * k * 0.7);
     const times = e.txs.map((t) => Date.parse(t.ts)).filter((t) => !Number.isNaN(t)).sort((x, y) => x - y);
     edgeTimes.push(times.length ? times : [Date.parse(e.first_ts)]);
     edgeFirst.push(times.length ? times[0] : Date.parse(e.first_ts));
@@ -565,21 +577,19 @@ function build(s: GraphScene, geos: Map<ShapeKey, THREE.BufferGeometry>, nodeMat
   });
   group.add(shaft, arrow);
 
-  // direction-of-money reference axis beneath the graph (layer axis = x)
-  if (!box.isEmpty()) {
-    const y = box.min.y - 40;
-    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(box.min.x - 20, y, center.z), new THREE.Vector3(box.max.x + 20, y, center.z)]);
-    const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x283a53 }));
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(3, 10, 10), new THREE.MeshBasicMaterial({ color: 0x36506f }));
-    tip.position.set(box.max.x + 24, y, center.z);
-    tip.rotation.z = -Math.PI / 2;
-    group.add(line, tip);
-  }
-
   return {
     nodes, index, pos, radius, meshOf, slotNode, meshes, edges, edgeIndex: new Map(edges.map((e, i) => [e.id, i])),
-    shaft, arrow, edgeFrom, edgeTo, edgeR, edgeFirst, edgeTimes, group, center, span,
+    shaft, arrow, edgeFrom, edgeTo, edgeR, edgeFirst, edgeTimes, group, center, span, k, size: box.isEmpty() ? new THREE.Vector3(200, 200, 200) : box.getSize(new THREE.Vector3()),
   };
+}
+
+/** Camera distance that frames the layout's bounding box in the current viewport. */
+function fitDistance(camera: THREE.PerspectiveCamera, size: THREE.Vector3): number {
+  const vfov = (camera.fov * Math.PI) / 180;
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * Math.max(0.5, camera.aspect));
+  const dW = (size.x / 2) / Math.tan(hfov / 2);
+  const dH = (Math.max(size.y, size.z) / 2) / Math.tan(vfov / 2);
+  return Math.max(160, Math.max(dW, dH) * 1.08 + size.z / 2);
 }
 
 function disposeBuilt(b: Built) {
