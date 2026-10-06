@@ -167,12 +167,12 @@ def window_pairs(src: GraphSource, account_ids: Iterable[str], now_t: float,
     return pairs
 
 
-def in_cycle(src: GraphSource, account_id: str, now_t: float, max_hops: int = 4,
-             window_s: float = WINDOW_S, budget: int = 400) -> bool:
-    """Bounded DFS: does money leave this account and come back within the window (≤ max_hops)?"""
+def in_cycle(src: GraphSource, account_id: str, now_t: float, max_hops: int = 6,
+             window_s: float = WINDOW_S, budget: int = 600) -> bool:
+    """Bounded search: does money leave this account and come back within the window (≤ max_hops)?"""
     start = now_t - window_s
     stack: list[tuple[str, int]] = [(account_id, 0)]
-    seen = {account_id}
+    best = {account_id: 0}
     steps = 0
     while stack and steps < budget:
         node, depth = stack.pop()
@@ -184,8 +184,8 @@ def in_cycle(src: GraphSource, account_id: str, now_t: float, max_hops: int = 4,
                 continue
             if e.dst == account_id and depth >= 1:
                 return True
-            if e.dst not in seen:
-                seen.add(e.dst)
+            if e.dst != account_id and best.get(e.dst, max_hops + 1) > depth + 1:
+                best[e.dst] = depth + 1
                 stack.append((e.dst, depth + 1))
     return False
 

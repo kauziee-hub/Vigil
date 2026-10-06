@@ -231,6 +231,14 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
     dormant_legit = set(shuffled[:int(0.04 * n_cust)])
     dormant_reserve = shuffled[int(0.04 * n_cust):int(0.04 * n_cust) + 6]   # may be activated by an attack
     reserved = set(dormant_reserve)
+    # dormant accounts must really be quiet: nobody else pays them / buys from them either
+    active = [c for c in customers if c not in dormant_legit and c not in reserved]
+    traders = set(r.sample(active, int(0.06 * n_cust)))
+    landlords = set(r.sample([c for c in active if c not in traders], int(0.02 * n_cust)))
+    for c in traders:
+        w.kind_hint[c] = "trader"
+    for c in landlords:
+        w.kind_hint[c] = "landlord"
     employer_of: dict[str, str] = {}
     for c in customers:
         if r.random() < 0.4:
@@ -267,7 +275,7 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
 
         # recurring payees
         payees = r.sample(shops, min(len(shops), r.randint(2, 3)))
-        friends = r.sample([x for x in customers if x != c], r.randint(0, 3))
+        friends = r.sample([x for x in active if x != c], r.randint(0, 3))
         typical = {p: _lognormal_amount(r, 900, 0.8, 100, 8_000) for p in payees}
         typical.update({f: _lognormal_amount(r, 2_000, 0.9, 200, 15_000) for f in friends})
         targets = payees + friends
@@ -295,12 +303,12 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
         # one-off new payees
         if r.random() < 0.4:
             for _ in range(r.randint(1, 2)):
-                other = r.choice(customers)
+                other = r.choice(active)
                 w.tx(c, other, _lognormal_amount(r, 2_500, 0.9, 300, 20_000), act_start + r.random() * span,
                      _pick_channel(r, prefs))
         # legitimate high-value payment to a new counterparty
         if r.random() < 0.06:
-            dst = r.choice(["ext:other-bank", r.choice(customers)])
+            dst = r.choice(["ext:other-bank", r.choice(active)])
             w.tx(c, dst, _lognormal_amount(r, 1_20_000, 0.6, 40_000, 4_00_000), act_start + r.random() * span,
                  r.choice(["neft", "imps", "upi"]))
         # legitimate lump sum in and (sometimes) straight out — a pass-through hard negative
@@ -318,6 +326,31 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
         # a few fresh legit accounts receive money from family
         if (now - opened) < 30 * DAY and friends:
             w.tx(friends[0], c, _lognormal_amount(r, 5_000, 0.6, 500, 30_000), act_start + r.random() * span, "upi")
+        # small trader: sales from regular and first-time buyers, takings swept to cash / supplier (hard negative)
+        if c in traders:
+            regulars = r.sample(active, r.randint(5, 15))
+            per_day = r.uniform(1, 4)
+            sales = sorted(act_start + r.random() * span for _ in range(_poisson(r, per_day * span / DAY)))
+            takings, last_sweep = 0.0, act_start
+            for t in sales:
+                buyer = r.choice(regulars) if r.random() < 0.5 else r.choice(active)
+                amt = _lognormal_amount(r, 1_500, 0.8, 200, 20_000)
+                w.tx(buyer, c, amt, t, "upi")
+                takings += amt
+                if t - last_sweep > r.uniform(1, 3) * DAY and takings > 2_000:
+                    dst = r.choice(["ext:atm", "ext:other-bank", r.choice(shops)])
+                    w.tx(c, dst, takings * r.uniform(0.6, 0.95), t + r.uniform(10, 360) * MINUTE,
+                         "card" if dst == "ext:atm" else "upi")
+                    takings, last_sweep = 0.0, t
+        # landlord: monthly rents from a few tenants, then the loan EMI goes out (fan-in-like, recurring)
+        if c in landlords:
+            tenants = r.sample(active, r.randint(3, 6))
+            rent = _lognormal_amount(r, 15_000, 0.4, 5_000, 60_000)
+            for month in range(2):
+                due = start + r.uniform(0, 3) * DAY + month * 30 * DAY
+                for tn in tenants:
+                    w.tx(tn, c, rent * r.uniform(0.9, 1.1), due + r.uniform(0, 4) * DAY, "upi")
+                w.tx(c, "ext:other-bank", rent * len(tenants) * r.uniform(0.5, 0.9), due + r.uniform(4, 6) * DAY, "neft")
 
     # payroll companies: client receipts, funding before payday, vendors
     for comp in payroll:
@@ -361,7 +394,7 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
         organisers.append(org)
         ev_t = now - r.uniform(2, 70) * HOUR if r.random() < 0.7 else start + r.uniform(5, 50) * DAY
         collected = 0.0
-        for buyer in r.sample(customers, r.randint(8, 25)):
+        for buyer in r.sample(active, r.randint(8, 25)):
             amt = _lognormal_amount(r, 1_200, 0.5, 300, 4_000)
             t = ev_t - r.uniform(0, 30) * HOUR
             w.tx(buyer, org, amt, t, "upi")
