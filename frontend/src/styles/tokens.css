@@ -1,60 +1,73 @@
-/* Design tokens. Tier palette inherited from the PRIMA web app. */
+/* Vigil design tokens — see docs/DESIGN_SYSTEM.md.
+   Rule: hue encodes STATUS only (normal / watch / high / critical / held / confirmed fraud).
+   Everything else (structure, detector families, interaction) is neutral navy/steel. */
 :root {
-  --bg: #eef1f5;
-  --surface: #ffffff;
-  --surface-2: #f5f7fa;
-  --surface-3: #e9edf2;
-  --line: #d6dce4;
-  --line-strong: #b9c2cd;
-  --ink: #142030;
-  --ink-2: #44546a;
-  --ink-3: #6b7a8d;
-  --brand: #1d4f91;
-  --brand-ink: #ffffff;
-  --brand-soft: #e3ecf8;
-  --focus: #2f6fd1;
+  color-scheme: dark;
 
-  --t0: #2f7a52; --t0-bg: #e4f2ea;
-  --t1: #946a12; --t1-bg: #f8efd9;
-  --t2: #b8501f; --t2-bg: #fbe8de;
-  --t3: #a1252e; --t3-bg: #f9e2e3;
-  --t4: #5b34a0; --t4-bg: #ede6f8;
+  /* surfaces — institutional navy, flat, separated by hairlines (no shadows) */
+  --bg: #0a111b;
+  --bg-side: #0b1320;
+  --surface: #0e1724;
+  --surface-2: #121d2d;
+  --surface-3: #172438;
+  --surface-hi: #1b2a40;
+  --line: #1d2a3d;
+  --line-2: #283a53;
+  --line-3: #36506f;
 
-  --d-external: #7a4bb5;
-  --d-network: #c0392b;
-  --d-sequence: #d07a12;
-  --d-behaviour: #2471a3;
-  --d-context: #16876b;
+  /* ink */
+  --ink: #dce5ef;
+  --ink-2: #a2b2c5;
+  --ink-3: #6f8298;
+  --ink-4: #4b5c72;
 
-  --taint: #c0392b;
-  --simulated: #8a5a00;
-  --simulated-bg: #fff4d6;
+  /* interaction accent — steel blue, deliberately NOT a status hue */
+  --accent: #8fb0dc;
+  --accent-ink: #0a111b;
+  --accent-soft: rgba(143, 176, 220, 0.12);
+  --accent-line: rgba(143, 176, 220, 0.38);
+  --focus: #b4cdf0;
 
+  /* status scale (FINAL_PARALLEL_PLAN §2) */
+  --st-normal: #4e9c7c;
+  --st-watch: #c9a43b;
+  --st-high: #dc8642;
+  --st-critical: #e15656;
+  --st-held: #9886e6;
+  --st-fraud: #e2477c;
+  --st-normal-bg: rgba(78, 156, 124, 0.12);
+  --st-watch-bg: rgba(201, 164, 59, 0.13);
+  --st-high-bg: rgba(220, 134, 66, 0.13);
+  --st-critical-bg: rgba(225, 86, 86, 0.14);
+  --st-held-bg: rgba(152, 134, 230, 0.14);
+  --st-fraud-bg: rgba(226, 71, 124, 0.16);
+  --st-unknown: #5d6f86;
+
+  /* typography */
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --fs-xs: 10.5px;
+  --fs-sm: 11.5px;
+  --fs-md: 12.5px;
+  --fs-base: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 18px;
+  --fs-num: 17px;
 
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
-  --r-sm: 4px; --r-md: 8px; --r-lg: 14px; --r-xl: 22px;
-  --shadow: 0 1px 2px rgba(20, 32, 48, 0.06), 0 4px 16px rgba(20, 32, 48, 0.06);
-  --shadow-lg: 0 12px 40px rgba(20, 32, 48, 0.18);
+  /* spacing + density */
+  --s1: 2px; --s2: 4px; --s3: 6px; --s4: 8px; --s5: 12px; --s6: 16px; --s7: 20px; --s8: 28px;
+  --row-h: 28px;
+  --r1: 2px; --r2: 3px; --r3: 5px;
+  --side-w: 212px;
+  --strip-h: 34px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0f151c; --surface: #18212b; --surface-2: #141c25; --surface-3: #1f2a36;
-    --line: #2a3747; --line-strong: #3a4a5e; --ink: #e6ecf2; --ink-2: #aab6c4; --ink-3: #7f8da0;
-    --brand: #5d93db; --brand-soft: #1c2a3d; --focus: #7aaaf0;
-    --t0: #5fb38a; --t0-bg: #193027; --t1: #d1a443; --t1-bg: #2e2715; --t2: #e0835a; --t2-bg: #33211a;
-    --t3: #e0636b; --t3-bg: #341b1e; --t4: #a283e0; --t4-bg: #271e3b;
-    --simulated: #e7bd5a; --simulated-bg: #2f2711;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0f151c; --surface: #18212b; --surface-2: #141c25; --surface-3: #1f2a36;
-  --line: #2a3747; --line-strong: #3a4a5e; --ink: #e6ecf2; --ink-2: #aab6c4; --ink-3: #7f8da0;
-  --brand: #5d93db; --brand-soft: #1c2a3d; --focus: #7aaaf0;
-  --t0: #5fb38a; --t0-bg: #193027; --t1: #d1a443; --t1-bg: #2e2715; --t2: #e0835a; --t2-bg: #33211a;
-  --t3: #e0636b; --t3-bg: #341b1e; --t4: #a283e0; --t4-bg: #271e3b;
-  --simulated: #e7bd5a; --simulated-bg: #2f2711;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef1f5; --bg-side: #f7f9fc; --surface: #ffffff; --surface-2: #f5f7fa; --surface-3: #ebeff4; --surface-hi: #e4e9f0;
+  --line: #dde3ea; --line-2: #c9d2dd; --line-3: #aab6c5;
+  --ink: #142030; --ink-2: #44546a; --ink-3: #6b7a8d; --ink-4: #95a2b3;
+  --accent: #2f5f9e; --accent-ink: #ffffff; --accent-soft: rgba(47, 95, 158, 0.1); --accent-line: rgba(47, 95, 158, 0.4); --focus: #2f6fd1;
+  --st-normal: #2f7a5a; --st-watch: #94700f; --st-high: #b8561f; --st-critical: #b8282f; --st-held: #5f47b8; --st-fraud: #a8124f;
+  --st-normal-bg: #e4f2ea; --st-watch-bg: #f7efd8; --st-high-bg: #fbe9de; --st-critical-bg: #f9e1e2; --st-held-bg: #ebe6f9; --st-fraud-bg: #f8dfe8;
 }
