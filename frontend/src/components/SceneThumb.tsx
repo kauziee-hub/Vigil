@@ -10,18 +10,19 @@ export const SceneThumb = memo(function SceneThumb({ scene, height = 200, focus,
   scene: GraphScene; height?: number; focus?: string | null; onPick?: (id: string) => void; label?: boolean;
 }) {
   const W = 640, H = height, P = 16;
+  // The server layout is layered: x = money-flow depth, each layer a ring in the y/z plane. A flat thumbnail reads
+  // best as x = depth, y = the node's angle around its ring (ring centre → middle), axes scaled to fill the box.
   const geo = useMemo(() => {
-    const pts = scene.nodes.map((n) => ({ n, px: n.x + n.z * 0.18, py: n.y + n.z * 0.42 }));
+    const pts = scene.nodes.map((n) => {
+      const r = Math.hypot(n.y, n.z);
+      return { n, px: n.x, py: r < 1e-6 ? 0 : Math.atan2(n.z, n.y) };
+    });
     const xs = pts.map((p) => p.px), ys = pts.map((p) => p.py);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-    const sx = (W - 2 * P) / Math.max(1e-6, maxX - minX), sy = (H - 2 * P) / Math.max(1e-6, maxY - minY);
-    const s = Math.min(sx, sy);
-    const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
+    const fx = (v: number) => (maxX - minX < 1e-6 ? W / 2 : P + 24 + ((v - minX) / (maxX - minX)) * (W - 2 * P - 48));
+    const fy = (v: number) => (maxY - minY < 1e-6 ? H / 2 : P + ((v - minY) / (maxY - minY)) * (H - 2 * P));
     const pos = new Map<string, [number, number]>();
-    pts.forEach((p) => pos.set(p.n.id, [
-      pts.length === 1 ? W / 2 : ox + (p.px - minX) * s,
-      pts.length === 1 ? H / 2 : oy + (p.py - minY) * s,
-    ]));
+    pts.forEach((p) => pos.set(p.n.id, [fx(p.px), fy(p.py)]));
     const maxAmt = Math.max(1, ...scene.edges.map((e) => e.amount_paise));
     return { pos, maxAmt };
   }, [scene, W, H]);

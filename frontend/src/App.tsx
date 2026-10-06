@@ -4,12 +4,12 @@ import { Shell } from "./components/Shell";
 import { Loading } from "./components/ui";
 import { AccountPage } from "./pages/AccountPage";
 import { CasePage } from "./pages/CasePage";
-import { CommandCenter } from "./pages/CommandCenter";
 import { ContactPage } from "./pages/ContactPage";
 import { GovernancePage } from "./pages/GovernancePage";
 import { GuardPage } from "./pages/GuardPage";
 import { InterventionsPage } from "./pages/InterventionsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
+import { OverviewPage } from "./pages/OverviewPage";
 import { PayPage } from "./pages/PayPage";
 import { RecordPage } from "./pages/RecordPage";
 import { ScenarioLabPage } from "./pages/ScenarioLabPage";
@@ -40,7 +40,7 @@ export default function App() {
       <Route path="/*" element={
         <Shell>
           <Routes>
-            <Route path="/" element={<CommandCenter />} />
+            <Route path="/" element={<OverviewPage />} />
             <Route path="/guard" element={<GuardPage />} />
             <Route path="/network" element={<Lazy><NetworkPage /></Lazy>} />
             <Route path="/detection" element={<Pending title="Detection & Models" />} />

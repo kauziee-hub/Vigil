@@ -5,18 +5,17 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { InterventionRow, IntentState } from "../api/types";
 import { usePlatform, useConsoleEvents } from "../components/Shell";
 import { Async, Metric, PageHead, Panel, Pill, Seg, StatePill, TierPill } from "../components/ui";
 import { duration, formatINR, formatTime, handle } from "../lib/format";
-import { useDebounced, useLoad, useNow } from "../lib/hooks";
+import { useDebounced, useNow } from "../lib/hooks";
+import { rowAge, useInterventionQueue, type QueueRow } from "../lib/queue";
 
-type Row = InterventionRow & { outside?: boolean };
+type Row = QueueRow;
 type Queue = "holds" | "confirm" | "inform" | "all";
 const QUEUE_MIN: Record<Queue, (t: number) => boolean> = {
   holds: (t) => t >= 3, confirm: (t) => t === 2, inform: (t) => t === 1, all: () => true,
 };
-const OPEN_STATES = new Set<IntentState | string>(["HELD", "ESCALATED", "CHALLENGED", "CREATED", "RISK_EVALUATED"]);
 const KIND_LABEL: Record<string, string> = {
   pass: "Pass", inform: "Inform (heads-up)", confirm_purpose: "Confirm purpose", scoped_hold: "Scoped hold",
   hold_and_circuit_breaker: "Hold + CircuitBreaker",
@@ -31,29 +30,7 @@ export function InterventionsPage() {
   const now = useNow(5000);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ id: string; text: string; err?: boolean } | null>(null);
-  const rows = useLoad<InterventionRow[]>(() => api.interventions(status), [status]);
-  const fetchedAt = useMemo(() => Date.now(), [rows.data]);
-
-  // Scenario / customer decisions (T2+) missing from the window, with their live intent state.
-  const extra = useLoad<Row[]>(async () => {
-    const have = new Set((rows.data ?? []).map((r) => r.decision_id));
-    const ds = (await api.decisions(2)).filter((d) => !have.has(d.decision_id)).slice(0, 12);
-    const out = await Promise.all(ds.map(async (d): Promise<Row | null> => {
-      try {
-        const r = await api.intent(d.intent_id);
-        const it = r.intent;
-        const holdPaise = r.decision?.intervention.hold_paise ?? 0;
-        return {
-          intent_id: it.intent_id, decision_id: d.decision_id, sender_id: d.sender_id, recipient_id: d.recipient_id,
-          amount_paise: d.amount_paise, tier: d.tier, kind: d.kind, state: it.state, headline: d.headline, opened_at: d.created_at,
-          age_s: (Date.now() - Date.parse(d.created_at)) / 1000, sla_due: null,
-          hold: it.hold_id && holdPaise ? { id: it.hold_id, held_paise: holdPaise, reference: "", outcome: OPEN_STATES.has(it.state) ? null : it.state.toLowerCase() } : null,
-          circuit_breaker: null, mode: ((r.decision as { mode?: "active" | "shadow" } | null)?.mode ?? "active"), outside: true,
-        };
-      } catch { return null; }
-    }));
-    return out.filter((x): x is Row => !!x).filter((x) => status === "all" || OPEN_STATES.has(x.state));
-  }, [rows.data, status]);
+  const { rows, extra, all, fetchedAt } = useInterventionQueue(status);
 
   const refresh = useDebounced(() => rows.reload(), 1000);
   useConsoleEvents((e) => {
@@ -68,8 +45,6 @@ export function InterventionsPage() {
     setParams(next, { replace: true });
   };
 
-  const all: Row[] = useMemo(() => [...(rows.data ?? []), ...(extra.data ?? [])]
-    .sort((a, b) => Date.parse(b.opened_at) - Date.parse(a.opened_at)), [rows.data, extra.data]);
   const shown = all.filter((r) => QUEUE_MIN[queue](r.tier));
   const count = (q: Queue) => all.filter((r) => QUEUE_MIN[q](r.tier)).length;
 
@@ -134,7 +109,7 @@ export function InterventionsPage() {
                 </thead>
                 <tbody>
                   {shown.map((r) => {
-                    const age = r.outside ? (now - Date.parse(r.opened_at)) / 1000 : r.age_s + Math.max(0, now - fetchedAt) / 1000;
+                    const age = rowAge(r, now, fetchedAt);
                     const due = r.sla_due ? (Date.parse(r.sla_due) - now) / 1000 : null;
                     const actionable = (r.state === "HELD" || r.state === "ESCALATED") && r.mode !== "shadow";
                     return (
