@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { api } from "../api/client";
 import { useRealtime, type ConnState } from "../api/realtime";
-import type { Health, Metrics, ModeView, WsEnvelope } from "../api/types";
+import type { Health, Metrics, ModeView, SystemHealth, WsEnvelope } from "../api/types";
 import { useDebounced } from "../lib/hooks";
 import { Sim } from "./ui";
 
@@ -11,14 +11,16 @@ interface Platform {
   subscribe: (l: Listener) => () => void;
   conn: ConnState;
   health: Health | null;
+  system: SystemHealth | null;
+  metrics: Metrics | null;
   mode: ModeView | null;
   modeAvailable: boolean | null;
   intelAvailable: boolean | null;
   refreshMode: () => void;
 }
 const ConsoleBus = createContext<Platform>({
-  subscribe: () => () => undefined, conn: "connecting", health: null, mode: null, modeAvailable: null,
-  intelAvailable: null, refreshMode: () => undefined,
+  subscribe: () => () => undefined, conn: "connecting", health: null, system: null, metrics: null, mode: null,
+  modeAvailable: null, intelAvailable: null, refreshMode: () => undefined,
 });
 
 /** One console WebSocket for the whole bank-side app; pages subscribe to it (push-only, no polling). */
@@ -33,14 +35,14 @@ export function usePlatform() {
   return useContext(ConsoleBus);
 }
 
-export const NAV: { to: string; label: string; end?: boolean }[] = [
-  { to: "/", label: "Overview", end: true },
+export const NAV: { to: string; label: string; end?: boolean; group?: string }[] = [
+  { to: "/", label: "Overview", end: true, group: "Operate" },
   { to: "/guard", label: "Transaction Guard" },
-  { to: "/network", label: "Network Intelligence" },
+  { to: "/network", label: "Network Intelligence", group: "Intelligence" },
   { to: "/detection", label: "Detection & Models" },
   { to: "/investigations", label: "Investigations" },
   { to: "/interventions", label: "Interventions" },
-  { to: "/governance", label: "Governance & Audit" },
+  { to: "/governance", label: "Governance & Audit", group: "Control" },
   { to: "/lab", label: "Scenario Lab" },
   { to: "/health", label: "System Health" },
 ];
@@ -53,6 +55,7 @@ function Clock() {
 
 export function Shell({ children }: { children: ReactNode }) {
   const listeners = useRef(new Set<Listener>());
+  const [system, setSystem] = useState<SystemHealth | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [mode, setMode] = useState<ModeView | null>(null);
   const [modeAvailable, setModeAvailable] = useState<boolean | null>(null);
@@ -65,10 +68,13 @@ export function Shell({ children }: { children: ReactNode }) {
   }, []);
 
   const loadHealth = useCallback(() => {
-    api.health().then(setHealth).catch(() => undefined);
     api.systemHealth()
-      .then((h) => setIntelAvailable(h.intel_available))
-      .catch(() => api.intelModels().then(() => setIntelAvailable(true)).catch(() => setIntelAvailable(false)));
+      .then((h) => { setSystem(h); setHealth(h); setIntelAvailable(h.intel_available); })
+      .catch(() => {
+        setSystem(null);
+        api.health().then(setHealth).catch(() => undefined);
+        api.intelModels().then(() => setIntelAvailable(true)).catch(() => setIntelAvailable(false));
+      });
   }, []);
   const refreshMode = useCallback(() => {
     api.mode().then((m) => { setMode(m); setModeAvailable(true); })
@@ -77,12 +83,13 @@ export function Shell({ children }: { children: ReactNode }) {
   const loadMetrics = useDebounced(() => { api.metrics().then(setMetrics).catch(() => undefined); }, 1500);
 
   const conn = useRealtime(["console"], (e) => {
-    if (e.type === "ambient.changed" || e.type === "demo.reset") loadHealth();
+    if (e.type === "ambient.changed" || e.type === "demo.reset" || e.type === "intel.updated") loadHealth();
     if (e.type === "mode.changed") {
       const d = e.data as Partial<ModeView>;
-      if (d && d.mode) setMode((m) => ({ since: null, note: "", ...m, ...d } as ModeView)); else refreshMode();
+      if (d && d.mode) { setMode((m) => ({ since: null, note: "", ...m, ...d } as ModeView)); setModeAvailable(true); }
+      else refreshMode();
     }
-    if (["decision.created", "intent.updated", "demo.reset", "metrics.dirty"].includes(e.type)) loadMetrics();
+    if (["decision.created", "intent.updated", "demo.reset", "metrics.dirty", "ledger.posted"].includes(e.type)) loadMetrics();
     listeners.current.forEach((l) => l(e));
   });
   useEffect(() => { loadHealth(); refreshMode(); api.metrics().then(setMetrics).catch(() => undefined); }, [conn, loadHealth, refreshMode]);
@@ -98,22 +105,23 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const gwBad = health?.gateway?.status === "auth_failed";
   const open = metrics?.open_interventions ?? 0;
+  const shadow = mode?.mode === "shadow";
 
   return (
-    <ConsoleBus.Provider value={{ subscribe, conn, health, mode, modeAvailable, intelAvailable, refreshMode }}>
+    <ConsoleBus.Provider value={{ subscribe, conn, health, system, metrics, mode, modeAvailable, intelAvailable, refreshMode }}>
       <div className="shell">
         <aside className="side" aria-label="Primary">
           <NavLink to="/" className="side-brand">
             <span className="mark">V</span>
             <span className="txt">
               <div className="name">VIGIL</div>
-              <div className="sub">Financial intelligence · PRIMA</div>
+              <div className="sub">Payment risk &amp; mule intelligence</div>
             </span>
           </NavLink>
           <nav className="side-nav">
             {NAV.map((n, i) => (
               <div key={n.to} style={{ display: "contents" }}>
-                {(i === 2 || i === 6) && <div className="side-sep" />}
+                {n.group && <div className="side-group">{n.group}</div>}
                 <NavLink to={n.to} end={n.end} title={n.label}>
                   <span className="idx">{String(i + 1).padStart(2, "0")}</span>
                   <span className="lbl">{n.label}</span>
@@ -123,21 +131,21 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="side-foot">
-            <span>Prototype · synthetic data</span>
-            <span>Not connected to any regulator, NPCI or bank system.</span>
+            <span>PRIMA architecture · prototype</span>
+            <span>Synthetic data. Not connected to any regulator, payment network or bank system.</span>
           </div>
         </aside>
         <div className="main">
           <div className="strip" role="status" aria-label="Platform status">
             <div className="strip-item" title={mode?.note || "Operating mode"}>
               <span className="k">Mode</span>
-              {mode ? <span className={`pill nodot ${mode.mode === "shadow" ? "s-watch" : "s-normal"}`}>{mode.mode === "shadow" ? "SHADOW" : "ACTIVE"}</span>
+              {mode ? <span className={`pill nodot ${shadow ? "s-watch" : "s-normal"}`}>{shadow ? "SHADOW" : "ACTIVE"}</span>
                 : <span className="v muted">{modeAvailable === false ? "n/a" : "…"}</span>}
             </div>
             <div className="strip-item" title={health?.payment_provider_label}>
               <span className="k">Payments</span>
               <span className="v">{health ? (health.payment_provider === "razorpay_test" ? "Razorpay TEST" : "Mock") : "…"}</span>
-              {gwBad && <span className="pill s-watch nodot">gateway keys rejected</span>}
+              {gwBad && <span className="pill s-watch nodot" title={health?.gateway?.detail}>gateway keys rejected</span>}
             </div>
             <div className="strip-item" title="Realtime push channel (WebSocket)">
               <span className="k">Realtime</span>
@@ -148,16 +156,16 @@ export function Shell({ children }: { children: ReactNode }) {
               <span className="k">Policy</span>
               <span className="v">{health?.policy_version ?? "…"}</span>
             </div>
-            <div className="strip-item" title="Detection intelligence layer (RF / GNN / drift / pattern memory)">
+            <div className="strip-item" title="Detection intelligence layer (RF / GNN / drift / pattern memory) — /api/intel/*">
               <span className="k">Intel</span>
               <span className={`dot ${intelAvailable ? "ok" : intelAvailable === false ? "" : "warn"}`} />
-              <span className="v">{intelAvailable === null ? "…" : intelAvailable ? "available" : "unavailable"}</span>
+              <span className="v">{intelAvailable === null ? "…" : intelAvailable ? "available" : "not available"}</span>
             </div>
             <div className="strip-item" title={health?.external_intel_provider}>
               <span className="k">Ext. intel</span>
               <Sim />
             </div>
-            <div className="strip-item">
+            <div className="strip-item" title="Background (ambient) transaction stream">
               <span className="k">Stream</span>
               <span className="v">{health ? (health.ambient ? "on" : "off") : "…"}</span>
             </div>
@@ -167,6 +175,12 @@ export function Shell({ children }: { children: ReactNode }) {
                       onClick={() => setTheme(theme === "light" ? "" : "light")}>{theme === "light" ? "◑" : "◐"}</button>
             </div>
           </div>
+          {shadow && (
+            <div className="shadow-band" role="note">
+              <b>SHADOW MODE</b> — Vigil evaluates every payment and records its recommendation, but does not intervene. The bank's baseline decision is applied.
+              <Link to="/governance">Governance →</Link>
+            </div>
+          )}
           <main className="page">{children}</main>
         </div>
       </div>

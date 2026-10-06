@@ -73,6 +73,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: var(--s5) 0; }
 .side-nav .badge { font: 600 var(--fs-xs)/1 var(--font-data); padding: 2px 5px; border: 1px solid var(--line-2); color: var(--ink-2); border-radius: var(--r1); }
 .side-nav .badge.hot { border-color: var(--st-critical); color: var(--st-critical); }
 .side-sep { height: 1px; background: var(--line); margin: 6px 12px; }
+.side-group { font: 600 9.5px/1 var(--font-ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); padding: 12px 14px 5px; }
+.side-group:first-child { padding-top: 6px; }
+.shadow-band { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 20px; background: var(--st-watch-bg); border-bottom: 1px solid color-mix(in srgb, var(--st-watch) 45%, transparent); color: var(--ink); font-size: var(--fs-md); }
+.shadow-band b { color: var(--st-watch); letter-spacing: 0.08em; font-size: var(--fs-sm); }
+.shadow-band a { margin-left: auto; }
 .side-foot { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--ink-3); display: flex; flex-direction: column; gap: 6px; }
 .main { min-width: 0; display: flex; flex-direction: column; }
 
@@ -417,7 +422,7 @@ pre.raw { background: var(--bg); border: 1px solid var(--line); padding: 10px; f
 }
 @media (max-width: 1100px) {
   :root { --side-w: 64px; }
-  .side-brand .txt, .side-nav .lbl, .side-nav .badge, .side-foot { display: none; }
+  .side-brand .txt, .side-nav .lbl, .side-nav .badge, .side-foot, .side-group { display: none; }
   .side-nav a { grid-template-columns: 1fr; justify-items: center; padding: 10px 0; }
   .side-nav .idx { font-size: 12px; }
   .cols-3, .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
