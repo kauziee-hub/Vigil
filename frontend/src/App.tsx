@@ -12,6 +12,7 @@ import { InterventionsPage } from "./pages/InterventionsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { PayPage } from "./pages/PayPage";
 import { RecordPage } from "./pages/RecordPage";
+import { ScenarioLabPage } from "./pages/ScenarioLabPage";
 
 // Network Intelligence carries three.js + Cytoscape: code-split so every other page stays light.
 const NetworkPage = lazy(() => import("./pages/NetworkPage").then((m) => ({ default: m.NetworkPage })));
@@ -49,7 +50,7 @@ export default function App() {
             <Route path="/interventions" element={<InterventionsPage />} />
             <Route path="/governance" element={<GovernancePage />} />
             <Route path="/governance/decision/:decisionId" element={<RecordPage />} />
-            <Route path="/lab" element={<Pending title="Scenario Lab" />} />
+            <Route path="/lab" element={<ScenarioLabPage />} />
             <Route path="/health" element={<Pending title="System Health" />} />
             {/* v1 → v2 redirects */}
             <Route path="/investigate" element={<Navigate to="/investigations" replace />} />
