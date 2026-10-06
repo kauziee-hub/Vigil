@@ -88,3 +88,64 @@ export const STATE_LABEL: Record<string, string> = {
   PAYMENT_FAILED: "Payment failed",
   MONITORED: "Monitored",
 };
+
+export function fmtScore(n: number | null | undefined, digits = 2): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return n.toFixed(digits);
+}
+
+export function pct(n: number | null | undefined, digits = 0): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return `${(n * 100).toFixed(digits)}%`;
+}
+
+export function duration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "—";
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
+  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+}
+
+export function formatBytes(b: number | null | undefined): string {
+  if (b === null || b === undefined) return "—";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 ** 2) return `${(b / 1024).toFixed(1)} KB`;
+  if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1)} MB`;
+  return `${(b / 1024 ** 3).toFixed(2)} GB`;
+}
+
+export function formatStamp(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} ${formatTime(iso)}`;
+}
+
+/** "window_hours" → "window hours". */
+export function humanKey(k: string): string {
+  return k.replace(/_paise$/, "").replace(/_/g, " ");
+}
+
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+/** Render an evidence value for people, not developers. */
+export function evValue(key: string, v: unknown): string {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  if (typeof v === "number") {
+    if (key.endsWith("_paise")) return formatINR(v);
+    if (Number.isInteger(v)) return String(v);
+    return Math.abs(v) < 10 ? v.toFixed(2) : v.toFixed(1);
+  }
+  if (typeof v === "string") return ISO_RE.test(v) ? formatStamp(v) : v;
+  if (Array.isArray(v)) return v.map((x) => evValue(key, x)).join(", ");
+  return JSON.stringify(v);
+}
+
+export function freshness(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return "—";
+  if (seconds < 1) return "live";
+  return `${duration(seconds)} old`;
+}
