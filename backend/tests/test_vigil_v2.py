@@ -146,3 +146,13 @@ def test_scene_route_rejects_unknown_scenario(world):
     with TestClient(app) as c:
         r = c.get("/api/graph/scene?scenario=nope")
         assert r.status_code == 404 and r.json()["error"]["code"] == "unknown_scenario"
+
+
+def test_touched_accounts_are_exactly_the_attack_participants(world):
+    for sid in scenarios.SCENARIOS:
+        if not sid.startswith("atk_"):
+            continue
+        scenarios.run_sync(sid)
+        rows = db.q("SELECT sender_id, recipient_id FROM transactions WHERE seed_attack = ?", (sid,))
+        actual = {a for r in rows for a in (r["sender_id"], r["recipient_id"]) if not a.startswith("ext:")}
+        assert set(scenarios.touched_accounts(sid)) == actual, sid

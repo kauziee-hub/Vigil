@@ -222,6 +222,13 @@ def dormant() -> list[Step]:
     return steps
 
 
+# How many pool accounts each pattern actually uses (pool(sid)[:n]) — touched_accounts must list
+# participants only, never bystanders from the pool (they would read as missed mules in COMPARE).
+_POOL_USED = {
+    "atk_fan_in": 6, "atk_fan_out": 6, "atk_circular": 4, "atk_velocity_chain": 5, "atk_cross_channel": 8,
+    "atk_shared_device": 4, "atk_behavioural_drift": 8, "atk_volume_spike": 8, "atk_smurfing": 8, "atk_dormant": 3,
+}
+
 _FIXED_EXTRA = {
     "atk_fan_in": ["swift.collect@vigil"], "atk_fan_out": ["bulk.payouts@vigil"],
     "atk_shared_device": ["dc.one@vigil", "dc.two@vigil", "dc.three@vigil", "dc.four@vigil", "dc.hub@vigil"],
@@ -252,6 +259,6 @@ def build() -> dict[str, Scenario]:
                        "Use COMPARE DETECTORS to see Rules / RF / GNN / drift / pattern memory side by side."],
                       fn, None)
         sc.category = "attack"
-        sc.accounts_fn = (lambda sid=sid: pool(sid) + _FIXED_EXTRA.get(sid, []))
+        sc.accounts_fn = (lambda sid=sid: pool(sid)[:_POOL_USED[sid]] + _FIXED_EXTRA.get(sid, []))
         out[sid] = sc
     return out
