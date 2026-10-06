@@ -122,6 +122,7 @@ class ModelStore:
         self.errors: dict[str, str] = {}
         self._explainer: Any = None
         self._shap_tried = False
+        self._shap_lock = threading.Lock()   # separate from _lock: a SHAP warm-up never blocks inference
 
     def load(self) -> "ModelStore":
         if self.loaded:
@@ -188,7 +189,7 @@ class ModelStore:
     def explainer(self) -> Any:
         if self._shap_tried:
             return self._explainer
-        with self._lock:
+        with self._shap_lock:
             if self._shap_tried:
                 return self._explainer
             try:

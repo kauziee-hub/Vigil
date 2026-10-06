@@ -238,8 +238,24 @@ def corroboration(account_id: str) -> list[DetectorResult]:
         return []
 
 
-def warm() -> None:
-    """Load artefacts and build the live snapshot once (app start). Safe to call twice; never raises."""
+_shap_warm_started = False
+
+
+def _warm_shap() -> None:
+    try:
+        from vigil.intel.models import STORE
+        STORE.explainer()          # imports scikit-learn + shap (~3 s cold); no database access
+    except Exception:
+        pass
+
+
+def warm(shap_in_background: bool = True) -> None:
+    """Load artefacts and build the live snapshot once (app start). Safe to call twice; never raises.
+
+    The SHAP explainer (scikit-learn + shap imports, seconds when cold) is prepared on a short-lived
+    daemon thread that touches no database, so neither startup nor the payment path waits for it.
+    """
+    global _shap_warm_started
     try:
         from vigil.intel import drift, live, pattern_memory
         from vigil.intel.models import STORE
@@ -250,3 +266,10 @@ def warm() -> None:
         live.CACHE.current(allow_full=True)
     except Exception as exc:
         log.warning("intel warm-up failed: %s", exc)
+    if shap_in_background and not _shap_warm_started:
+        try:
+            import threading
+            _shap_warm_started = True
+            threading.Thread(target=_warm_shap, name="intel-shap-warmup", daemon=True).start()
+        except Exception:
+            pass

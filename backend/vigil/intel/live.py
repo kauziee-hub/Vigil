@@ -94,13 +94,18 @@ class LiveSource:
 SRC = LiveSource()
 
 
-def graph_key() -> tuple[int, int, str]:
-    """Identifies one graph state: version, the edge-store identity (changes on reload) and the seed epoch."""
+def graph_key() -> tuple[int, int, int, str]:
+    """(GRAPH.version, ledger max seq, edge-store identity, seed epoch).
+
+    key[2:] is the EPOCH: it changes when the graph is reloaded or the demo is reset, and then only a
+    full rebuild is valid. Within an epoch, new postings / devices / accounts are applied incrementally.
+    """
     try:
         seeded = db.get_meta("seeded_at", "") or ""
+        max_seq = int(db.scalar("SELECT COALESCE(MAX(seq), -1) FROM transactions"))
     except Exception:
-        seeded = ""
-    return (GRAPH.version, id(GRAPH.in_edges), seeded)
+        seeded, max_seq = "", -1
+    return (GRAPH.version, max_seq, id(GRAPH.in_edges), seeded)
 
 
 def known(account_id: str) -> bool:
@@ -121,7 +126,7 @@ def external_ids() -> list[str]:
 # ── snapshot ──────────────────────────────────────────────────────────────
 @dataclass
 class Snapshot:
-    key: tuple[int, int, str]
+    key: tuple[int, int, int, str]
     now_t: float
     as_of: str
     built_ms: float = 0.0
@@ -144,6 +149,7 @@ class Snapshot:
     n_edges: dict[str, int] = field(default_factory=dict)                  # account -> in+out postings seen
     status: dict[str, str] = field(default_factory=dict)                   # family -> ok | unavailable
     errors: dict[str, str] = field(default_factory=dict)
+    views: dict[str, Any] = field(default_factory=dict)                    # derived read models cached per snapshot
 
 
 def thresholds() -> dict[str, float]:
@@ -254,7 +260,7 @@ def build(now_t: float | None = None) -> Snapshot:
     """Full rebuild: every account, every detector, at evaluation time now_t."""
     started = time.perf_counter()
     key = graph_key()
-    CHANNELS.sync(key[1:])
+    CHANNELS.sync(key[2:])
     now_t = clock.now().timestamp() if now_t is None else now_t
     snap = Snapshot(key=key, now_t=now_t, as_of=clock.iso(_dt(now_t)), full_t=now_t)
     snap.ids = scored_ids()
@@ -279,7 +285,7 @@ def refresh(prev: Snapshot, now_t: float | None = None) -> Snapshot:
     """
     started = time.perf_counter()
     key = graph_key()
-    CHANNELS.sync(key[1:])
+    CHANNELS.sync(key[2:])
     now_t = clock.now().timestamp() if now_t is None else now_t
     snap = Snapshot(key=key, now_t=now_t, as_of=clock.iso(_dt(now_t)), mode="incremental", full_t=prev.full_t)
     snap.ids = scored_ids()
@@ -342,7 +348,7 @@ class _Cache:
         key = graph_key()
         snap = self.snap
         now = clock.now().timestamp()
-        same_epoch = snap is not None and snap.key[1:] == key[1:]
+        same_epoch = snap is not None and snap.key[2:] == key[2:]
         expired = snap is not None and allow_full and now - snap.full_t >= FULL_TTL_S
         if same_epoch and not expired:
             if snap.key == key:
