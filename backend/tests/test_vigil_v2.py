@@ -36,6 +36,9 @@ def test_counterfactuals_come_from_policy_engine(world):
     assert cfs and all(c.tier <= d.tier for c in cfs)
     safest = min(cfs, key=lambda c: c.tier)
     assert safest.tier <= 1 and safest.tier_delta < 0
+    for sid in ("s0", "s4"):  # Tier 0 (incl. the high-value legitimate control): nothing to make safer
+        d0, _ = _decision(sid)
+        assert d0.tier == 0 and replay.counterfactuals(d0.decision_id) == []
 
 
 def test_every_signal_has_provenance(world):
@@ -89,3 +92,67 @@ def test_attack_scenarios_are_deterministic_and_balanced(world):
     from vigil.sim import seed
     seed.seed()
     assert first == {sid: scenarios.touched_accounts(sid) for sid in first}
+
+
+def _world_snapshot() -> dict:
+    """Every row of every table (timestamps masked: the seed is anchored to now) + AUTOINCREMENT counters."""
+    import json
+    import re
+
+    ts = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z")
+    out = {}
+    for t in db.ALL_TABLES:
+        out[t] = sorted(json.dumps({k: ts.sub("<ts>", r[k]) if isinstance(r[k], str) else r[k] for k in r.keys()},
+                                   sort_keys=True) for r in db.q(f"SELECT * FROM {t}"))
+    out["sqlite_sequence"] = sorted(f"{r['name']}={r['seq']}" for r in db.q("SELECT name, seq FROM sqlite_sequence"))
+    return out
+
+
+def test_reset_restores_identical_world_after_every_scenario(world):
+    from vigil.sim import seed
+
+    before = _world_snapshot()
+    first = {sid: [x.get("tier") for x in scenarios.run_sync(sid) if isinstance(x, dict) and "tier" in x]
+             for sid in scenarios.SCENARIOS}
+    mode.set_mode("shadow")  # an operator toggle must not survive a demo reset
+    seed.seed()
+    assert _world_snapshot() == before
+    assert mode.current()["mode"] == "active"
+    again = {sid: [x.get("tier") for x in scenarios.run_sync(sid) if isinstance(x, dict) and "tier" in x]
+             for sid in scenarios.SCENARIOS}
+    assert again == first
+    assert first["s0"] == [0] and first["s3"] == [4]
+
+
+def test_scenario_and_focus_scenes_are_scoped_not_global(world):
+    for sid in ("s2", "atk_circular"):
+        scenarios.run_sync(sid)
+    full = scene.build()
+    ring = scene.build(scenario="atk_circular")
+    ids = {n.id for n in ring.nodes}
+    assert set(scenarios.touched_accounts("atk_circular")) <= ids
+    assert "kiran.traders@vigil" not in ids          # the s2 mule ring is not mixed into another attack's scene
+    assert len(ring.nodes) < len(full.nodes)
+    focus = scene.build(focus="zenith.exports@vigil", hops=1)
+    fids = {n.id for n in focus.nodes}
+    assert {"zenith.exports@vigil", "kiran.traders@vigil"} <= fids
+    assert not (set(scenarios.touched_accounts("atk_circular")) & fids)
+
+
+def test_scene_route_rejects_unknown_scenario(world):
+    from fastapi.testclient import TestClient
+    from vigil.app import app
+
+    with TestClient(app) as c:
+        r = c.get("/api/graph/scene?scenario=nope")
+        assert r.status_code == 404 and r.json()["error"]["code"] == "unknown_scenario"
+
+
+def test_touched_accounts_are_exactly_the_attack_participants(world):
+    for sid in scenarios.SCENARIOS:
+        if not sid.startswith("atk_"):
+            continue
+        scenarios.run_sync(sid)
+        rows = db.q("SELECT sender_id, recipient_id FROM transactions WHERE seed_attack = ?", (sid,))
+        actual = {a for r in rows for a in (r["sender_id"], r["recipient_id"]) if not a.startswith("ext:")}
+        assert set(scenarios.touched_accounts(sid)) == actual, sid

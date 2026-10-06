@@ -159,6 +159,8 @@ def replay(decision_id: str) -> DecisionReplay:
 # ── Counterfactuals ───────────────────────────────────────────────────────
 def counterfactuals(decision_id: str) -> list[Counterfactual]:
     d = lifecycle.get_decision(decision_id)
+    if d.tier == 0:
+        return []  # already the lowest tier: nothing would need to be different
     sigs = _signals(d)
     ids = {s.rule_id for s in sigs}
     seq_chain = {s.rule_id for s in sigs if s.dimension == "sequence"}
