@@ -9,7 +9,7 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
-## Status: v2 platform build — in progress (updated 2026-10-06 23:10 IST)
+## Status: v2 platform build — in progress (updated 2026-10-07 01:10 IST)
 
 | Area | Owner | Where | State |
 |---|---|---|---|
@@ -18,8 +18,9 @@ Append to the **Log** at the bottom when you finish a unit of work. Contract/API
 | Frozen v2 contracts + plan | Claude 1 | `backend/vigil/contracts.py`, `frontend/src/api/*`, `docs/FINAL_PARALLEL_PLAN.md` | ✅ `595d4aa` |
 | Provenance, shadow mode + bank baseline, Decision Replay, counterfactuals, decision record, risk timeline, governance, interventions, system health, 3D GraphScene, 10 attack scenarios (15 total) | Claude 1 | `main` (`057bb0b` …) | ✅ live on :8000, tested |
 | Reset determinism across all 15 scenarios | Claude 1 | `main` `315ef07` | ✅ test enforces identical world |
-| ML / detection intelligence (`/api/intel/*`, RF/GAT retrain, SHAP, drift, pattern memory, roles, consensus) | Claude 2 | worktree branch (run 2) | 🔄 running since 23:05 |
-| Frontend redesign (9 areas, 3D network, replay UI, governance) | Claude 3 | worktree branch (run 2; run-1 WIP on `claude3/run1-wip`) | 🔄 running since 23:05 |
+| Scoped scenes (`?scenario=`, `?focus=`), touched_accounts = participants only, no Tier-0 counterfactuals | Claude 1 | `main` `0fb20ef`, `e2ea443`, `d2a880e` | ✅ tested |
+| ML / detection intelligence (`/api/intel/*`, RF/GAT retrain, SHAP, drift, pattern memory, roles, consensus) | Claude 2 | worktree branch (run 3); run-2 WIP on `claude2/run2-wip` | 🔄 run 3 since 01:10 — models trained (SYNTHETIC VALIDATION in `backend/models/validation_v2.json`); API/consensus/tests pending |
+| Frontend redesign (9 areas, 3D network, replay UI, governance) | Claude 3 | worktree branch (run 3); run-2 WIP on `claude3/run2-wip` | 🔄 run 3 since 01:10 — shell/IA, Guard, 3D Network done; Investigations, Interventions, Governance, Lab, Overview, Detection, Health pending |
 | Engineering tasks (benchmarks, reset/concurrency/realtime tests, Razorpay harness, fixtures) | Codex | `codex/<task>` | ⏳ prompt issued to operator |
 | UI polish | Cursor | `cursor/<task>` | ⏳ blocked until Claude 3 merges |
 | Razorpay test path | — | `backend/vigil/payments/providers.py` | ⚠️ keys rejected (401) → mock fallback; fresh `rzp_test_` keys in `.env` re-enable it |
@@ -28,7 +29,7 @@ Append to the **Log** at the bottom when you finish a unit of work. Contract/API
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset      # start fresh (builds UI, seeds, serves :8000)
-cd backend; .venv\Scripts\python.exe -m pytest -q                 # 218 tests (211 v1 + 7 v2)
+cd backend; .venv\Scripts\python.exe -m pytest -q                 # 221 tests (211 v1 + 10 v2)
 backend\.venv\Scripts\python.exe scripts\smoke_demo.py             # 8 act checks
 cd frontend; npm run build                                          # type-check + bundle
 ```
@@ -72,3 +73,7 @@ In-process subagents die when the lead's session restarts. On resume:
 - 2026-10-06 ~22:55 — session restart killed both subagents. 22:59 user: "continue from here". Claude 3 WIP recovered → `claude3/run1-wip` (`b18a203`, tsc 11 errors); Claude 2 had written nothing.
 - 2026-10-06 23:05 Claude 1 — relaunched Claude 2 + Claude 3 as run 2 (`3e545c0` records + resume prompts).
 - 2026-10-06 23:08 Claude 1 — reset fix: AUTOINCREMENT counters cleared on wipe + full-world reset test (`315ef07`); no counterfactuals for Tier 0 (`d2a880e`). 218 tests pass.
+- 2026-10-06 23:11–23:15 Claude 1 — scoped scenes + 404 unknown scenario (`0fb20ef`); touched_accounts = participants only (`e2ea443`); backend restarted on :8000; mid-run notes to Claude 2/3 recorded. 221 tests pass.
+- 2026-10-06 ~23:45 — second session restart killed both run-2 agents (last writes: Claude 3 23:31, Claude 2 23:43). Milestone commits survived this time.
+- 2026-10-07 01:00 user: "CONTINUE IMPLEMENTATION" (`prompts/03_USER_resume_2026-10-07_0100.md`).
+- 2026-10-07 01:02–01:10 Claude 1 — recovered uncommitted work verbatim: `claude2/run2-wip` (`871df51`: detectors, train_all, trained artefacts), `claude3/run2-wip` (`ba5f83d`: Replay.tsx; tsc clean); stopped orphaned Vite :5183; removed both worktrees; records + ledger updated; `*.tsbuildinfo` ignored; relaunched both as run 3 (`prompts/v2_claude{2,3}_run3_resume.md`).
