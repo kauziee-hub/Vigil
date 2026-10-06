@@ -1,6 +1,6 @@
 # FINAL PARALLEL PLAN (v2 — platform build)
 
-Owner: **Claude 1 (lead)**. Frozen 2026-10-06 ~23:10 IST at commit "v2 contracts frozen". Supersedes `PARALLEL_WORK_PLAN.md` for all v2 work.
+Owner: **Claude 1 (lead)**. Frozen 2026-10-06 22:41 IST at commit `595d4aa`. Supersedes `PARALLEL_WORK_PLAN.md` for all v2 work.
 
 Goal: one coherent financial operating system with three layers — **(1) pre-commitment payment protection, (2) money-mule / network intelligence, (3) model / investigation / governance intelligence** — that makes the original mule project and PRIMA read as prototypes of Vigil.
 

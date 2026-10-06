@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Agent | Claude 1 (lead / integrator) |
-| Timestamp | 2026-10-06 22:10 IST → in progress |
+| Timestamp | 2026-10-06 22:10 IST → in progress (session restarted ~22:55, resumed 22:59) |
 | Objective | v2 brief: UI audit, contracts freeze, parallel plan, agent orchestration; own backend: Decision Replay, counterfactuals, provenance, shadow mode, governance, interventions, system health, 3D graph scene, 10 attack scenarios; final integration |
 | Exact Prompt | `AGENT_HANDOFF/prompts/01_MASTER_PROMPT_v2_platform.md` (verbatim user message) |
 | Status | IN PROGRESS (lead backend milestone DONE; awaiting Claude 2/3 for merge) |
@@ -50,3 +50,9 @@ Merge Claude 2 + Claude 3; integration walkthrough; Codex/Cursor outputs (operat
 
 ## Git Commit / Diff Reference
 `6ea2941` baseline · `595d4aa` contracts/plan · `7fece12` prompts · next commit: v2 lead backend.
+
+## Session interruption and resume (2026-10-06 22:55 → 22:59 IST)
+- The Claude 1 session restarted ~22:55 IST; both in-process subagents died with it. The user resumed with "continue from here" (pasting the previous status summary).
+- Claude 2 run 1: no files written; empty worktree auto-removed. Claude 3 run 1: uncommitted partial redesign recovered and committed verbatim to `claude3/run1-wip` (`b18a203`; `tsc` 11 errors); dead worktree unregistered and removed.
+- Earlier records used estimated clock times (~23:10, ~23:35); corrected to real times from git (contracts 22:41, prompts 22:43, lead backend 22:51).
+- Relaunched both as run 2 with resume prompts saved first (`prompts/v2_claude{2,3}_run2_resume.md`); new rule for every agent: commit after each milestone.
