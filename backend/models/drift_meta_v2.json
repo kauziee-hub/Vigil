@@ -1,5 +1,5 @@
 {
-  "trained_at": "2026-10-06T18:13:17Z",
+  "trained_at": "2026-10-06T19:55:21Z",
   "seed": 20261006,
   "data": "SYNTHETIC",
   "split": "split-by-world: 90 train / 30 validation / 30 test worlds (disjoint, seed 20261006); leave-one-attack-family-out on test worlds",
@@ -24,218 +24,220 @@
   "dataset": {
     "worlds": 150,
     "seed": 20261006,
-    "generator": "backend/ml/datagen.py",
+    "generator": "backend/ml/datagen.py v2.1 (world-level payday calendar)",
     "accounts": {
-      "train": 26268,
-      "val": 8642,
-      "test": 8841
+      "train": 26304,
+      "val": 8665,
+      "test": 8846
     },
     "mules": {
-      "train": 935,
-      "val": 310,
-      "test": 334
+      "train": 1014,
+      "val": 326,
+      "test": 310
     },
     "attack_instances": {
-      "fan_in": 34,
-      "fan_out": 55,
-      "circular": 38,
-      "velocity_chain": 32,
-      "cross_channel": 39,
-      "shared_device": 55,
-      "behavioural_drift": 46,
+      "fan_in": 48,
+      "fan_out": 59,
+      "circular": 45,
+      "velocity_chain": 36,
+      "cross_channel": 34,
+      "shared_device": 57,
+      "behavioural_drift": 41,
       "volume_spike": 39,
-      "smurfing": 45,
-      "dormant": 50
+      "smurfing": 50,
+      "dormant": 47
     },
     "evaluation_offset_hours": "attack start drawn uniformly 0.25-72 h before the evaluation time"
   },
   "model_id": "drift-v2",
   "family": "drift",
-  "version": "drift-v2.0",
+  "version": "drift-v2.1",
   "params": {
-    "version": "drift-v2.0",
+    "version": "drift-v2.1",
     "k": 2.0,
-    "cap": 10.0,
+    "cap": 4.0,
+    "breadth_min_features": 2,
+    "breadth_min_change": 1.0,
     "scales": {
-      "transaction_count": 1.9,
-      "unique_neighbors": 1.5,
+      "transaction_count": 1.8,
+      "unique_neighbors": 1.4667,
       "in_degree": 1.0,
-      "out_degree": 1.2,
-      "total_in_amount": 8080.4,
-      "total_out_amount": 4654.7,
-      "retention_ratio": 0.2315,
-      "unique_channels": 0.7
+      "out_degree": 1.1333,
+      "total_in_amount": 9538.7167,
+      "total_out_amount": 4717.7333,
+      "retention_ratio": 0.2186,
+      "unique_channels": 0.8
     },
-    "medium": 0.3934,
-    "high": 0.6426,
-    "fitted_on": "training-world non-mule accounts: scales = 75th pct of |current - baseline|; MEDIUM/HIGH = 90th/98th pct of drift score"
+    "medium": 0.3967,
+    "high": 0.553,
+    "fitted_on": "training-world non-mule accounts: scales = 75th pct of |current - baseline|; MEDIUM/HIGH = 90th/98th pct of drift score; HIGH also needs >= 2 features with change >= 1 (breadth)"
   },
   "metrics": {
-    "precision": 0.5718,
-    "recall": 0.6796,
-    "f1": 0.6211,
+    "precision": 0.57,
+    "recall": 0.7613,
+    "f1": 0.6519,
     "confusion": {
-      "tp": 227,
-      "fp": 170,
-      "fn": 107,
-      "tn": 8337
+      "tp": 236,
+      "fp": 178,
+      "fn": 74,
+      "tn": 8358
     },
-    "n": 8841,
-    "positives": 334,
-    "prevalence": 0.0378,
-    "flag_rate": 0.0449,
-    "roc_auc": 0.937,
-    "pr_auc": 0.6417,
-    "pr_auc_active_accounts": 0.6563,
+    "n": 8846,
+    "positives": 310,
+    "prevalence": 0.035,
+    "flag_rate": 0.0468,
+    "roc_auc": 0.9458,
+    "pr_auc": 0.6562,
+    "pr_auc_active_accounts": 0.665,
     "per_attack": {
       "behavioural_drift": {
-        "mules": 9,
-        "detected": 9,
+        "mules": 7,
+        "detected": 7,
         "recall": 1.0,
-        "pr_auc_vs_negatives": 0.337
+        "pr_auc_vs_negatives": 0.2
       },
       "circular": {
-        "mules": 56,
-        "detected": 48,
-        "recall": 0.8571,
-        "pr_auc_vs_negatives": 0.4163
+        "mules": 46,
+        "detected": 43,
+        "recall": 0.9348,
+        "pr_auc_vs_negatives": 0.3004
       },
       "cross_channel": {
-        "mules": 34,
-        "detected": 19,
-        "recall": 0.5588,
-        "pr_auc_vs_negatives": 0.1713
+        "mules": 29,
+        "detected": 14,
+        "recall": 0.4828,
+        "pr_auc_vs_negatives": 0.2351
       },
       "dormant": {
-        "mules": 14,
-        "detected": 13,
-        "recall": 0.9286,
-        "pr_auc_vs_negatives": 0.5152
+        "mules": 10,
+        "detected": 7,
+        "recall": 0.7,
+        "pr_auc_vs_negatives": 0.2308
       },
       "fan_in": {
-        "mules": 9,
-        "detected": 8,
-        "recall": 0.8889,
-        "pr_auc_vs_negatives": 0.5238
+        "mules": 10,
+        "detected": 9,
+        "recall": 0.9,
+        "pr_auc_vs_negatives": 0.3629
       },
       "fan_out": {
         "mules": 84,
-        "detected": 37,
-        "recall": 0.4405,
-        "pr_auc_vs_negatives": 0.1924
+        "detected": 51,
+        "recall": 0.6071,
+        "pr_auc_vs_negatives": 0.2627
       },
       "shared_device": {
-        "mules": 49,
-        "detected": 45,
-        "recall": 0.9184,
-        "pr_auc_vs_negatives": 0.4546
+        "mules": 52,
+        "detected": 52,
+        "recall": 1.0,
+        "pr_auc_vs_negatives": 0.4412
       },
       "smurfing": {
-        "mules": 40,
-        "detected": 10,
-        "recall": 0.25,
-        "pr_auc_vs_negatives": 0.1048
+        "mules": 29,
+        "detected": 13,
+        "recall": 0.4483,
+        "pr_auc_vs_negatives": 0.1867
       },
       "velocity_chain": {
-        "mules": 35,
+        "mules": 36,
         "detected": 34,
-        "recall": 0.9714,
-        "pr_auc_vs_negatives": 0.4502
+        "recall": 0.9444,
+        "pr_auc_vs_negatives": 0.294
       },
       "volume_spike": {
-        "mules": 4,
-        "detected": 4,
-        "recall": 1.0,
-        "pr_auc_vs_negatives": 0.7929
+        "mules": 7,
+        "detected": 6,
+        "recall": 0.8571,
+        "pr_auc_vs_negatives": 0.8378
       }
     },
     "false_positives_by_persona": {
       "customer": {
-        "flagged": 139,
-        "of": 7463
+        "flagged": 138,
+        "of": 7485
       },
       "landlord": {
-        "flagged": 3,
-        "of": 149
+        "flagged": 2,
+        "of": 147
       },
       "merchant": {
         "flagged": 8,
         "of": 331
       },
       "organiser": {
-        "flagged": 8,
-        "of": 12
+        "flagged": 11,
+        "of": 19
       },
       "payroll": {
-        "flagged": 4,
+        "flagged": 9,
         "of": 84
       },
       "trader": {
-        "flagged": 8,
-        "of": 468
+        "flagged": 10,
+        "of": 470
       }
     }
   },
   "per_attack": {
     "behavioural_drift": {
-      "mules": 9,
-      "detected": 9,
+      "mules": 7,
+      "detected": 7,
       "recall": 1.0,
-      "pr_auc_vs_negatives": 0.337
+      "pr_auc_vs_negatives": 0.2
     },
     "circular": {
-      "mules": 56,
-      "detected": 48,
-      "recall": 0.8571,
-      "pr_auc_vs_negatives": 0.4163
+      "mules": 46,
+      "detected": 43,
+      "recall": 0.9348,
+      "pr_auc_vs_negatives": 0.3004
     },
     "cross_channel": {
-      "mules": 34,
-      "detected": 19,
-      "recall": 0.5588,
-      "pr_auc_vs_negatives": 0.1713
+      "mules": 29,
+      "detected": 14,
+      "recall": 0.4828,
+      "pr_auc_vs_negatives": 0.2351
     },
     "dormant": {
-      "mules": 14,
-      "detected": 13,
-      "recall": 0.9286,
-      "pr_auc_vs_negatives": 0.5152
+      "mules": 10,
+      "detected": 7,
+      "recall": 0.7,
+      "pr_auc_vs_negatives": 0.2308
     },
     "fan_in": {
-      "mules": 9,
-      "detected": 8,
-      "recall": 0.8889,
-      "pr_auc_vs_negatives": 0.5238
+      "mules": 10,
+      "detected": 9,
+      "recall": 0.9,
+      "pr_auc_vs_negatives": 0.3629
     },
     "fan_out": {
       "mules": 84,
-      "detected": 37,
-      "recall": 0.4405,
-      "pr_auc_vs_negatives": 0.1924
+      "detected": 51,
+      "recall": 0.6071,
+      "pr_auc_vs_negatives": 0.2627
     },
     "shared_device": {
-      "mules": 49,
-      "detected": 45,
-      "recall": 0.9184,
-      "pr_auc_vs_negatives": 0.4546
+      "mules": 52,
+      "detected": 52,
+      "recall": 1.0,
+      "pr_auc_vs_negatives": 0.4412
     },
     "smurfing": {
-      "mules": 40,
-      "detected": 10,
-      "recall": 0.25,
-      "pr_auc_vs_negatives": 0.1048
+      "mules": 29,
+      "detected": 13,
+      "recall": 0.4483,
+      "pr_auc_vs_negatives": 0.1867
     },
     "velocity_chain": {
-      "mules": 35,
+      "mules": 36,
       "detected": 34,
-      "recall": 0.9714,
-      "pr_auc_vs_negatives": 0.4502
+      "recall": 0.9444,
+      "pr_auc_vs_negatives": 0.294
     },
     "volume_spike": {
-      "mules": 4,
-      "detected": 4,
-      "recall": 1.0,
-      "pr_auc_vs_negatives": 0.7929
+      "mules": 7,
+      "detected": 6,
+      "recall": 0.8571,
+      "pr_auc_vs_negatives": 0.8378
     }
   }
 }

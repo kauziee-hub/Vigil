@@ -3,7 +3,8 @@
 Repairs audit findings A1-A5, A14 (docs/ML_VALIDATION_REPORT.md §1):
   * many independent worlds, each fully determined by (seed, world index);
   * realistic background that keeps flowing through the evaluation window: salaries (external and
-    internal payroll fan-out), recurring payees, merchants with many regular senders and daily
+    internal payroll fan-out) on a world-level payday calendar, so in some worlds most customers have a
+    salary credit inside the evaluation window (v2.1; see ML_VALIDATION_REPORT §3), recurring payees, merchants with many regular senders and daily
     settlement sweeps, bills, ATM, legitimate high-value payments, lump-sum pass-throughs, event
     collections from many first-time senders, family shared devices, dormant-but-legitimate
     reactivations, very new legitimate accounts;
@@ -244,7 +245,11 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
         if r.random() < 0.4:
             employer_of[c] = r.choice(payroll)
 
-    payday = {p: r.uniform(0, 30) for p in payroll}
+    # Salary calendar (v2.1): most employers pay around a common day of the month, so in some worlds the
+    # evaluation window sits right after payday and MOST customers have a salary credit inside it (as in
+    # the live demo world). pay_phase = days since the most recent common payday.
+    pay_phase = r.uniform(0, 30)
+    payday = {p: (pay_phase + r.uniform(-1, 1)) % 30 if r.random() < 0.7 else r.uniform(0, 30) for p in payroll}
     payroll_due: dict[tuple[str, int], float] = defaultdict(float)
 
     for c in customers:
@@ -261,16 +266,17 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
         # salary
         salary = _lognormal_amount(r, 45_000, 0.5, 12_000, 2_50_000)
         if (now - opened) > 40 * DAY:
-            for month in range(2):
+            own_phase = (pay_phase + r.uniform(0, 3)) % 30 if r.random() < 0.8 else r.uniform(0, 30)
+            for month in range(3):
                 if c in employer_of:
                     comp = employer_of[c]
-                    t = start + payday[comp] * DAY + month * 30 * DAY + r.uniform(0, 2) * HOUR
-                    if t <= act_end:
+                    t = now - (payday[comp] + month * 30) * DAY - r.uniform(0, 2) * HOUR
+                    if start <= t <= act_end:
                         w.tx(comp, c, salary, t, "neft")
                         payroll_due[(comp, month)] += salary
                 else:
-                    t = start + r.uniform(0, 5) * DAY + month * 30 * DAY + r.uniform(0, 10) * HOUR
-                    if t <= act_end:
+                    t = now - (own_phase + month * 30) * DAY - r.uniform(0, 10) * HOUR
+                    if start <= t <= act_end:
                         w.tx("ext:employer", c, salary, t, "neft")
 
         # recurring payees
@@ -354,11 +360,13 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
 
     # payroll companies: client receipts, funding before payday, vendors
     for comp in payroll:
-        for month in range(2):
+        for month in range(3):
             due = payroll_due.get((comp, month), 0.0)
-            pay_t = start + payday[comp] * DAY + month * 30 * DAY
+            pay_t = now - (payday[comp] + month * 30) * DAY
             if due > 0:
                 w.tx("ext:other-bank", comp, due * r.uniform(1.05, 1.3), pay_t - r.uniform(2, 48) * HOUR, "neft")
+            if month == 2:
+                continue                      # receipts / vendors cover the two 30-day blocks of history
             for _ in range(r.randint(3, 8)):
                 w.tx("ext:other-bank", comp, _lognormal_amount(r, 1_50_000, 0.7, 20_000, 8_00_000),
                      start + month * 30 * DAY + r.uniform(0, 30) * DAY, "neft")

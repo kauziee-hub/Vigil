@@ -17,7 +17,8 @@ from typing import Any, Iterable, Protocol, Sequence
 
 DAY = 86400.0
 WINDOW_S = 72 * 3600.0           # current window, same as RingWatch (config network.window_hours)
-BASELINE_S = 30 * DAY            # behavioural baseline before the current window
+BASELINE_S = 30 * DAY            # behavioural baseline before the current window (baseline_tx_rate)
+DRIFT_BASELINE_S = 45 * DAY      # drift baseline: > one monthly cycle, so last month's salary is inside it (v2.1)
 FORWARD_S = 60 * 60.0            # "forwarded quickly" = left within 60 min of an inflow (RingWatch pass_through)
 NEAR_THRESHOLD_LOW = 8_000_00    # paise; structuring band just below ₹10,000
 NEAR_THRESHOLD_HIGH = 10_000_00
@@ -191,12 +192,12 @@ def in_cycle(src: GraphSource, account_id: str, now_t: float, max_hops: int = 6,
 
 
 def drift_profile(src: GraphSource, account_id: str, now_t: float) -> dict[str, Any]:
-    """Baseline (ten 72 h blocks before the current window) vs current window, per DRIFT_FEATURE.
+    """Baseline (fifteen 72 h blocks = 45 days before the current window) vs current window, per DRIFT_FEATURE.
 
     Blocks that end before the account was opened are ignored, so a young account has a short
     (or empty) baseline instead of a fake 'zero activity' one.
     """
-    n_blocks = int(BASELINE_S // WINDOW_S)
+    n_blocks = int(DRIFT_BASELINE_S // WINDOW_S)
     start = now_t - WINDOW_S
     opened = src.opened_t(account_id)
     blocks: list[dict[str, Any]] = [

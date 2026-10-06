@@ -1,0 +1,13 @@
+# OPTIONAL detection-intelligence dependencies (Claude 2, vigil/intel/** and ml/**).
+# The payment platform runs without them: vigil.intel degrades each model to status="unavailable".
+#   serving : numpy (RF / GNN numpy inference), scikit-learn + shap (SHAP TreeExplainer, lazy)
+#   training: + torch (CPU) for the GAT — install with
+#             pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+# Versions are the ones the committed artefacts in backend/models/ were trained and verified with.
+-r requirements.txt
+numpy==2.4.6
+scipy==1.17.1
+scikit-learn==1.9.1
+shap==0.51.0
+joblib==1.6.0
+torch==2.14.1

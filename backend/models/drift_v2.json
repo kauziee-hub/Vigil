@@ -1,18 +1,20 @@
 {
-  "version": "drift-v2.0",
+  "version": "drift-v2.1",
   "k": 2.0,
-  "cap": 10.0,
+  "cap": 4.0,
+  "breadth_min_features": 2,
+  "breadth_min_change": 1.0,
   "scales": {
-    "transaction_count": 1.9,
-    "unique_neighbors": 1.5,
+    "transaction_count": 1.8,
+    "unique_neighbors": 1.4667,
     "in_degree": 1.0,
-    "out_degree": 1.2,
-    "total_in_amount": 8080.4,
-    "total_out_amount": 4654.7,
-    "retention_ratio": 0.2315,
-    "unique_channels": 0.7
+    "out_degree": 1.1333,
+    "total_in_amount": 9538.7167,
+    "total_out_amount": 4717.7333,
+    "retention_ratio": 0.2186,
+    "unique_channels": 0.8
   },
-  "medium": 0.3934,
-  "high": 0.6426,
-  "fitted_on": "training-world non-mule accounts: scales = 75th pct of |current - baseline|; MEDIUM/HIGH = 90th/98th pct of drift score"
+  "medium": 0.3967,
+  "high": 0.553,
+  "fitted_on": "training-world non-mule accounts: scales = 75th pct of |current - baseline|; MEDIUM/HIGH = 90th/98th pct of drift score; HIGH also needs >= 2 features with change >= 1 (breadth)"
 }

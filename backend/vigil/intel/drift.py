@@ -1,4 +1,4 @@
-"""Behavioural drift: per-account baseline (ten 72 h blocks before the current window) vs current window.
+"""Behavioural drift: per-account baseline (fifteen 72 h blocks = 45 days before the current window) vs current window.
 
 Repairs audit A12: the original standardised with the mean/std of just the two vectors, so every changed
 feature contributed exactly 2 regardless of magnitude. Here each feature's change is
@@ -6,7 +6,9 @@ feature contributed exactly 2 regardless of magnitude. Here each feature's chang
 where population_scale is fitted on TRAINING-world populations (backend/models/drift_v2.json), so a jump
 from 2 to 19 postings is large and 2 to 3 is not. drift_score = 1 - exp(-RMS(change) / K) in [0, 1).
 Levels use cut-offs fitted on training-world non-mule accounts (MEDIUM ~ 90th, HIGH ~ 98th percentile).
-The level is a LEVEL, not a probability.
+v2.1: each feature's change is capped at 4 and HIGH additionally needs BREADTH (>= 2 features changed by
+>= 1 scale unit): drift means several aspects of behaviour changed together; one large credit (e.g. a
+monthly salary) alone can reach MEDIUM at most. The level is a LEVEL, not a probability.
 """
 
 from __future__ import annotations
@@ -22,7 +24,9 @@ MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 DEFAULT_PARAMS: dict[str, Any] = {
     "version": "drift-v2.0-defaults",
     "k": 2.0,
-    "cap": 10.0,
+    "cap": 4.0,
+    "breadth_min_features": 2,
+    "breadth_min_change": 1.0,
     "scales": {"transaction_count": 1.0, "unique_neighbors": 1.0, "in_degree": 1.0, "out_degree": 1.0,
                "total_in_amount": 5_000.0, "total_out_amount": 5_000.0, "retention_ratio": 0.25,
                "unique_channels": 0.5},
@@ -65,7 +69,10 @@ def assess(profile: dict[str, Any], p: dict[str, Any] | None = None) -> dict[str
                      "change": round(change, 3), "direction": "up" if cur[f] > mean[f] else ("down" if cur[f] < mean[f] else "flat")})
     rms = math.sqrt(sq / len(DRIFT_FEATURES))
     score = 1.0 - math.exp(-rms / float(p["k"]))
+    breadth = sum(1 for r in rows if r["change"] >= float(p.get("breadth_min_change", 0.0)))
     level = "HIGH" if score >= p["high"] else ("MEDIUM" if score >= p["medium"] else "LOW")
+    if level == "HIGH" and breadth < int(p.get("breadth_min_features", 0)):
+        level = "MEDIUM"
     rows.sort(key=lambda r: (-r["change"], r["feature"]))
-    return {"drift_score": round(score, 4), "level": level, "features": rows,
+    return {"drift_score": round(score, 4), "level": level, "features": rows, "breadth": breadth,
             "baseline_blocks": profile["baseline_blocks"], "flagged": level == "HIGH"}

@@ -7,4 +7,17 @@ roles) work without numpy; RF/GNN inference needs numpy, SHAP needs scikit-learn
 dependencies degrade a detector to status="unavailable", never to an exception.
 """
 
-INTEL_VERSION = "intel-v2"
+INTEL_VERSION = "intel-v2.1"
+
+
+def warm() -> None:
+    """Load model artefacts and build the live feature snapshot once (called by app startup).
+
+    Idempotent, never raises, never imports shap / scikit-learn / torch.
+    """
+    try:
+        from vigil.intel.consensus import warm as _warm
+
+        _warm()
+    except Exception:  # pragma: no cover - consensus.warm already swallows; this guards the import
+        pass

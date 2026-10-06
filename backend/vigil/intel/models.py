@@ -49,26 +49,28 @@ def gnn_input_row(f: dict[str, float] | None, is_external: bool) -> list[float]:
 
 # ── numpy kernels (shared with tests) ─────────────────────────────────────
 def forest_predict(arr: dict[str, Any], X: Any) -> Any:
+    """Mean leaf probability over all trees; all trees walked at once (one numpy step per depth level).
+
+    Same comparisons as sklearn (float32 features vs float64 thresholds, `<=` goes left)."""
     import numpy as np
     X = np.asarray(X, dtype=np.float32).astype(np.float64)
+    if X.ndim == 1:
+        X = X.reshape(1, -1)
     n = X.shape[0]
     left, right, feat, thr, p1, offs = arr["left"], arr["right"], arr["feature"], arr["threshold"], arr["p1"], arr["offsets"]
-    rows = np.arange(n)
-    total = np.zeros(n)
-    depth = int(arr["max_depth"]) + 1
-    for t in range(len(offs) - 1):
-        off = int(offs[t])
-        idx = np.zeros(n, dtype=np.int64)
-        for _ in range(depth):
-            g = off + idx
-            lc = left[g]
-            internal = lc != -1
-            if not internal.any():
-                break
-            go_left = X[rows, np.maximum(feat[g], 0)] <= thr[g]
-            idx = np.where(internal, np.where(go_left, lc, right[g]), idx)
-        total += p1[off + idx]
-    return total / (len(offs) - 1)
+    n_trees = len(offs) - 1
+    base = np.asarray(offs[:-1], dtype=np.int64)[:, None]          # (trees, 1)
+    rows = np.arange(n)[None, :]                                    # (1, n)
+    idx = np.zeros((n_trees, n), dtype=np.int64)                   # tree-local node index
+    for _ in range(int(arr["max_depth"]) + 1):
+        g = base + idx
+        lc = left[g]
+        internal = lc != -1
+        if not internal.any():
+            break
+        go_left = X[rows, np.maximum(feat[g], 0)] <= thr[g]
+        idx = np.where(internal, np.where(go_left, lc, right[g]), idx)
+    return p1[base + idx].sum(axis=0) / n_trees
 
 
 def gat_forward(W: dict[str, Any], x: Any, edges_in: tuple[Any, Any], edges_out: tuple[Any, Any]) -> Any:

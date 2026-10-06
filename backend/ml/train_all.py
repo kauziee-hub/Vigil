@@ -1,8 +1,14 @@
 """Deterministic training + SYNTHETIC VALIDATION for detection intelligence v2.
 
     cd backend
-    <venv>/python ml/train_all.py            # full run (< 10 min CPU), writes backend/models/*
-    <venv>/python ml/train_all.py --quick    # smoke run, writes nothing
+    <venv>/python ml/train_all.py              # default run (< 10 min CPU), writes backend/models/*
+    <venv>/python ml/train_all.py --quick      # smoke run, writes nothing
+    <venv>/python ml/train_all.py --no-loao    # skip leave-one-attack-out (iteration only; artefacts say so)
+    <venv>/python ml/train_all.py --full-loao  # LOAO GNN with the run-2 budget (60 epochs, patience 15; ~+6 min)
+
+LOAO budget: the default run retrains the GNN ten times (once per held-out family) with at most
+LOAO_GNN_EPOCHS epochs and early-stopping patience LOAO_GNN_PATIENCE on validation worlds; the main GNN
+uses GNN_PARAMS (120 / 15). LOAO GNN numbers are therefore conservative (see ML_VALIDATION_REPORT §6).
 
 Protocol (repairs docs/ML_VALIDATION_REPORT.md §1):
   * worlds are split BY WORLD: train / validation / test worlds are disjoint and independently generated;
@@ -49,7 +55,10 @@ from vigil.intel.models import SHAP_CATEGORIES, build_edge_index, forest_predict
 SEED = 20261006
 N_TRAIN, N_VAL, N_TEST = 90, 30, 30
 MODELS = BACKEND / "models"
-VERSION = "v2.0"
+VERSION = "v2.1"
+GENERATOR = "backend/ml/datagen.py v2.1 (world-level payday calendar)"
+LOAO_GNN_EPOCHS, LOAO_GNN_PATIENCE = 30, 8
+FULL_LOAO_GNN_EPOCHS, FULL_LOAO_GNN_PATIENCE = 60, 15
 RF_PARAMS = dict(n_estimators=100, max_depth=10, min_samples_leaf=5, max_features="sqrt",
                  class_weight="balanced_subsample", random_state=SEED, n_jobs=-1)
 GNN_PARAMS = dict(hidden=32, heads=4, dropout=0.1, lr=5e-3, weight_decay=5e-4, max_epochs=120, patience=15,
@@ -108,11 +117,13 @@ def fit_drift(train: list[dict[str, Any]]) -> dict[str, Any]:
                 for f in F.DRIFT_FEATURES:
                     devs[f].append(abs(prof["current"][f] - prof["baseline_mean"][f]))
     scales = {f: round(max(floors[f], float(np.percentile(devs[f], 75))), 4) for f in F.DRIFT_FEATURES}
-    p = {"version": f"drift-{VERSION}", "k": 2.0, "cap": 10.0, "scales": scales, "medium": 0.0, "high": 0.0}
+    p = {"version": f"drift-{VERSION}", "k": 2.0, "cap": 4.0, "breadth_min_features": 2, "breadth_min_change": 1.0,
+         "scales": scales, "medium": 0.0, "high": 0.0}
     neg_scores = [D.assess(prof, p)["drift_score"] for t in train for prof, y in zip(t["profiles"], t["y"]) if y == 0]
     p["medium"] = round(float(np.percentile(neg_scores, 90)), 4)
     p["high"] = round(float(np.percentile(neg_scores, 98)), 4)
-    p["fitted_on"] = "training-world non-mule accounts: scales = 75th pct of |current - baseline|; MEDIUM/HIGH = 90th/98th pct of drift score"
+    p["fitted_on"] = ("training-world non-mule accounts: scales = 75th pct of |current - baseline|; MEDIUM/HIGH = 90th/98th pct "
+                      "of drift score; HIGH also needs >= 2 features with change >= 1 (breadth)")
     return p
 
 
@@ -196,7 +207,8 @@ def gnn_predict_numpy(W: dict[str, Any], t: dict[str, Any], mean: np.ndarray, st
 
 
 def train_gnn(train: list[dict[str, Any]], val: list[dict[str, Any]], mean: np.ndarray, std: np.ndarray,
-              exclude_family: str | None = None, max_epochs: int | None = None) -> tuple[FraudGAT, dict[str, Any]]:
+              exclude_family: str | None = None, max_epochs: int | None = None,
+              patience: int | None = None) -> tuple[FraudGAT, dict[str, Any]]:
     torch.manual_seed(SEED)
     g = np.random.default_rng(SEED)
     p = GNN_PARAMS
@@ -236,7 +248,7 @@ def train_gnn(train: list[dict[str, Any]], val: list[dict[str, Any]], mean: np.n
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
         else:
             bad += 1
-            if bad >= p["patience"]:
+            if bad >= (patience or p["patience"]):
                 break
     model.load_state_dict(best_state)
     model.eval()
@@ -332,7 +344,7 @@ def old_protocol(worlds: list[datagen.World], honest_test: dict[str, Any]) -> di
                     "shows how much of the old score was leakage."}
 
 
-def loao(train, val, test, mean, std, base_s, quick: bool) -> dict[str, Any]:
+def loao(train, val, test, mean, std, base_s, quick: bool, gnn_epochs: int, gnn_patience: int) -> dict[str, Any]:
     out: dict[str, Any] = {}
     X_tr, y_tr = cat(train, "X"), cat(train, "y")
     fam_tr = np.array([f or "" for f in cat(train, "fam")])
@@ -356,7 +368,8 @@ def loao(train, val, test, mean, std, base_s, quick: bool) -> dict[str, Any]:
                                 "recall_seen": base_s["per_attack"]["random_forest"].get(fam, {}).get("recall"),
                                 "pr_auc_seen": base_s["per_attack"]["random_forest"].get(fam, {}).get("pr_auc_vs_negatives")}
         if not quick:
-            model, info = train_gnn(train, val, mean, std, exclude_family=fam, max_epochs=60)
+            model, info = train_gnn(train, val, mean, std, exclude_family=fam, max_epochs=gnn_epochs,
+                                    patience=gnn_patience)
             W = export(model)
             pv_g = np.concatenate([gnn_predict_numpy(W, t, mean, std) for t in val])
             thr_g = M.best_f1_threshold(y_v[kv], pv_g[kv])
@@ -365,7 +378,8 @@ def loao(train, val, test, mean, std, base_s, quick: bool) -> dict[str, Any]:
                           "pr_auc_unseen": round(float(average_precision_score(y_te[sub], pt_g[sub])), 4),
                           "recall_seen": base_s["per_attack"]["gnn"].get(fam, {}).get("recall"),
                           "pr_auc_seen": base_s["per_attack"]["gnn"].get(fam, {}).get("pr_auc_vs_negatives"),
-                          "best_epoch": info["best_epoch"]}
+                          "best_epoch": info["best_epoch"], "epochs_run": info["epochs_run"],
+                          "budget": f"max {gnn_epochs} epochs, patience {gnn_patience}"}
         row["rules_reference_recall"] = base_s["per_attack"]["rules"].get(fam, {}).get("recall")
         out[fam] = row
         log(f"  LOAO {fam:18s} RF unseen recall={row['random_forest']['recall_unseen']} "
@@ -382,7 +396,13 @@ def sha(path: Path) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="small smoke run; writes nothing")
+    ap.add_argument("--no-loao", action="store_true", help="skip leave-one-attack-family-out (iteration only)")
+    ap.add_argument("--full-loao", action="store_true",
+                    help=f"LOAO GNN with {FULL_LOAO_GNN_EPOCHS} epochs / patience {FULL_LOAO_GNN_PATIENCE} (slower)")
     args = ap.parse_args()
+    command = "python ml/train_all.py" + "".join(f" {a}" for a in sys.argv[1:])
+    loao_epochs, loao_patience = ((FULL_LOAO_GNN_EPOCHS, FULL_LOAO_GNN_PATIENCE) if args.full_loao
+                                  else (LOAO_GNN_EPOCHS, LOAO_GNN_PATIENCE))
     t_start = time.perf_counter()
     torch.set_num_threads(1)
     torch.use_deterministic_algorithms(True)
@@ -466,7 +486,8 @@ def main() -> None:
     timings["shap_s"] = round(time.perf_counter() - t0, 1)
 
     t0 = time.perf_counter()
-    loao_res = loao(train, val, test, mean, std, {"per_attack": per_attack}, args.quick)
+    loao_res = ({} if args.no_loao else
+                loao(train, val, test, mean, std, {"per_attack": per_attack}, args.quick, loao_epochs, loao_patience))
     timings["loao_s"] = round(time.perf_counter() - t0, 1)
     t0 = time.perf_counter()
     old = old_protocol(worlds, s_test)
@@ -493,7 +514,7 @@ def main() -> None:
     split = (f"split-by-world: {N_TRAIN} train / {N_VAL} validation / {N_TEST} test worlds (disjoint, seed {SEED}); "
              "leave-one-attack-family-out on test worlds")
     dataset = {
-        "worlds": len(worlds), "seed": SEED, "generator": "backend/ml/datagen.py",
+        "worlds": len(worlds), "seed": SEED, "generator": GENERATOR,
         "accounts": {"train": int(len(cat(train, "y"))), "val": int(len(y_v)), "test": int(len(s_test["y"]))},
         "mules": {"train": int(cat(train, "y").sum()), "val": int(y_v.sum()), "test": int(s_test["y"].sum())},
         "attack_instances": {f: sum(1 for w in worlds for a in w.attacks if a["family"] == f) for f in datagen.FAMILIES},
@@ -545,8 +566,13 @@ def main() -> None:
     for name, meta in (("rf_v2", rf_meta), ("gnn_v2", gnn_meta), ("rules_v2", rules_meta), ("drift_meta_v2", drift_meta),
                        ("pattern_memory_meta_v2", pm_meta)):
         (MODELS / f"{name}.json").write_text(json.dumps(meta, indent=2, default=float), encoding="utf-8")
+    loao_cfg = ({"status": "not run (--no-loao)"} if args.no_loao else
+                {"status": "run", "random_forest": "same RF_PARAMS as the main model",
+                 "gnn": f"max {loao_epochs} epochs, early-stopping patience {loao_patience} (main GNN: "
+                        f"{GNN_PARAMS['max_epochs']} / {GNN_PARAMS['patience']})"})
     report = {"label": LABEL, "trained_at": trained_at, "seed": SEED, "split": split, "dataset": dataset,
-              "thresholds": thr, "summary": summary, "calibration": calib, "roles": roles_eval, "loao": loao_res,
+              "command": command, "version": VERSION, "thresholds": thr, "summary": summary, "calibration": calib,
+              "roles": roles_eval, "loao_config": loao_cfg, "loao": loao_res,
               "old_protocol": old, "timings": timings, "gnn_training": gnn_info}
     (MODELS / "validation_v2.json").write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
     log(f"artefacts written to {MODELS}  (total {timings['total_s']}s)")
