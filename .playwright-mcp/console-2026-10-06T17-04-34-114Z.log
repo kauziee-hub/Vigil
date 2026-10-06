@@ -2,3 +2,13 @@
 [   34550ms] [WARNING] You have set a custom wheel sensitivity.  This will make your app zoom unnaturally when using mainstream mice.  You should change this value from the default only if you can guarantee that all your users will use the same hardware and OS configuration as your current machine. @ http://localhost:8000/assets/index-B9fg45a6.js:69
 [   37252ms] [WARNING] You have set a custom wheel sensitivity.  This will make your app zoom unnaturally when using mainstream mice.  You should change this value from the default only if you can guarantee that all your users will use the same hardware and OS configuration as your current machine. @ http://localhost:8000/assets/index-B9fg45a6.js:69
 [   59561ms] [WARNING] You have set a custom wheel sensitivity.  This will make your app zoom unnaturally when using mainstream mice.  You should change this value from the default only if you can guarantee that all your users will use the same hardware and OS configuration as your current machine. @ http://localhost:8000/assets/index-B9fg45a6.js:69
+[  940107ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0
+[  940488ms] [ERROR] WebSocket connection to 'ws://localhost:8000/ws?topics=console' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/assets/index-B9fg45a6.js:66
+[  940491ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0
+[  940494ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0
+[  941299ms] [ERROR] WebSocket connection to 'ws://localhost:8000/ws?topics=console' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/assets/index-B9fg45a6.js:66
+[  941301ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0
+[  941304ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0
+[  942914ms] [ERROR] WebSocket connection to 'ws://localhost:8000/ws?topics=console' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/assets/index-B9fg45a6.js:66
+[  942917ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0
+[  942919ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/api/health:0

@@ -159,20 +159,26 @@ def create(req: CreateIntentRequest, *, auto_pay: bool | None = None) -> tuple[T
         _transition(intent_id, S.RISK_EVALUATED, "vigil",
                     f"Score {decision.final_score:.2f} → Tier {decision.tier} in {decision.latency_ms:.0f} ms "
                     f"(policy {decision.policy_version}).", tier=decision.tier, decision_id=decision.decision_id)
-        target = TIER_STATE[decision.tier]
-        extra: dict[str, Any] = {}
-        if decision.tier >= 3:
-            extra["hold_id"] = _open_hold(intent_id, req.sender_id, req.amount_paise)
-        _transition(intent_id, target, "vigil", decision.intervention.title, **extra)
-        if decision.tier >= 1:
-            db.insert("alerts", {
-                "id": db.next_id("ALR"), "intent_id": intent_id, "decision_id": decision.decision_id,
-                "account_id": req.sender_id, "recipient_id": req.recipient_id, "tier": decision.tier,
-                "kind": decision.intervention.kind, "status": "open", "headline": decision.reasons.customer.headline,
-                "amount_paise": req.amount_paise, "ts": decision.created_at,
-            })
-        if decision.tier == 4:
-            _fire_circuit_breaker(intent_id, decision)
+        if decision.mode == "shadow":
+            # SHADOW MODE: record the recommendation, apply nothing (the bank baseline governs).
+            _transition(intent_id, S.APPROVED, "vigil",
+                        f"SHADOW MODE — Vigil recommended Tier {decision.tier} ({decision.intervention.title}); "
+                        f"not applied. Bank baseline: {decision.baseline.decision if decision.baseline else 'approve'}.")
+        else:
+            extra: dict[str, Any] = {}
+            if decision.tier >= 3:
+                extra["hold_id"] = _open_hold(intent_id, req.sender_id, req.amount_paise)
+            _transition(intent_id, TIER_STATE[decision.tier], "vigil", decision.intervention.title, **extra)
+            if decision.tier >= 1:
+                db.insert("alerts", {
+                    "id": db.next_id("ALR"), "intent_id": intent_id, "decision_id": decision.decision_id,
+                    "account_id": req.sender_id, "recipient_id": req.recipient_id, "tier": decision.tier,
+                    "kind": decision.intervention.kind, "status": "open",
+                    "headline": decision.reasons.customer.headline,
+                    "amount_paise": req.amount_paise, "ts": decision.created_at,
+                })
+            if decision.tier == 4:
+                _fire_circuit_breaker(intent_id, decision)
 
     HUB.publish("console", "decision.created", {**decision_summary(decision), "source": req.source})
     intent = _publish(intent_id)

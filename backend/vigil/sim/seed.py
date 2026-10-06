@@ -184,6 +184,12 @@ def seed(anchor: datetime | None = None) -> dict[str, Any]:
             plan(sender, "kiran.traders@vigil", amount, at(hours=hours_ago), note="order payment", attack="early_inflow")
             plan("kiran.traders@vigil", "zenith.exports@vigil", amount - 500_00, at(hours=hours_ago, minutes=-14 - i * 3),
                  note="supplier", attack="early_forward")
+        # dormant savings account for the dormant-activation attack (fixed values; no shared RNG)
+        _acct(anchor, "dormant.savings@vigil", "Dormant Savings (R. Menon)", days_old=1100, device="dev-dormant-old")
+        plan("ext:opening", "dormant.savings@vigil", 60_000_00, at(days=100, hours=1), kind="opening", note="opening balance")
+        plan("dormant.savings@vigil", "bescom.power@vigil", 1_450_00, at(days=90), note="electricity")
+        plan("dormant.savings@vigil", "meena.grocer@vigil", 2_100_00, at(days=82), note="groceries")
+        plan("dormant.savings@vigil", "jio.recharge@vigil", 399_00, at(days=76), note="recharge")
         # zenith has a little legitimate-looking history
         plan("zenith.exports@vigil", "ext:other-bank", 20_000_00, at(days=12), kind="external_debit")
         plan("quickloan.agent@vigil", "ext:atm", 3_000_00, at(days=3), kind="external_debit")

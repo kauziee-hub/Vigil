@@ -7,7 +7,12 @@
 - Initialised git (baseline `6ea2941`), systematic `AGENT_HANDOFF/` (MASTER_PROMPT index, AGENT_LEDGER, runs/).
 - Froze v2 contracts: provenance, detector results/consensus, SHAP, drift, pattern memory, roles, model registry, decision replay, counterfactuals, shadow-mode fields, 3D graph scene (`backend/vigil/contracts.py`, `frontend/src/api/types.ts`, `frontend/src/api/client.ts`).
 - `docs/FINAL_PARALLEL_PLAN.md`: 9-item information architecture, status colour scale, ownership, interfaces, merge protocol.
-- Optional `vigil.intel` router hook in `app.py`; `scenarios.touched_accounts()`.
+- Optional vigil.intel router hook in app.py; scenarios.touched_accounts().
+- Evidence provenance on every risk signal; SHADOW MODE with conventional bank baseline; corroborating model_evidence hook (never fused).
+- Decision Replay, counterfactual ladder, decision record, risk evolution (engine/replay.py) — deterministic, same policy engine.
+- 3D GraphScene with frozen layered layout and cache (graph/scene.py); v2 routes (api/routes_v2.py).
+- Ten attack patterns from the original project as deterministic scenarios (sim/attacks.py); 15 scenarios total.
+- Tests: backend/tests/test_vigil_v2.py (6).
 
 ## v1 — MVP (2026-10-06)
 See `AGENT_HANDOFF/runs/20261006-2112_claude1_v1-build.md`.

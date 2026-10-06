@@ -48,6 +48,9 @@ class Scenario:
     explain: list[str]
     steps: Callable[[], list[Step]]
     payer: str | None = None
+    category: str = "payment"                       # payment | attack | control
+    accounts_fn: Callable[[], list[str]] | None = None
+    tag: str | None = None                          # seed_attack tag on its ledger postings
 
 
 def _event(account_id: str, event_type: str, minutes_ago: float, payload: dict | None = None) -> None:
@@ -222,7 +225,7 @@ def status() -> list[dict[str, Any]]:
     for s in SCENARIOS.values():
         run = RUNS.get(s.id)
         out.append({"id": s.id, "name": s.name, "act": s.act, "summary": s.summary, "expected": s.expected,
-                    "payer": s.payer, "state": run.state if run else "idle",
+                    "payer": s.payer, "category": s.category, "state": run.state if run else "idle",
                     "step": run.step if run else 0, "total_steps": len(run.steps) if run else len(s.steps()),
                     "log": run.log if run else []})
     return out
@@ -313,9 +316,9 @@ def touched_accounts(scenario_id: str) -> list[str]:
     }
     if scenario_id in static:
         return static[scenario_id]
-    accounts = getattr(SCENARIOS.get(scenario_id), "accounts", None)
-    if accounts:
-        return list(accounts)
+    sc = SCENARIOS.get(scenario_id)
+    if sc is not None and sc.accounts_fn is not None:
+        return list(dict.fromkeys(sc.accounts_fn()))
     raise ledger.VigilError(404, "unknown_scenario", f"No scenario '{scenario_id}'.")
 
 
@@ -329,3 +332,37 @@ def explain(scenario_id: str) -> dict[str, Any]:
     return {"id": s.id, "name": s.name, "act": s.act, "summary": s.summary, "expected": s.expected,
             "explain": s.explain, "decisions": produced,
             "time_compressed": s.id == "s3", "simulated_inputs": s.id in {"s2", "s3"}}
+
+
+def replay_events(scenario_id: str) -> list[dict[str, Any]]:
+    """Ordered events of the scenario for graph/time replay: tagged ledger postings + journey events + intents."""
+    sc = SCENARIOS[scenario_id]
+    tag = sc.tag or scenario_id
+    events: list[dict[str, Any]] = []
+    for t in db.q("SELECT id, ts, sender_id, recipient_id, amount_paise, channel, kind FROM transactions "
+                  "WHERE seed_attack = ? AND source = 'scenario' ORDER BY seq", (tag,)):
+        events.append({"ts": t["ts"], "kind": "transaction", "title": f"{t['sender_id']} -> {t['recipient_id']}",
+                       "tx_id": t["id"], "source": t["sender_id"], "target": t["recipient_id"],
+                       "amount_paise": t["amount_paise"]})
+    run = RUNS.get(scenario_id)
+    for entry in (run.log if run else []):
+        result = entry.get("result")
+        if entry["kind"] in {"event", "intent", "info", "detect"}:
+            events.append({"ts": entry["ts"], "kind": entry["kind"], "title": entry["title"], "tx_id": None,
+                           "source": None, "target": None,
+                           "amount_paise": None if not isinstance(result, dict) else result.get("amount_paise")})
+    events.sort(key=lambda e: e["ts"])
+    return events
+
+
+# ── registry: payment scenarios first, then the ten attack patterns ──
+SCENARIOS["s0"].category = "payment"
+SCENARIOS["s1"].category = "payment"
+SCENARIOS["s2"].category = "attack"
+SCENARIOS["s2"].tag = "mule_ring"
+SCENARIOS["s3"].category = "payment"
+SCENARIOS["s4"].category = "control"
+
+from vigil.sim import attacks as _attacks  # noqa: E402  (registers after base classes exist)
+
+SCENARIOS.update(_attacks.build())

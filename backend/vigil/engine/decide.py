@@ -10,8 +10,9 @@ import time
 from typing import Any
 
 from vigil import clock, db
-from vigil.contracts import Intervention, RiskDecision, RiskSignal
-from vigil.engine import ledger
+from vigil.contracts import DetectorResult, Intervention, Provenance, RiskDecision, RiskSignal
+from vigil.engine import ledger, mode
+from vigil.graph.pathgraph import GRAPH
 from vigil.risk import behaviour, contextflag, external_intel, fusion, reasonline, ringwatch, trailscore
 from vigil.settings import get_policy, get_policy_version
 
@@ -58,6 +59,7 @@ def evaluate(intent: dict[str, Any]) -> RiskDecision:
         "external": ext_signals, "network": net_signals, "sequence": seq_signals,
         "behaviour": beh_signals, "context": ctx_signals,
     }
+    _attach_provenance(by_dim, intel, journey, ctx_facts, recipient_id)
     facts = {
         "external_status": intel.status if intel else "clean",
         "attributable_paise": net_features.get("attributable_paise", 0),
@@ -72,6 +74,9 @@ def evaluate(intent: dict[str, Any]) -> RiskDecision:
     created_at = clock.now_iso()
     all_signals = [s for sigs in by_dim.values() for s in sigs]
     policy_version = get_policy_version()
+    shadow = mode.is_shadow()
+    base = mode.baseline(amount, beh_facts["prior_payments_to_recipient"], facts["external_status"])
+    model_evidence = _model_evidence(recipient_id)
     audit = {
         "decision_id": decision_id,
         "intent_id": intent["id"],
@@ -96,6 +101,12 @@ def evaluate(intent: dict[str, Any]) -> RiskDecision:
         "policy_version": policy_version,
         "evaluation_latency_ms": latency_ms,
         "ml_models_used": [],
+        "mode": "shadow" if shadow else "active",
+        "baseline_decision": base.model_dump(),
+        "model_evidence_not_used_for_tier": [
+            {"family": m.family, "display": m.display, "kind": m.kind, "version": m.version} for m in model_evidence
+        ],
+        "provenance": {s.rule_id: s.provenance.model_dump() for s in all_signals if s.provenance},
     }
     reasons, digest = reasonline.build(
         amount_paise=amount, tier=fused.tier, intervention=intervention, signals=all_signals,
@@ -113,5 +124,69 @@ def evaluate(intent: dict[str, Any]) -> RiskDecision:
         adjustments=fused.adjustments, final_score=fused.final_score, tier=fused.tier,
         intervention=intervention, rules_fired=[s.rule_id for s in all_signals], reasons=reasons,
         policy_version=policy_version, latency_ms=latency_ms, payload_sha256=digest,
+        mode="shadow" if shadow else "active", recommended_tier=fused.tier,
+        applied_tier=0 if shadow else fused.tier, baseline=base, model_evidence=model_evidence,
     )
+
+
+# ── provenance ────────────────────────────────────────────────────────────
+_SIMULATED_SOURCES = {"scenario", "simulated_context"}
+
+
+def _prov(source: str, observed_at: str, now_t: float, version: str, status: str, confidence: str) -> Provenance:
+    freshness = max(0.0, round(now_t - clock.parse(observed_at).timestamp(), 1))
+    return Provenance(source=source, observed_at=observed_at, freshness_s=freshness, version=version,
+                      status=status, confidence=confidence)
+
+
+def _attach_provenance(by_dim: dict[str, list[RiskSignal]], intel: Any, journey: list[dict[str, Any]],
+                       ctx_facts: dict[str, Any], recipient_id: str) -> None:
+    now = clock.now_iso()
+    now_t = clock.parse(now).timestamp()
+    pv = get_policy_version()
+    edges = GRAPH.inflows(recipient_id) + GRAPH.outflows(recipient_id)
+    last_edge = max((e.ts for e in edges), default=now)
+    label_ts = db.scalar("SELECT MAX(ts) FROM fraud_labels") or now
+    event_source = {j["event_type"]: (j["ts"], j.get("source")) for j in journey}
+    for s in by_dim["external"]:
+        s.provenance = _prov(f"External registry · {external_intel.provider().name}",
+                             intel.last_updated if intel else now, now_t, "local-registry-v1",
+                             "simulated", "simulated input")
+    for s in by_dim["network"]:
+        if s.rule_id == "NET_TAINT_EXPOSURE":
+            s.provenance = _prov("TaintTrace · PRIMA lineage engine (LIBR)", label_ts, now_t,
+                                 f"prima-trace · {pv}", "computed", "deterministic (conserving)")
+        elif s.rule_id.startswith("NET_LABELLED"):
+            s.provenance = _prov("Bank fraud labels (analyst-confirmed, demo)", label_ts, now_t,
+                                 f"ringwatch · {pv}", "simulated", "simulated confirmation")
+        else:
+            s.provenance = _prov("PathGraph · RingWatch rules (72 h window)", last_edge, now_t,
+                                 f"ringwatch · {pv}", "computed", "deterministic")
+    for s in by_dim["sequence"]:
+        etype = s.evidence.get("event_type") or (s.evidence.get("order") or [None])[-1]
+        ts, src = event_source.get(etype, (now, None))
+        if s.rule_id in {"SEQ_ORDERED_CHAIN", "SEQ_LARGE_AFTER_CHANGES"}:
+            ts = now
+        s.provenance = _prov("Account journey events (device, payee, limit)", ts, now_t, f"trailscore · {pv}",
+                             "simulated" if src in _SIMULATED_SOURCES else "observed",
+                             "scenario-injected event" if src in _SIMULATED_SOURCES else "deterministic")
+    for s in by_dim["behaviour"]:
+        s.provenance = _prov("Sender payment history (180 d, robust statistics)", now, now_t,
+                             f"behaviour · {pv}", "computed", "deterministic")
+    ctx_ts = max((c["ts"] for c in ctx_facts.get("contexts", [])), default=now)
+    for s in by_dim["context"]:
+        s.provenance = _prov("Simulated call/message context · ContextFlag lexicon", ctx_ts, now_t,
+                             f"contextflag · {pv}", "simulated", "simulated input")
+
+
+def _model_evidence(account_id: str) -> list[DetectorResult]:
+    """Corroborating model evidence from vigil.intel (if installed). Never fused, never raises."""
+    try:
+        from vigil.intel.consensus import corroboration  # type: ignore[import-not-found]
+    except Exception:
+        return []
+    try:
+        return list(corroboration(account_id))[:8]
+    except Exception:
+        return []
 
