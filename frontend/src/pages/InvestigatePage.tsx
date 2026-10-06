@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { DecisionSummary, Investigation } from "../api/types";
-import { ContributionPanel, CustomerView, AuditView, SimChip, TierChip, Timeline } from "../components/Decision";
+import { ReasonLinePanel as ContributionPanel, CustomerView, AuditView, Timeline } from "../components/Decision";
+import { Sim as SimChip, TierPill as TierChip } from "../components/ui";
 import { EvidenceGraph } from "../components/EvidenceGraph";
 import { MoneyTrace } from "../components/MoneyTrace";
 import { useConsoleEvents } from "../components/Shell";
@@ -61,7 +62,7 @@ export function InvestigatePage() {
                 <div className="card">
                   <div className="spread wrap">
                     <div className="row wrap">
-                      <TierChip tier={d.tier} big />
+                      <TierChip tier={d.tier} lg />
                       <b style={{ fontSize: 16 }}>{handle(d.sender_id)} → {handle(d.recipient_id)} · <span className="mono">{formatINR(d.amount_paise)}</span></b>
                       <span className="chip">{STATE_LABEL[it.state]}</span>
                     </div>

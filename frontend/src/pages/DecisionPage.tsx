@@ -2,7 +2,8 @@
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { RiskDecision } from "../api/types";
-import { AuditView, BankView, CustomerView, TierChip } from "../components/Decision";
+import { AuditView, ReasonLinePanel as BankView, CustomerView } from "../components/Decision";
+import { TierPill as TierChip } from "../components/ui";
 import { formatINR, formatDateTime, handle } from "../lib/format";
 import { useLoad } from "../lib/hooks";
 
@@ -18,7 +19,7 @@ export function DecisionPage() {
         <div>
           <h1>Decision {x.decision_id}</h1>
           <div className="row wrap small" style={{ marginTop: 4 }}>
-            <TierChip tier={x.tier} big /> {handle(x.sender_id)} → {handle(x.recipient_id)} · <b className="mono">{formatINR(x.amount_paise)}</b> · {formatDateTime(x.created_at)}
+            <TierChip tier={x.tier} lg /> {handle(x.sender_id)} → {handle(x.recipient_id)} · <b className="mono">{formatINR(x.amount_paise)}</b> · {formatDateTime(x.created_at)}
           </div>
         </div>
         <Link className="btn sm" to={`/investigate/${x.decision_id}`}>Open investigation →</Link>

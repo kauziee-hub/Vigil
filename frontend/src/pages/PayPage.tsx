@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import { useRealtime } from "../api/realtime";
 import type { AccountSummary, RiskDecision, TransactionIntent, WsEnvelope } from "../api/types";
-import { ContributionPanel, SimChip, TierChip } from "../components/Decision";
+import { ReasonLinePanel as ContributionPanel } from "../components/Decision";
+import { Sim as SimChip, TierPill as TierChip } from "../components/ui";
 import { STATE_LABEL, formatINR, formatTime, handle, rupeesToPaise } from "../lib/format";
 
 declare global {
@@ -305,7 +306,7 @@ function ResultPanel(p: {
           <div style={{ color: "var(--ink)" }}>{c.summary}</div></div>
       ) : (
         <>
-          <div className="spread"><span className="upper">Risk level</span><TierChip tier={decision.tier} big /></div>
+          <div className="spread"><span className="upper">Risk level</span><TierChip tier={decision.tier} lg /></div>
           <div className={`tier-banner t${decision.tier}`}>
             <div className="h">{c.headline}</div>
             <div style={{ marginTop: 6, color: "var(--ink)", fontSize: 13.5 }}>{c.summary}</div>
