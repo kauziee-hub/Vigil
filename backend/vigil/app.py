@@ -34,6 +34,15 @@ async def lifespan(_app: FastAPI):
     created = seed.ensure_seeded()
     if created:
         log.warning("Seeded demo database: %s", created)
+    if INTEL_AVAILABLE:
+        # load model artefacts + live feature cache once, on the event-loop thread (single-threaded
+        # DB access), so the first payment's corroboration lookup is not the cold load
+        try:
+            from vigil.intel import warm  # type: ignore[import-not-found]
+
+            warm()
+        except Exception as exc:
+            log.warning("detection intelligence warm-up failed: %s", exc)
     if get_settings().ambient_default:
         ambient.set_enabled(True)
     # probe Razorpay once, off the event loop; never blocks startup or the demo

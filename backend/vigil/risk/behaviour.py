@@ -111,7 +111,7 @@ def evaluate(sender_id: str, recipient_id: str, amount_paise: int, available_pai
             evidence={"quiet_days": days}, contribution=float(ds["contribution"]),
         ))
     oh = cfg["odd_hour"]
-    hour = clock.now().astimezone(clock.IST).hour
+    hour = clock.local_hour_ist()
     if oh["start_hour_ist"] <= hour < oh["end_hour_ist"]:
         signals.append(RiskSignal(
             rule_id="BEH_ODD_HOUR", dimension="behaviour", label="Unusual hour",
