@@ -31,20 +31,28 @@ def _channels() -> dict[str, str]:
                                                 (clock.ago_iso(hours=96),))}
 
 
-def _candidates(cap: int, focus: str | None, hops: int, scenario: str | None, window_t: float) -> list[str]:
-    flagged = [r["account_id"] for r in ringwatch.scan(min_score=0.3)]
+def _candidates(cap: int, focus: str | None, hops: int, scenario: str | None,
+                window_t: float) -> tuple[list[str], set[str]]:
+    """Ordered candidate ids + the core set that is kept even without an in-window edge.
+
+    Default scene: everything suspicious (RingWatch-flagged, taint exposure, labelled).
+    Scoped scene (focus and/or scenario): only that account / the scenario's accounts,
+    expanded by 1–2 hops — the global suspicious set is NOT mixed in.
+    """
     core: list[str] = []
-    if scenario:
-        from vigil.sim import scenarios
-        core += scenarios.touched_accounts(scenario)
     if focus:
         core.append(focus)
-    core += [a for a in flagged if a not in core]
-    core += [a for a in taint.exposure() if a not in core]
-    core += [a for a in ringwatch.labelled_accounts() if a not in core]
+    if scenario:
+        from vigil.sim import scenarios
+        core += [a for a in scenarios.touched_accounts(scenario) if a not in core]
+    if not (focus or scenario):
+        flagged = [r["account_id"] for r in ringwatch.scan(min_score=0.3)]
+        core += [a for a in flagged if a not in core]
+        core += [a for a in taint.exposure() if a not in core]
+        core += [a for a in ringwatch.labelled_accounts() if a not in core]
     seen = set(core)
     ordered = list(core)
-    frontier = list(core if not focus else [focus] + core)
+    frontier = list(core)
     for _ in range(max(1, min(hops, 2))):
         nxt: list[tuple[int, str]] = []
         for nid in frontier:
@@ -58,7 +66,7 @@ def _candidates(cap: int, focus: str | None, hops: int, scenario: str | None, wi
                 seen.add(other)
                 ordered.append(other)
                 frontier.append(other)
-    return ordered
+    return ordered, set(core)
 
 
 def _layers(nodes: list[str], edges: list[tuple[str, str]]) -> dict[str, int]:
@@ -99,7 +107,7 @@ def build(cap: int = 60, focus: str | None = None, hops: int = 1, scenario: str 
     _stats["misses"] += 1
     started = time.perf_counter()
     window_t = clock.now().timestamp() - float(get_policy()["network"]["window_hours"]) * 3600
-    candidates = _candidates(cap, focus, hops, scenario, window_t)
+    candidates, scoped_core = _candidates(cap, focus, hops, scenario, window_t)
     keep = candidates[:cap]
     keep_set = set(keep)
 
@@ -126,7 +134,7 @@ def build(cap: int = 60, focus: str | None = None, hops: int = 1, scenario: str 
             a["txs"].append(SceneTx(id=e.tx_id, ts=e.ts, amount_paise=e.amount_paise, channel=ch))
     # drop isolated nodes that have no edge in the window (except core evidence)
     linked = {n for k in agg for n in k}
-    core = set(scan) & keep_set | labelled | set(exposure) | ({focus} if focus else set())
+    core = (scoped_core if (focus or scenario) else set(scan) & keep_set | labelled | set(exposure))
     keep = [n for n in keep if n in linked or n in core]
     layer = _layers(keep, list(agg))
 

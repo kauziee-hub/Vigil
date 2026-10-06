@@ -148,6 +148,8 @@ async def graph_scene(cap: int = Query(60, ge=10, le=400), focus: Optional[str] 
                       hops: int = Query(1, ge=1, le=2), scenario: Optional[str] = None):
     if focus and db.q1("SELECT id FROM accounts WHERE id = ?", (focus,)) is None:
         raise VigilError(404, "unknown_account", f"No account '{focus}'.")
+    if scenario and scenario not in scenarios.SCENARIOS:
+        raise VigilError(404, "unknown_scenario", f"No scenario '{scenario}'.")
     return scene.build(cap=cap, focus=focus, hops=hops, scenario=scenario).model_dump(mode="json")
 
 

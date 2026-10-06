@@ -15,6 +15,8 @@
 - Tests: backend/tests/test_vigil_v2.py (6).
 - Session restart (~22:55 IST) killed the Claude 2/3 subagents; Claude 3's partial work preserved on `claude3/run1-wip`; both relaunched as run 2 (incremental commits now mandatory).
 - Reset fix: `db.wipe()` now also clears SQLite AUTOINCREMENT counters, so a demo reset restores identical ids (previously `intent_transitions` ids kept climbing). New test `test_reset_restores_identical_world_after_every_scenario`: runs all 15 scenarios, toggles SHADOW, resets → every table identical (timestamps masked), mode back to ACTIVE, identical tiers on re-run. 218 tests pass.
+- Counterfactuals: none for Tier 0 decisions (the s4 high-value control previously showed a no-op ladder).
+- 3D scene scoping fix: `?scenario=` / `?focus=` now return only that scenario's accounts / that account plus 1–2 hops (previously the global suspicious set was mixed in, so every attack looked the same: ~60 nodes). `atk_circular` → 11 nodes / 12 edges, 3 ms; default scene unchanged (60 nodes, ≤ 12 ms, 45 KB). Unknown scenario → 404. 220 tests pass.
 
 ## v1 — MVP (2026-10-06)
 See `AGENT_HANDOFF/runs/20261006-2112_claude1_v1-build.md`.

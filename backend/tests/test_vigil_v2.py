@@ -122,3 +122,27 @@ def test_reset_restores_identical_world_after_every_scenario(world):
              for sid in scenarios.SCENARIOS}
     assert again == first
     assert first["s0"] == [0] and first["s3"] == [4]
+
+
+def test_scenario_and_focus_scenes_are_scoped_not_global(world):
+    for sid in ("s2", "atk_circular"):
+        scenarios.run_sync(sid)
+    full = scene.build()
+    ring = scene.build(scenario="atk_circular")
+    ids = {n.id for n in ring.nodes}
+    assert set(scenarios.touched_accounts("atk_circular")) <= ids
+    assert "kiran.traders@vigil" not in ids          # the s2 mule ring is not mixed into another attack's scene
+    assert len(ring.nodes) < len(full.nodes)
+    focus = scene.build(focus="zenith.exports@vigil", hops=1)
+    fids = {n.id for n in focus.nodes}
+    assert {"zenith.exports@vigil", "kiran.traders@vigil"} <= fids
+    assert not (set(scenarios.touched_accounts("atk_circular")) & fids)
+
+
+def test_scene_route_rejects_unknown_scenario(world):
+    from fastapi.testclient import TestClient
+    from vigil.app import app
+
+    with TestClient(app) as c:
+        r = c.get("/api/graph/scene?scenario=nope")
+        assert r.status_code == 404 and r.json()["error"]["code"] == "unknown_scenario"
