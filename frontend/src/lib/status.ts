@@ -116,7 +116,9 @@ export const ROLE_LABEL: Record<string, string> = {
   exit: "Exit",
   unclassified: "Unclassified",
   source: "Source",
-  "pass-through": "Pass-through",
-  "cash-out": "Cash-out",
+  "pass-through": "Pass-through mule",
+  "cash-out": "Cash-out (exit)",
+  suspected: "Suspected mule",
+  normal: "Account",
   victim: "Victim",
 };

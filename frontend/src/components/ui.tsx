@@ -1,5 +1,20 @@
 // Design-system primitives (docs/DESIGN_SYSTEM.md). Presentational only — no data fetching.
-import type { ReactNode } from "react";
+import { Component, type ReactNode } from "react";
+
+/** Contain a rendering fault to one page instead of blanking the console. */
+export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidUpdate(prev: { resetKey?: string }) {
+    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
+  }
+  render() {
+    if (this.state.error) {
+      return <div className="notice err">This view failed to render: <span className="mono">{this.state.error.message}</span>. Other pages are unaffected.</div>;
+    }
+    return this.props.children;
+  }
+}
 import type { ApiError } from "../api/client";
 import type { DetectorFamily, IntentState } from "../api/types";
 import { STATE_LABEL } from "../lib/format";

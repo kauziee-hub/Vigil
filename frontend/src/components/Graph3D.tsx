@@ -38,7 +38,7 @@ export interface Graph3DProps {
 
 const BG = 0x070d16;
 const ACCENT = "#8fb0dc";
-const SHAPES: ShapeKey[] = ["sphere", "octa", "cone", "dodeca", "cyl", "tetra", "ico", "box"];
+const SHAPES: ShapeKey[] = ["sphere", "octa", "cone", "dodeca", "cyl", "tetra", "ico", "hex", "box"];
 
 function makeGeometry(k: ShapeKey): THREE.BufferGeometry {
   switch (k) {
@@ -48,6 +48,7 @@ function makeGeometry(k: ShapeKey): THREE.BufferGeometry {
     case "cyl": return new THREE.CylinderGeometry(0.95, 0.95, 1.5, 18);
     case "tetra": return new THREE.TetrahedronGeometry(1.4);
     case "ico": return new THREE.IcosahedronGeometry(1.2);
+    case "hex": return new THREE.CylinderGeometry(1.1, 1.1, 1.3, 6);
     case "box": return new THREE.BoxGeometry(1.9, 1.1, 1.1);
     default: return new THREE.SphereGeometry(1, 22, 16);
   }

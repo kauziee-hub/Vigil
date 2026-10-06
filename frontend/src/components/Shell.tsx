@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { useRealtime, type ConnState } from "../api/realtime";
 import type { Health, Metrics, ModeView, SystemHealth, WsEnvelope } from "../api/types";
 import { useDebounced } from "../lib/hooks";
-import { Sim } from "./ui";
+import { ErrorBoundary, Sim } from "./ui";
 
 type Listener = (e: WsEnvelope<any>) => void;
 interface Platform {
@@ -55,6 +55,7 @@ function Clock() {
 
 export function Shell({ children }: { children: ReactNode }) {
   const listeners = useRef(new Set<Listener>());
+  const loc = useLocation();
   const [system, setSystem] = useState<SystemHealth | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [mode, setMode] = useState<ModeView | null>(null);
@@ -181,7 +182,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Link to="/governance">Governance →</Link>
             </div>
           )}
-          <main className="page">{children}</main>
+          <main className="page"><ErrorBoundary resetKey={loc.pathname}>{children}</ErrorBoundary></main>
         </div>
       </div>
     </ConsoleBus.Provider>

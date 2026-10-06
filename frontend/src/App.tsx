@@ -6,6 +6,7 @@ import { AboutPage } from "./pages/AboutPage";
 import { CommandCenter } from "./pages/CommandCenter";
 import { ContactPage } from "./pages/ContactPage";
 import { DecisionPage } from "./pages/DecisionPage";
+import { GuardPage } from "./pages/GuardPage";
 import { InvestigatePage } from "./pages/InvestigatePage";
 import { PayPage } from "./pages/PayPage";
 
@@ -31,12 +32,12 @@ export default function App() {
   return (
     <Routes>
       <Route path="/contact/:token" element={<ContactPage />} />
+      <Route path="/pay" element={<PayPage />} />
       <Route path="/*" element={
         <Shell>
           <Routes>
             <Route path="/" element={<CommandCenter />} />
-            <Route path="/guard" element={<PayPage />} />
-            <Route path="/pay" element={<PayPage />} />
+            <Route path="/guard" element={<GuardPage />} />
             <Route path="/network" element={<Lazy><NetworkPage /></Lazy>} />
             <Route path="/detection" element={<Pending title="Detection & Models" />} />
             <Route path="/investigations" element={<InvestigatePage />} />

@@ -3,20 +3,22 @@
 import type { GraphEvidence, GraphScene, SceneNode } from "../api/types";
 import { scoreStatus, type Status } from "./status";
 
-export type ShapeKey = "sphere" | "octa" | "cone" | "dodeca" | "cyl" | "tetra" | "ico" | "box";
+export type ShapeKey = "sphere" | "octa" | "cone" | "dodeca" | "cyl" | "tetra" | "ico" | "hex" | "box";
 
 export const ROLE_SHAPE: Record<string, { shape: ShapeKey; cy: string; label: string }> = {
-  normal: { shape: "sphere", cy: "ellipse", label: "Account (no role)" },
+  normal: { shape: "sphere", cy: "ellipse", label: "Account" },
+  victim: { shape: "sphere", cy: "ellipse", label: "Victim (white ring)" },
+  suspected: { shape: "ico", cy: "pentagon", label: "Suspected mule" },
+  "pass-through": { shape: "hex", cy: "hexagon", label: "Pass-through mule" },
   collector: { shape: "octa", cy: "diamond", label: "Collector" },
   distributor: { shape: "cone", cy: "triangle", label: "Distributor" },
   coordinator: { shape: "dodeca", cy: "star", label: "Coordinator" },
   entry: { shape: "cyl", cy: "round-tag", label: "Entry" },
   exit: { shape: "tetra", cy: "vee", label: "Exit / cash-out" },
-  "pass-through": { shape: "ico", cy: "hexagon", label: "Pass-through" },
   external: { shape: "box", cy: "round-rectangle", label: "External account" },
 };
 
-const ROLE_ALIAS: Record<string, string> = { source: "entry", "cash-out": "exit", unclassified: "normal" };
+const ROLE_ALIAS: Record<string, string> = { source: "entry", "cash-out": "exit", cashout: "exit", unclassified: "normal", mule: "suspected" };
 
 export function roleKey(role: string | null | undefined, kind?: string): string {
   if (kind === "external") return "external";
@@ -41,7 +43,8 @@ export const SHAPE_ICON: Record<ShapeKey, string> = {
   dodeca: "M8 1l2 4.6 5 .4-3.8 3.3 1.2 4.9L8 11.6 3.6 14.2l1.2-4.9L1 6l5-.4z",
   cyl: "M3 4h10v8H3z",
   tetra: "M2 3h12L8 14z",
-  ico: "M8 1l6 3.5v7L8 15l-6-3.5v-7z",
+  ico: "M8 1.5l6.2 4.5-2.4 7.5H4.2L1.8 6z",
+  hex: "M8 1l6 3.5v7L8 15l-6-3.5v-7z",
   box: "M2 5h12v6H2z",
 };
 
