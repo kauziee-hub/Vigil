@@ -1,5 +1,8 @@
 """Reproducible demo scenarios. Nothing depends on random chance or timing.
 
+Time-of-day rules see a pinned local hour (clock.DEMO_LOCAL_HOUR_IST) while a scenario step runs,
+so a scenario gives the same tier at 01:00 as at 14:00; the decision record says so.
+
 Every scenario uses the real pipeline: journey events go into `events`,
 observed money movements go through `ledger.post`, and payment attempts go
 through the Payment Intent Gateway (`lifecycle.create`) exactly like the Pay UI.
@@ -246,7 +249,8 @@ async def _execute(run: Run) -> None:
                 await run.resume.wait()
             step = run.steps[run.step]
             run.step += 1
-            result = step.action() if step.action else None
+            with clock.pinned_local_hour():
+                result = step.action() if step.action else None
             if run.step == len(run.steps):
                 run.state = "done"
             _emit(run, step, result)
@@ -301,7 +305,8 @@ def cancel_all() -> None:
 
 def run_sync(scenario_id: str) -> list[Any]:
     """Execute all steps immediately (tests, benchmark, CLI)."""
-    return [step.action() if step.action else None for step in SCENARIOS[scenario_id].steps()]
+    with clock.pinned_local_hour():
+        return [step.action() if step.action else None for step in SCENARIOS[scenario_id].steps()]
 
 
 def touched_accounts(scenario_id: str) -> list[str]:
