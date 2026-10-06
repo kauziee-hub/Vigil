@@ -136,6 +136,9 @@ def wipe() -> None:
     with tx() as c:
         for table in ALL_TABLES:
             c.execute(f"DELETE FROM {table}")
+        # AUTOINCREMENT counters survive DELETE; reset them so a demo reset restores identical ids.
+        if c.execute("SELECT 1 FROM sqlite_master WHERE name = 'sqlite_sequence'").fetchone():
+            c.execute("DELETE FROM sqlite_sequence")
 
 
 def dumps(value: Any) -> str:

@@ -89,3 +89,33 @@ def test_attack_scenarios_are_deterministic_and_balanced(world):
     from vigil.sim import seed
     seed.seed()
     assert first == {sid: scenarios.touched_accounts(sid) for sid in first}
+
+
+def _world_snapshot() -> dict:
+    """Every row of every table (timestamps masked: the seed is anchored to now) + AUTOINCREMENT counters."""
+    import json
+    import re
+
+    ts = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z")
+    out = {}
+    for t in db.ALL_TABLES:
+        out[t] = sorted(json.dumps({k: ts.sub("<ts>", r[k]) if isinstance(r[k], str) else r[k] for k in r.keys()},
+                                   sort_keys=True) for r in db.q(f"SELECT * FROM {t}"))
+    out["sqlite_sequence"] = sorted(f"{r['name']}={r['seq']}" for r in db.q("SELECT name, seq FROM sqlite_sequence"))
+    return out
+
+
+def test_reset_restores_identical_world_after_every_scenario(world):
+    from vigil.sim import seed
+
+    before = _world_snapshot()
+    first = {sid: [x.get("tier") for x in scenarios.run_sync(sid) if isinstance(x, dict) and "tier" in x]
+             for sid in scenarios.SCENARIOS}
+    mode.set_mode("shadow")  # an operator toggle must not survive a demo reset
+    seed.seed()
+    assert _world_snapshot() == before
+    assert mode.current()["mode"] == "active"
+    again = {sid: [x.get("tier") for x in scenarios.run_sync(sid) if isinstance(x, dict) and "tier" in x]
+             for sid in scenarios.SCENARIOS}
+    assert again == first
+    assert first["s0"] == [0] and first["s3"] == [4]
