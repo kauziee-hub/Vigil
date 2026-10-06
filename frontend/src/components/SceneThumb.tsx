@@ -1,0 +1,73 @@
+// Compact network thumbnail: a static SVG projection of the server's FROZEN scene layout (GraphScene x/y/z).
+// No physics, no WebGL, no re-layout — it draws exactly the positions /api/graph/scene returned, so it is
+// cheap enough for the Overview and the account view. Colour = status, ring = held / confirmed / victim.
+import { memo, useMemo } from "react";
+import type { GraphScene } from "../api/types";
+import { handle } from "../lib/format";
+import { nodeStatus } from "../lib/graphStyle";
+
+export const SceneThumb = memo(function SceneThumb({ scene, height = 200, focus, onPick, label = true }: {
+  scene: GraphScene; height?: number; focus?: string | null; onPick?: (id: string) => void; label?: boolean;
+}) {
+  const W = 640, H = height, P = 16;
+  const geo = useMemo(() => {
+    const pts = scene.nodes.map((n) => ({ n, px: n.x + n.z * 0.18, py: n.y + n.z * 0.42 }));
+    const xs = pts.map((p) => p.px), ys = pts.map((p) => p.py);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const sx = (W - 2 * P) / Math.max(1e-6, maxX - minX), sy = (H - 2 * P) / Math.max(1e-6, maxY - minY);
+    const s = Math.min(sx, sy);
+    const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
+    const pos = new Map<string, [number, number]>();
+    pts.forEach((p) => pos.set(p.n.id, [
+      pts.length === 1 ? W / 2 : ox + (p.px - minX) * s,
+      pts.length === 1 ? H / 2 : oy + (p.py - minY) * s,
+    ]));
+    const maxAmt = Math.max(1, ...scene.edges.map((e) => e.amount_paise));
+    return { pos, maxAmt };
+  }, [scene, W, H]);
+
+  if (!scene.nodes.length) return <div className="thumb-empty">No suspicious structure in this scope.</div>;
+  const top = new Set([...scene.nodes].filter((n) => n.labelled || n.held || n.risk >= 0.75).sort((a, b) => b.risk - a.risk).slice(0, 5).map((n) => n.id));
+  return (
+    <svg className="thumb" viewBox={`0 0 ${W} ${H}`} style={{ height: H }} role="img"
+         aria-label={`Network thumbnail: ${scene.nodes.length} accounts, ${scene.edges.length} aggregated money flows`}>
+      <defs>
+        <marker id="th-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0 0 8 4 0 8z" fill="#5b7699" />
+        </marker>
+        <marker id="th-arrow-f" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0 0 8 4 0 8z" fill="var(--st-fraud)" />
+        </marker>
+      </defs>
+      {scene.edges.map((e) => {
+        const a = geo.pos.get(e.source), b = geo.pos.get(e.target);
+        if (!a || !b) return null;
+        const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+        const r = 5.5;
+        const tainted = e.tainted_paise > 0;
+        return (
+          <line key={e.id} x1={a[0] + (dx / L) * r} y1={a[1] + (dy / L) * r} x2={b[0] - (dx / L) * (r + 1)} y2={b[1] - (dy / L) * (r + 1)}
+                stroke={tainted ? "var(--st-fraud)" : "#4a6383"} strokeOpacity={tainted ? 0.9 : 0.55}
+                strokeWidth={0.6 + 2.2 * Math.sqrt(e.amount_paise / geo.maxAmt)} markerEnd={`url(#${tainted ? "th-arrow-f" : "th-arrow"})`} />
+        );
+      })}
+      {scene.nodes.map((n) => {
+        const p = geo.pos.get(n.id)!;
+        const st = nodeStatus(n);
+        const isFocus = focus === n.id;
+        const ring = n.labelled ? "var(--st-fraud)" : n.held ? "var(--st-held)" : n.victim ? "#dce5ef" : isFocus ? "#8fb0dc" : null;
+        return (
+          <g key={n.id} transform={`translate(${p[0]},${p[1]})`} onClick={onPick ? () => onPick(n.id) : undefined}
+             style={{ cursor: onPick ? "pointer" : undefined }}>
+            <title>{`${n.label} · risk ${n.risk.toFixed(2)}${n.role ? ` · ${n.role}` : ""}`}</title>
+            {ring && <circle r={isFocus ? 8.5 : 7} fill="none" stroke={ring} strokeWidth={1.6} />}
+            <circle r={isFocus ? 5.5 : n.kind === "external" ? 3 : 4} fill={n.kind === "external" && st === "unknown" ? "#3f5068" : `var(--st-${st})`} />
+            {label && (top.has(n.id) || isFocus) && (
+              <text x={8} y={-7} className="thumb-l">{handle(n.id)}</text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+});

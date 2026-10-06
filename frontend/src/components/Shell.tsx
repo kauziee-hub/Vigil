@@ -93,7 +93,13 @@ export function Shell({ children }: { children: ReactNode }) {
     if (["decision.created", "intent.updated", "demo.reset", "metrics.dirty", "ledger.posted"].includes(e.type)) loadMetrics();
     listeners.current.forEach((l) => l(e));
   });
-  useEffect(() => { loadHealth(); refreshMode(); api.metrics().then(setMetrics).catch(() => undefined); }, [conn, loadHealth, refreshMode]);
+  // Initial load, then a re-sync only when the push channel (re)opens — never on every reconnect attempt.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (conn !== "open" && opened.current) return;
+    if (conn === "open") opened.current = true;
+    loadHealth(); refreshMode(); api.metrics().then(setMetrics).catch(() => undefined);
+  }, [conn, loadHealth, refreshMode]);
 
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem("vigil-theme") ?? ""; } catch { return ""; }

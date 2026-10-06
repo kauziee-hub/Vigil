@@ -4,8 +4,8 @@
 import { Fragment, useState } from "react";
 import type { Dimension, JourneyItem, Provenance, RiskDecision, RiskSignal, RiskSignalV2 } from "../api/types";
 import { DIM_LABEL, evValue, formatStamp, formatTime, freshness, humanKey } from "../lib/format";
-import { DIM_GLYPH, scoreStatus } from "../lib/status";
-import { Bar, Glyph, Pill, Sim, TierPill } from "./ui";
+import { DIM_GLYPH, tierStatus } from "../lib/status";
+import { Bar, Glyph, Sim, TierPill } from "./ui";
 
 export const SIMULATED_DIMS: Dimension[] = ["external", "context"];
 
@@ -20,7 +20,7 @@ export function EvidenceChips({ ev }: { ev: Record<string, unknown> }) {
 }
 
 export function ProvenanceLine({ p }: { p: Provenance | null | undefined }) {
-  if (!p) return <span className="xs dim">provenance not recorded (v1 record)</span>;
+  if (!p) return <span className="xs dim">provenance not recorded for this signal</span>;
   return (
     <span className="xs muted mono">
       {p.source} · observed {formatTime(p.observed_at)} · {freshness(p.freshness_s)} · {p.version} · {p.status}
@@ -49,7 +49,8 @@ export function ScoreLine({ decision, ladder }: { decision: RiskDecision; ladder
     <div className="stack tight">
       <div style={{ position: "relative" }}>
         <div className="bar thick">
-          <i style={{ width: `${Math.min(1, decision.final_score) * 100}%`, background: `var(--st-${scoreStatus(decision.final_score)})` }} />
+          {/* A payment's final score is coloured by its TIER (policy ladder), never by the network score bands. */}
+          <i style={{ width: `${Math.min(1, decision.final_score) * 100}%`, background: `var(--st-${tierStatus(decision.tier)})` }} />
           {(ladder ?? []).filter((l) => l.below < 1).map((l) => <span key={l.tier} className="tick" style={{ left: `${l.below * 100}%` }} />)}
         </div>
       </div>
@@ -79,7 +80,7 @@ export function ContributionTable({ decision, openFirst = true }: { decision: Ri
                   {d.signals.length > 0 && <span className="xs dim">{open === d.dimension ? "▾" : "▸"} {d.signals.length}</span>}
                 </span>
               </td>
-              <td><div className="row tight"><div className="grow"><Bar value={d.score} status={d.score > 0 ? scoreStatus(d.score) : undefined} /></div><span className="mono xs">{d.score.toFixed(2)}</span></div></td>
+              <td><div className="row tight"><div className="grow"><Bar value={d.score} /></div><span className="mono xs">{d.score.toFixed(2)}</span></div></td>
               <td className="num">{d.weight.toFixed(2)}</td>
               <td className="num"><b>{d.contribution.toFixed(3)}</b></td>
             </tr>
@@ -161,8 +162,4 @@ export function Timeline({ items, empty = "No journey events in this window." }:
       })}
     </div>
   );
-}
-
-export function StatusFromScore({ score }: { score: number }) {
-  return <Pill status={scoreStatus(score)}>{score.toFixed(2)}</Pill>;
 }

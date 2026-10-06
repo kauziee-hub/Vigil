@@ -3,11 +3,13 @@ import { Navigate, Route, Routes, useLocation, useParams } from "react-router-do
 import { Shell } from "./components/Shell";
 import { Loading } from "./components/ui";
 import { AboutPage } from "./pages/AboutPage";
+import { AccountPage } from "./pages/AccountPage";
+import { CasePage } from "./pages/CasePage";
 import { CommandCenter } from "./pages/CommandCenter";
 import { ContactPage } from "./pages/ContactPage";
 import { DecisionPage } from "./pages/DecisionPage";
 import { GuardPage } from "./pages/GuardPage";
-import { InvestigatePage } from "./pages/InvestigatePage";
+import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { PayPage } from "./pages/PayPage";
 
 // Network Intelligence carries three.js + Cytoscape: code-split so every other page stays light.
@@ -40,9 +42,9 @@ export default function App() {
             <Route path="/guard" element={<GuardPage />} />
             <Route path="/network" element={<Lazy><NetworkPage /></Lazy>} />
             <Route path="/detection" element={<Pending title="Detection & Models" />} />
-            <Route path="/investigations" element={<InvestigatePage />} />
-            <Route path="/investigations/decision/:decisionId" element={<InvestigatePage />} />
-            <Route path="/investigations/account/:accountId" element={<Pending title="Account investigation" />} />
+            <Route path="/investigations" element={<InvestigationsPage />} />
+            <Route path="/investigations/decision/:decisionId" element={<CasePage />} />
+            <Route path="/investigations/account/:accountId" element={<AccountPage />} />
             <Route path="/interventions" element={<Pending title="Interventions" />} />
             <Route path="/governance" element={<AboutPage />} />
             <Route path="/governance/decision/:decisionId" element={<DecisionPage />} />

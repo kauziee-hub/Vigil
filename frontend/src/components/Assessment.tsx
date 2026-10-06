@@ -7,7 +7,7 @@ import type {
   AccountSummary, DecisionRecord, Dimension, DimensionScore, Provenance, RiskDecision, RiskDecisionV2, TransactionIntent,
 } from "../api/types";
 import { DIM_LABEL, STATE_LABEL, ago, evValue, formatDateTime, formatINR, formatStamp, formatTime, freshness, handle } from "../lib/format";
-import { scoreStatus, stateStatus, tierStatus } from "../lib/status";
+import { stateStatus, tierStatus } from "../lib/status";
 import { EvidenceChips, ScoreLine } from "./Decision";
 import { DetectorTable } from "./intel";
 import { KV, Pill, Sim, StatePill, TierPill } from "./ui";
@@ -20,7 +20,7 @@ function DimScore({ d }: { d: DimensionScore | undefined }) {
   if (!d) return <span className="dim">—</span>;
   return (
     <div className="stack tight" style={{ alignItems: "flex-end" }}>
-      <span><b style={{ color: d.score > 0 ? `var(--st-${scoreStatus(d.score)})` : undefined }}>{d.score.toFixed(2)}</b>
+      <span><b>{d.score.toFixed(2)}</b>
         <span className="dim"> × {d.weight.toFixed(2)}</span></span>
       <span className="dim">= {d.contribution.toFixed(3)}</span>
     </div>
