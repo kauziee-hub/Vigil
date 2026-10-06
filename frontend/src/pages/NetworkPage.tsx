@@ -2,14 +2,13 @@
 // WebGL 3D view over the server's frozen layout (GraphScene) with a 2D fallback; graph modes; 1/2-hop
 // expansion; scenario-scoped attack scenes; TIME / ATTACK REPLAY over SceneEdge.txs; investigation drawer.
 // Scene payloads are cached per query and re-fetched only when console events indicate structural change.
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type {
   GraphScene, IntelScores, LedgerTx, RiskSignal, RingRow, ScenarioReplay, ScenarioStatus, SceneEdge, SceneNode, TaintView,
 } from "../api/types";
 import { SignalRow } from "../components/Decision";
-import { EvidenceGraph } from "../components/EvidenceGraph";
 import { Graph3D, type Graph3DStyle } from "../components/Graph3D";
 import { AccountIntelBlock, RoleIcon } from "../components/intel";
 import { MoneyTrace } from "../components/MoneyTrace";
@@ -26,6 +25,8 @@ const MODES: [Mode, string][] = [
   ["gnn", "GNN score"], ["rules", "Rule score"], ["ml", "ML score"],
 ];
 const MODEL_MODES = new Set<Mode>(["gnn", "rules", "ml"]);
+// The 2D fallback (Cytoscape) is only fetched when someone switches to 2D — the 3D page stays lighter.
+const EvidenceGraph = lazy(() => import("../components/EvidenceGraph").then((m) => ({ default: m.EvidenceGraph })));
 const CAPS = [40, 60, 100, 200, 400];
 
 // ── scene cache (module-level: survives navigation away and back) ─────────────
@@ -275,7 +276,9 @@ export function NetworkPage() {
                      onHover={onHover} hoverText={hoverText} hoverEdgeText={hoverEdgeText} />
           )}
           {scene && view === "2d" && (
-            <EvidenceGraph evidence={evidence2d} selected={selected} colorOf={colorOf2d} onNodeClick={(id) => onSelect(id)} onEdgeClick={(id) => onSelectEdge(id)} />
+            <Suspense fallback={<div className="net-empty"><span className="spinner lg" /></div>}>
+              <EvidenceGraph evidence={evidence2d} selected={selected} colorOf={colorOf2d} onNodeClick={(id) => onSelect(id)} onEdgeClick={(id) => onSelectEdge(id)} />
+            </Suspense>
           )}
         </div>
         <HoverTip bind={bindTip} />

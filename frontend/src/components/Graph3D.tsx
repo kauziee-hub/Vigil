@@ -231,6 +231,9 @@ export function Graph3D(p: Graph3DProps) {
       const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
       const want = new Set(cc.labelIds.map((l) => l.id));
       cc.labels.forEach((div, id) => { if (!want.has(id)) { div.remove(); cc.labels.delete(id); } });
+      // Screen-space declutter: labelIds are in priority order (selected, hovered, then by risk); a label that would
+      // overlap one already placed is hidden. ≤ 24 labels, recomputed only when the camera moves.
+      const placed: [number, number, number, number][] = [];
       for (const l of cc.labelIds) {
         const idx = b.index.get(l.id);
         if (idx === undefined) continue;
@@ -242,9 +245,14 @@ export function Graph3D(p: Graph3DProps) {
         tmp.copy(b.pos[idx]);
         tmp.y += b.radius[idx] * 1.2;
         tmp.project(camera);
+        const sx = ((tmp.x + 1) / 2) * w, sy = ((1 - tmp.y) / 2) * h;
+        const bw = l.text.length * 6.4 + 10, bh = 17;
+        const box: [number, number, number, number] = [sx - bw / 2, sy - bh, sx + bw / 2, sy];
+        const clash = !l.cls && placed.some((p) => box[0] < p[2] && box[2] > p[0] && box[1] < p[3] && box[3] > p[1]);
         const behind = tmp.z > 1;
-        div.style.display = behind ? "none" : "block";
-        div.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px) translate(-50%, -100%)`;
+        div.style.display = behind || clash ? "none" : "block";
+        if (!behind && !clash) placed.push(box);
+        div.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -100%)`;
       }
     };
 
