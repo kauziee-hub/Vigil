@@ -1,0 +1,9 @@
+# Vigil runtime. Deliberately small: no ML/GNN/torch on the decision path.
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+pydantic==2.10.6
+pyyaml==6.0.2
+httpx==0.28.1
+# tests
+pytest>=8
+hypothesis>=6

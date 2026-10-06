@@ -1,0 +1,390 @@
+// Mirror of backend/vigil/contracts.py — the ONLY frontend copy of these shapes.
+// Money: integer paise. Time: ISO-8601 UTC "Z". Scores: 0..1.
+
+export type IntentState =
+  | "CREATED" | "RISK_EVALUATED" | "APPROVED" | "CHALLENGED" | "HELD" | "ESCALATED"
+  | "CANCELLED" | "REJECTED" | "PAYMENT_INITIATED" | "PAYMENT_SUCCEEDED" | "PAYMENT_FAILED" | "MONITORED";
+
+export type Dimension = "external" | "network" | "sequence" | "behaviour" | "context";
+export type InterventionKind = "pass" | "inform" | "confirm_purpose" | "scoped_hold" | "hold_and_circuit_breaker";
+
+export interface RiskSignal {
+  rule_id: string;
+  dimension: Dimension;
+  label: string;
+  reason: string;
+  evidence: Record<string, unknown>;
+  contribution: number;
+}
+
+export interface DimensionScore {
+  dimension: Dimension;
+  score: number;
+  weight: number;
+  contribution: number;
+  signals: RiskSignal[];
+}
+
+export interface PolicyAdjustment {
+  rule_id: string;
+  kind: "corroboration" | "floor" | "cap";
+  effect: string;
+  reason: string;
+}
+
+export interface Intervention {
+  tier: number;
+  kind: InterventionKind;
+  title: string;
+  customer_action: string;
+  bank_action: string;
+  hold_paise: number;
+  circuit_breaker: boolean;
+}
+
+export interface CustomerReason {
+  headline: string;
+  summary: string;
+  facts: string[];
+  what_happens_next: string;
+}
+
+export interface AnalystReason {
+  summary: string;
+  top_dimensions: string[];
+  signals: RiskSignal[];
+  adjustments: PolicyAdjustment[];
+  counterfactual: string;
+  journey: JourneyItem[];
+  external: ExternalIntel | null;
+  network: Record<string, unknown>;
+}
+
+export interface ReasonLine {
+  customer: CustomerReason;
+  analyst: AnalystReason;
+  audit: Record<string, unknown>;
+}
+
+export interface RiskDecision {
+  decision_id: string;
+  intent_id: string;
+  sender_id: string;
+  recipient_id: string;
+  amount_paise: number;
+  created_at: string;
+  dimensions: DimensionScore[];
+  base_score: number;
+  adjustments: PolicyAdjustment[];
+  final_score: number;
+  tier: number;
+  intervention: Intervention;
+  rules_fired: string[];
+  reasons: ReasonLine;
+  policy_version: string;
+  latency_ms: number;
+  payload_sha256: string;
+}
+
+export interface PaymentInfo {
+  provider: string;
+  status: string;
+  order_id: string | null;
+  payment_id: string | null;
+  key_id: string | null;
+  amount_paise: number;
+  label: string;
+}
+
+export interface Transition {
+  from_state: string | null;
+  to_state: string;
+  actor: string;
+  detail: string | null;
+  ts: string;
+}
+
+export interface TransactionIntent {
+  intent_id: string;
+  sender_id: string;
+  recipient_id: string;
+  amount_paise: number;
+  note: string | null;
+  channel: string;
+  device_id: string | null;
+  source: "user" | "scenario" | "ambient";
+  state: IntentState;
+  tier: number | null;
+  decision_id: string | null;
+  purpose: string | null;
+  hold_id: string | null;
+  transaction_id: string | null;
+  payment: PaymentInfo | null;
+  created_at: string;
+  updated_at: string;
+  transitions: Transition[];
+}
+
+export interface IntentWithDecision {
+  intent: TransactionIntent;
+  decision: RiskDecision | null;
+}
+
+export interface ExternalIntel {
+  identifier: string;
+  status: "clean" | "watchlist" | "reported" | "confirmed_mule";
+  risk_score: number;
+  reason_codes: string[];
+  source: string;
+  last_updated: string;
+  simulated: boolean;
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  kind: "customer" | "external" | "device";
+  risk: number;
+  flags: string[];
+  role: string | null;
+  balance_paise: number;
+  labelled: boolean;
+  attributable_paise: number;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  amount_paise: number;
+  count: number;
+  first_ts: string;
+  last_ts: string;
+  tainted_paise: number;
+  tx_ids: string[];
+  highlight: boolean;
+}
+
+export interface GraphEvidence {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  focus: string | null;
+  truncated: boolean;
+  total_nodes: number;
+}
+
+export interface ScenarioEvent {
+  scenario_id: string;
+  run_id: string;
+  step: number;
+  total_steps: number;
+  kind: string;
+  title: string;
+  detail: string;
+  ts: string;
+  state: "idle" | "running" | "paused" | "done";
+}
+
+// ── read models (api/views.py) ──────────────────────────────────────────
+export interface JourneyItem {
+  kind?: string;
+  event_id?: string;
+  event_type: string;
+  label: string;
+  payload: Record<string, unknown>;
+  ts: string;
+  minutes_ago: number;
+  source?: string;
+}
+
+export interface AccountSummary {
+  id: string;
+  display_name: string;
+  kind: string;
+  persona: string | null;
+  opened_at: string;
+  balance_paise: number;
+  available_paise: number;
+  held_paise: number;
+  daily_limit_paise: number;
+  primary_device: string | null;
+  devices: string[];
+  payees: { payee_id: string; display_name: string; payments: number }[];
+  trusted_contact: { name: string; relation: string; phone_masked: string } | null;
+  is_demo_customer: boolean;
+}
+
+export interface DecisionSummary {
+  decision_id: string;
+  intent_id: string;
+  sender_id: string;
+  recipient_id: string;
+  amount_paise: number;
+  tier: number;
+  kind: InterventionKind;
+  final_score: number;
+  headline: string;
+  labels: string[];
+  latency_ms: number;
+  created_at: string;
+  source?: "user" | "scenario" | "ambient";
+}
+
+export interface Metrics {
+  transactions_last_10m: number;
+  transactions_total: number;
+  decisions_total: number;
+  decisions_by_tier: Record<string, number>;
+  zero_friction_rate: number | null;
+  pending_intents: number;
+  open_interventions: number;
+  held_paise: number;
+  suspicious_accounts: number;
+  suspicious_value_paise: number;
+  attributable_paise: number;
+  challenges: number;
+  challenges_overturned: number;
+  latency_p50_ms: number | null;
+  latency_p95_ms: number | null;
+  system_total_paise: number;
+}
+
+export interface Health {
+  status: string;
+  time: string;
+  policy_version: string;
+  payment_provider: "mock" | "razorpay_test";
+  payment_provider_label: string;
+  gateway: { status: string; detail: string };
+  razorpay_key_id: string | null;
+  external_intel_provider: string;
+  ambient: boolean;
+  ws_clients: number;
+  seeded_at: string | null;
+  graph_version: number;
+  accounts: number;
+  transactions: number;
+  ml_on_decision_path: boolean;
+}
+
+export interface ScenarioStatus {
+  id: string;
+  name: string;
+  act: string;
+  summary: string;
+  expected: string;
+  payer: string | null;
+  state: "idle" | "running" | "paused" | "done";
+  step: number;
+  total_steps: number;
+  log: (ScenarioEvent & { result?: Record<string, unknown> | null })[];
+}
+
+export interface ScenarioExplain {
+  id: string;
+  name: string;
+  act: string;
+  summary: string;
+  expected: string;
+  explain: string[];
+  decisions: { intent_id: string; decision_id: string; tier: number; state: string; final_score: number }[];
+  time_compressed: boolean;
+  simulated_inputs: boolean;
+}
+
+export interface RingRow {
+  account_id: string;
+  score: number;
+  rules: string[];
+  labels: string[];
+  role: string | null;
+  attributable_paise: number;
+  total_in_paise: number;
+  labelled: boolean;
+}
+
+export interface TaintRuleResult {
+  origin_paise: number;
+  attributable_total_paise: number;
+  left_perimeter_paise: number;
+  spent_paise: number;
+  retagged_paise: number;
+  extinguished_paise: number;
+  coverage: number;
+  claims: { account_id: string; amount_paise: number; rule: string; incident_id: string }[];
+  steps: { journal_id: string; journal_seq: number; occurred_at: string; from_account: string; to_account: string;
+           moved_paise: number; traced_paise: number; left_perimeter: boolean }[];
+  digest: string;
+  conserved: boolean;
+}
+
+export interface TaintIncident {
+  label_id: string;
+  transaction_id: string;
+  source_account: string;
+  first_recipient: string;
+  origin_paise: number;
+  grade: string;
+  labelled_at: string;
+  rules: { libr: TaintRuleResult; pro_rata: TaintRuleResult };
+  hops: Record<string, number>;
+}
+
+export interface TaintView {
+  incidents: TaintIncident[];
+  exposure: { account_id: string; name: string; attributable_paise: number; hop: number | null }[];
+  hops: Record<string, number>;
+  computed_ms: number;
+  through_seq: number | null;
+  journals_considered?: number;
+}
+
+export interface Investigation {
+  decision: RiskDecision;
+  intent: TransactionIntent;
+  sender: AccountSummary;
+  recipient: AccountSummary;
+  external_intel: ExternalIntel | null;
+  graph: GraphEvidence;
+  timeline: JourneyItem[];
+  money_trace: TaintIncident[];
+  hold: { id: string; held_paise: number; reference: string; opened_at: string; review_by: string;
+          released_at: string | null; outcome: string | null } | null;
+  circuit_breaker: { id: string; fired_at: string; response: string | null; responded_at: string | null;
+                     payload: Record<string, unknown> }[];
+}
+
+export interface PolicyView {
+  version: string;
+  weights: Record<Dimension, number>;
+  ladder: { tier: number; below: number; kind: InterventionKind; title: string }[];
+  note: string;
+}
+
+export interface LedgerTx {
+  id: string;
+  seq: number;
+  kind: string;
+  sender_id: string;
+  recipient_id: string;
+  amount_paise: number;
+  ts: string;
+  note: string | null;
+  source: string;
+}
+
+export interface ContactView {
+  contact_name: string;
+  relation: string;
+  account_holder: string;
+  alerts: ({ breaker_id: string; intent_id: string; fired_at: string; response: string | null;
+             responded_at: string | null; headline: string; amount_paise: number; facts: string[];
+             status: string; asks: string })[];
+}
+
+export interface WsEnvelope<T = unknown> {
+  type: string;
+  topic: string;
+  ts: string;
+  data: T;
+}

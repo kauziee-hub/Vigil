@@ -1,0 +1,106 @@
+# Vigil risk policy — the ONLY place weights, thresholds and windows live.
+#
+# These numbers are hand-set, explainable demo defaults. They are NOT fitted or
+# validated against real fraud data, and must not be presented as such.
+# Every decision records `policy_version` (version + content hash of this file).
+
+version: "2026.10.06-demo.2"
+
+# ── Fusion ────────────────────────────────────────────────────────────────
+# base = Σ weight × dimension_score  (weights sum to 1.0)
+fusion:
+  weights:
+    external:  0.25   # institutional intelligence about the recipient (simulated registry)
+    network:   0.25   # recipient's money-flow structure, labels, attributable value
+    sequence:  0.20   # sender's journey in the last few minutes (TrailScore)
+    behaviour: 0.15   # this payment vs the sender's own history
+    context:   0.15   # simulated call/message context categories (ContextFlag)
+  corroboration:
+    dimension_threshold: 0.5      # a dimension "fires" at or above this
+    bonus_per_extra_dimension: 0.10   # independent evidence agreeing is worth more than one loud signal
+
+# ── Interrupt ladder (on final score) ─────────────────────────────────────
+ladder:
+  - { tier: 0, below: 0.15, kind: pass,                     title: "Approved" }
+  - { tier: 1, below: 0.28, kind: inform,                   title: "Heads-up shown" }
+  - { tier: 2, below: 0.42, kind: confirm_purpose,          title: "Confirm before paying" }
+  - { tier: 3, below: 0.55, kind: scoped_hold,              title: "Payment held for review" }
+  - { tier: 4, below: 1.01, kind: hold_and_circuit_breaker, title: "Held + trusted contact alerted" }
+
+# ── Policy adjustments (each is recorded by name on the decision) ─────────
+adjustments:
+  floors:
+    external_confirmed_min_tier: 3        # recipient confirmed as mule by registry
+    taint_exposure_min_tier: 3            # recipient holds value attributable to a confirmed fraud
+    taint_exposure_min_paise: 1000000     # ₹10,000
+  friction_guard:                         # protects established, clean relationships
+    enabled: true
+    min_prior_payments: 3
+    max_sequence: 0.30
+    max_context: 0.30
+    max_external: 0.10
+    max_tier: 1
+  circuit_breaker_requires_sender_evidence:
+    enabled: true
+    min_sequence: 0.5
+    min_context: 0.5
+    else_max_tier: 3
+
+# ── Dimension rules: contribution added to the dimension when the rule fires ──
+external:
+  status_scores: { clean: 0.0, watchlist: 0.35, reported: 0.65, confirmed_mule: 1.0 }
+
+network:
+  window_hours: 72
+  fan_in:           { min_distinct_senders: 4, contribution: 0.25 }
+  fan_out:          { min_distinct_recipients: 4, contribution: 0.15 }
+  pass_through:     { max_minutes: 60, min_forwarded_fraction: 0.7, min_inflow_paise: 2000000, contribution: 0.30 }
+  circular:         { max_hops: 4, contribution: 0.25 }
+  smurfing:         { below_paise: 1000000, min_count: 4, contribution: 0.15 }
+  velocity_chain:   { max_minutes_per_hop: 30, min_hops: 2, contribution: 0.15 }
+  shared_device:    { min_accounts: 3, contribution: 0.15 }
+  dormant_wake:     { min_quiet_days: 30, contribution: 0.15 }
+  new_account_inflow: { max_age_days: 14, min_inflow_paise: 5000000, contribution: 0.15 }
+  labelled_neighbour: { contribution_1hop: 0.30, contribution_2hop: 0.15 }
+  taint_exposure:   { min_paise: 100000, contribution: 0.40 }
+
+sequence:
+  window_minutes: 30
+  steps:
+    login_new_device:   0.20
+    credential_changed: 0.20
+    payee_added:        0.15
+    limit_raised:       0.20
+    screen_share_active: 0.25
+  ordered_chain:
+    order: [login_new_device, payee_added, limit_raised]
+    min_steps_in_order: 3
+    bonus: 0.25
+  large_transfer_after_chain: { min_balance_fraction: 0.5, bonus: 0.10 }
+
+behaviour:
+  history_days: 180
+  amount_outlier:   { min_history: 5, robust_z: 3.5, contribution: 0.30 }
+  first_time_payee: { contribution: 0.15 }
+  balance_drain:    { min_fraction: 0.8, contribution: 0.30 }
+  new_payee_burst:  { window_hours: 24, min_new_payees: 2, contribution: 0.15 }
+  velocity:         { window_minutes: 60, min_payments: 5, contribution: 0.15 }
+  dormant_sender:   { min_quiet_days: 45, contribution: 0.15 }
+  odd_hour:         { start_hour_ist: 0, end_hour_ist: 5, contribution: 0.05 }
+
+context:
+  window_minutes: 30
+  categories:
+    urgency:          0.25
+    secrecy:          0.30
+    fear_authority:   0.35
+    greed:            0.20
+    bypass_approval:  0.30
+
+# ── Interventions ────────────────────────────────────────────────────────
+scoped_hold:
+  review_minutes: 30           # simulated bank review window shown to the customer
+  reference_prefix: "VGL-HOLD-"
+
+circuit_breaker:
+  facts_max: 3
