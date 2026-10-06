@@ -9,6 +9,7 @@ import { CommandCenter } from "./pages/CommandCenter";
 import { ContactPage } from "./pages/ContactPage";
 import { DecisionPage } from "./pages/DecisionPage";
 import { GuardPage } from "./pages/GuardPage";
+import { InterventionsPage } from "./pages/InterventionsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { PayPage } from "./pages/PayPage";
 
@@ -45,7 +46,7 @@ export default function App() {
             <Route path="/investigations" element={<InvestigationsPage />} />
             <Route path="/investigations/decision/:decisionId" element={<CasePage />} />
             <Route path="/investigations/account/:accountId" element={<AccountPage />} />
-            <Route path="/interventions" element={<Pending title="Interventions" />} />
+            <Route path="/interventions" element={<InterventionsPage />} />
             <Route path="/governance" element={<AboutPage />} />
             <Route path="/governance/decision/:decisionId" element={<DecisionPage />} />
             <Route path="/lab" element={<Pending title="Scenario Lab" />} />
