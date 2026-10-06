@@ -5,6 +5,7 @@ import { Loading } from "./components/ui";
 import { AccountPage } from "./pages/AccountPage";
 import { CasePage } from "./pages/CasePage";
 import { ContactPage } from "./pages/ContactPage";
+import { DetectionPage } from "./pages/DetectionPage";
 import { GovernancePage } from "./pages/GovernancePage";
 import { GuardPage } from "./pages/GuardPage";
 import { InterventionsPage } from "./pages/InterventionsPage";
@@ -43,7 +44,7 @@ export default function App() {
             <Route path="/" element={<OverviewPage />} />
             <Route path="/guard" element={<GuardPage />} />
             <Route path="/network" element={<Lazy><NetworkPage /></Lazy>} />
-            <Route path="/detection" element={<Pending title="Detection & Models" />} />
+            <Route path="/detection" element={<DetectionPage />} />
             <Route path="/investigations" element={<InvestigationsPage />} />
             <Route path="/investigations/decision/:decisionId" element={<CasePage />} />
             <Route path="/investigations/account/:accountId" element={<AccountPage />} />
