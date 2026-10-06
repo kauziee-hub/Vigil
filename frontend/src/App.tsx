@@ -2,16 +2,16 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { Loading } from "./components/ui";
-import { AboutPage } from "./pages/AboutPage";
 import { AccountPage } from "./pages/AccountPage";
 import { CasePage } from "./pages/CasePage";
 import { CommandCenter } from "./pages/CommandCenter";
 import { ContactPage } from "./pages/ContactPage";
-import { DecisionPage } from "./pages/DecisionPage";
+import { GovernancePage } from "./pages/GovernancePage";
 import { GuardPage } from "./pages/GuardPage";
 import { InterventionsPage } from "./pages/InterventionsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { PayPage } from "./pages/PayPage";
+import { RecordPage } from "./pages/RecordPage";
 
 // Network Intelligence carries three.js + Cytoscape: code-split so every other page stays light.
 const NetworkPage = lazy(() => import("./pages/NetworkPage").then((m) => ({ default: m.NetworkPage })));
@@ -47,8 +47,8 @@ export default function App() {
             <Route path="/investigations/decision/:decisionId" element={<CasePage />} />
             <Route path="/investigations/account/:accountId" element={<AccountPage />} />
             <Route path="/interventions" element={<InterventionsPage />} />
-            <Route path="/governance" element={<AboutPage />} />
-            <Route path="/governance/decision/:decisionId" element={<DecisionPage />} />
+            <Route path="/governance" element={<GovernancePage />} />
+            <Route path="/governance/decision/:decisionId" element={<RecordPage />} />
             <Route path="/lab" element={<Pending title="Scenario Lab" />} />
             <Route path="/health" element={<Pending title="System Health" />} />
             {/* v1 → v2 redirects */}
