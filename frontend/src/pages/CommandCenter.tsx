@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { DecisionSummary, Metrics, RingRow, ScenarioExplain, ScenarioStatus } from "../api/types";
-import { TierChip } from "../components/Decision";
+import { TierPill as TierChip } from "../components/ui";
 import { useConsoleEvents } from "../components/Shell";
 import { formatINR, formatPaiseShort, formatTime, handle } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
