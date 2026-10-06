@@ -388,3 +388,200 @@ export interface WsEnvelope<T = unknown> {
   ts: string;
   data: T;
 }
+
+// ══ v2 contracts (frozen 2026-10-06, mirror of backend/vigil/contracts.py) ══
+
+export type ProvenanceStatus = "observed" | "computed" | "simulated" | "model_evidence" | "unavailable";
+export interface Provenance {
+  source: string;
+  observed_at: string;
+  freshness_s: number;
+  version: string;
+  status: ProvenanceStatus;
+  confidence: string;
+}
+/** RiskSignal.provenance is optional: v1 records have none. */
+export interface RiskSignalV2 extends RiskSignal { provenance?: Provenance | null }
+
+export type DetectorFamily =
+  | "rules" | "random_forest" | "gnn" | "drift" | "early_warning" | "pattern_memory"
+  | "ringwatch" | "trailscore" | "context" | "external";
+export type ValueKind = "score" | "probability_uncalibrated" | "probability_calibrated" | "level" | "similarity" | "count";
+
+export interface DetectorResult {
+  family: DetectorFamily;
+  label: string;
+  value: number | null;
+  display: string;
+  kind: ValueKind;
+  flagged: boolean;
+  status: "ok" | "unavailable" | "not_applicable";
+  version: string;
+  observed_at: string;
+  detail: Record<string, unknown>;
+}
+export interface DetectorConsensus {
+  families_flagging: number;
+  families_evaluated: number;
+  agreement: "none" | "weak" | "moderate" | "strong";
+  summary: string;
+}
+export interface ShapContribution { feature: string; value: number; contribution: number; category: string }
+export interface ShapExplanation {
+  model_version: string;
+  base_value: number;
+  prediction: number;
+  prediction_kind: ValueKind;
+  top_positive: ShapContribution[];
+  top_negative: ShapContribution[];
+  categories: Record<string, number>;
+}
+export interface DriftFeature { feature: string; baseline: number; current: number; change: number }
+export interface DriftReport {
+  baseline_window: string;
+  current_window: string;
+  drift_score: number;
+  level: "LOW" | "MEDIUM" | "HIGH";
+  features: DriftFeature[];
+}
+export interface PatternMatch { signature_id: string; name: string; similarity: number; description: string; note: string }
+export type MuleRole = "coordinator" | "collector" | "distributor" | "entry" | "exit" | "unclassified";
+export interface RoleAssessment { role: MuleRole; reason: string; evidence: Record<string, unknown> }
+export interface AccountIntel {
+  account_id: string;
+  as_of: string;
+  graph_version: number;
+  detectors: DetectorResult[];
+  consensus: DetectorConsensus;
+  shap: ShapExplanation | null;
+  drift: DriftReport | null;
+  role: RoleAssessment;
+  patterns: PatternMatch[];
+  features: Record<string, number>;
+}
+export interface ModelInfo {
+  model_id: string;
+  family: "random_forest" | "gnn" | "rules" | "drift" | "pattern_memory";
+  version: string;
+  trained_at: string | null;
+  seed: number | null;
+  data: string;
+  split: string;
+  metrics: Record<string, unknown>;
+  per_attack: Record<string, unknown>;
+  calibration: Record<string, unknown>;
+  operational_use: string;
+  status: "active" | "unavailable" | "retired";
+}
+export interface IntelScores {
+  graph_version: number;
+  scores: Record<string, { rules: number | null; rf: number | null; gnn: number | null; drift_level: string | null;
+                           role: MuleRole | null; early_warning: boolean }>;
+}
+export interface ScenarioCompare {
+  scenario_id: string;
+  accounts: { account_id: string; seed_role: string | null; detectors: DetectorResult[]; consensus: DetectorConsensus }[];
+}
+
+export interface ReplayFrame {
+  index: number;
+  ts: string;
+  kind: "event" | "evaluation" | "decision" | "action" | "outcome";
+  label: string;
+  detail: string;
+  signals_added: string[];
+  subscores: Record<Dimension, number>;
+  final_score: number;
+  tier: number;
+}
+export interface DecisionReplay { decision_id: string; intent_id: string; policy_version: string; frames: ReplayFrame[]; note: string }
+export interface Counterfactual { id: string; label: string; changes: string[]; final_score: number; tier: number; tier_delta: number }
+export interface BaselineDecision { decision: "approve" | "otp_step_up" | "decline"; reason: string }
+
+/** RiskDecision v2 fields (optional on v1 records). */
+export interface RiskDecisionV2 extends RiskDecision {
+  mode?: "active" | "shadow";
+  recommended_tier?: number | null;
+  applied_tier?: number | null;
+  baseline?: BaselineDecision | null;
+  model_evidence?: DetectorResult[];
+}
+
+export interface DecisionRecord {
+  decision: RiskDecisionV2;
+  intent: TransactionIntent;
+  provenance: { rule_id: string; dimension: Dimension; label: string; contribution: number; provenance: Provenance }[];
+  model_versions: Record<string, string>;
+  thresholds: PolicyView["ladder"];
+  weights: Record<Dimension, number>;
+  reason_codes: string[];
+  operator_actions: Transition[];
+  payment_result: PaymentInfo | null;
+  ledger_transaction: LedgerTx | null;
+}
+
+export interface SceneNode {
+  id: string; label: string; kind: "customer" | "external";
+  x: number; y: number; z: number; layer: number;
+  role: string | null; risk: number; taint_paise: number; labelled: boolean; victim: boolean; held: boolean;
+  balance_paise: number; flags: string[];
+}
+export interface SceneTx { id: string; ts: string; amount_paise: number; channel: string }
+export interface SceneEdge {
+  id: string; source: string; target: string; amount_paise: number; count: number; first_ts: string; last_ts: string;
+  tainted_paise: number; channels: string[]; txs: SceneTx[];
+}
+export interface GraphScene {
+  version: string; layout: string; nodes: SceneNode[]; edges: SceneEdge[]; focus: string | null; cap: number;
+  truncated: boolean; total_candidates: number; time_range: string[] | null; built_ms: number; cached: boolean;
+}
+
+export interface RiskPoint { ts: string; score: number; tier: number; label: string; reason: string; decision_id?: string | null }
+export interface ModeView { mode: "active" | "shadow"; since: string | null; note: string }
+export interface GovernanceSummary {
+  mode: ModeView;
+  policy: PolicyView;
+  models: ModelInfo[];
+  decisions_by_tier: Record<string, number>;
+  shadow: { evaluated: number; vigil_would_intervene: number; baseline_would_challenge: number; agreement_rate: number | null };
+  recent_actions: { intent_id: string; actor: string; to_state: string; detail: string | null; ts: string }[];
+}
+export interface SystemHealth extends Health {
+  uptime_s: number;
+  db_size_bytes: number;
+  graph_nodes: number;
+  graph_edges: number;
+  cache: Record<string, unknown>;
+  intel_available: boolean;
+  latency_p95_ms: number | null;
+}
+export interface InterventionRow {
+  intent_id: string;
+  decision_id: string;
+  sender_id: string;
+  recipient_id: string;
+  amount_paise: number;
+  tier: number;
+  kind: InterventionKind;
+  state: IntentState;
+  headline: string;
+  opened_at: string;
+  age_s: number;
+  sla_due: string | null;               // review-by for holds
+  hold: { id: string; held_paise: number; reference: string; outcome: string | null } | null;
+  circuit_breaker: { id: string; contact: string; response: string | null; responded_at: string | null } | null;
+  mode: "active" | "shadow";
+}
+export interface IntelOverview {
+  graph_version: number;
+  detector_agreement: Record<string, number>;   // family -> accounts flagged
+  early_warnings: { account_id: string; score: number; signals: string[] }[];
+  pattern_alerts: { account_id: string; match: PatternMatch }[];
+  role_counts: Record<string, number>;
+  models: ModelInfo[];
+}
+export interface ScenarioReplay {
+  scenario_id: string;
+  events: { ts: string; kind: string; title: string; tx_id: string | null; source: string | null; target: string | null;
+            amount_paise: number | null }[];
+}

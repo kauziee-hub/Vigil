@@ -301,6 +301,24 @@ def run_sync(scenario_id: str) -> list[Any]:
     return [step.action() if step.action else None for step in SCENARIOS[scenario_id].steps()]
 
 
+def touched_accounts(scenario_id: str) -> list[str]:
+    """Accounts a scenario involves (frozen interface for vigil.intel compare)."""
+    static = {
+        "s0": ["ramesh@vigil", "meena.grocer@vigil"],
+        "s1": ["ramesh@vigil", "kiran.traders@vigil"],
+        "s2": [*seed_mod.VICTIMS, "kiran.traders@vigil", "zenith.exports@vigil", *seed_mod.DOWNSTREAM,
+               *seed_mod.SMURF_TARGETS],
+        "s3": ["sunita@vigil", "rk.legal.services@vigil"],
+        "s4": ["ramesh@vigil", "landlord.iyer@vigil"],
+    }
+    if scenario_id in static:
+        return static[scenario_id]
+    accounts = getattr(SCENARIOS.get(scenario_id), "accounts", None)
+    if accounts:
+        return list(accounts)
+    raise ledger.VigilError(404, "unknown_scenario", f"No scenario '{scenario_id}'.")
+
+
 def explain(scenario_id: str) -> dict[str, Any]:
     s = SCENARIOS.get(scenario_id)
     if s is None:

@@ -1,6 +1,8 @@
 // Single HTTP client. Same-origin by default (FastAPI serves the built app),
 // so no host is hard-coded anywhere in the frontend.
 import type {
+  AccountIntel, Counterfactual, DecisionRecord, DecisionReplay, GovernanceSummary, GraphScene, IntelScores,
+  IntelOverview, InterventionRow, ModeView, ModelInfo, RiskPoint, ScenarioCompare, ScenarioReplay, SystemHealth,
   AccountSummary, ContactView, DecisionSummary, GraphEvidence, Health, IntentWithDecision, Investigation,
   LedgerTx, Metrics, PolicyView, RingRow, RiskDecision, ScenarioExplain, ScenarioStatus, TaintView,
   TransactionIntent,
@@ -83,6 +85,28 @@ export const api = {
   scenarioResume: (id: string) => post(`/api/scenarios/${id}/resume`),
   scenarioReset: (id: string) => post(`/api/scenarios/${id}/reset`),
   scenarioExplain: (id: string) => request<ScenarioExplain>(`/api/scenarios/${id}/explain`),
+
+  // ── v2: decision replay / counterfactuals / governance / mode / scene (Claude 1) ──
+  replay: (decisionId: string) => request<DecisionReplay>(`/api/decisions/${decisionId}/replay`),
+  counterfactuals: (decisionId: string) => request<Counterfactual[]>(`/api/decisions/${decisionId}/counterfactuals`),
+  record: (decisionId: string) => request<DecisionRecord>(`/api/decisions/${decisionId}/record`),
+  riskTimeline: (accountId: string) => request<RiskPoint[]>(`/api/accounts/${encodeURIComponent(accountId)}/risk-timeline`),
+  mode: () => request<ModeView>("/api/mode"),
+  setMode: (mode: "active" | "shadow") => post<ModeView>("/api/mode", { mode }),
+  governance: () => request<GovernanceSummary>("/api/governance/summary"),
+  systemHealth: () => request<SystemHealth>("/api/system/health"),
+  scene: (p: { cap?: number; focus?: string; hops?: number; scenario?: string } = {}) =>
+    request<GraphScene>(`/api/graph/scene?${new URLSearchParams(
+      Object.entries(p).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))}`),
+  scenarioReplay: (id: string) => request<ScenarioReplay>(`/api/scenarios/${id}/replay`),
+
+  // ── v2: detection intelligence (Claude 2, /api/intel/**) ──
+  intelAccount: (accountId: string) => request<AccountIntel>(`/api/intel/accounts/${encodeURIComponent(accountId)}`),
+  intelScores: () => request<IntelScores>("/api/intel/scores"),
+  intelModels: () => request<ModelInfo[]>("/api/intel/models"),
+  intelOverview: () => request<IntelOverview>("/api/intel/overview"),
+  interventions: (status: "open" | "all" = "open") => request<InterventionRow[]>(`/api/interventions?status=${status}`),
+  intelCompare: (scenarioId: string) => request<ScenarioCompare>(`/api/intel/scenarios/${scenarioId}/compare`),
 
   contact: (token: string) => request<ContactView>(`/api/contact/${encodeURIComponent(token)}`),
   contactRespond: (token: string, breaker_id: string, response: "acknowledged" | "calling_user" | "marked_expected") =>

@@ -77,6 +77,16 @@ async def unhandled(_r: Request, exc: Exception):
 app.include_router(router)
 app.include_router(ws_router)
 
+# Detection intelligence (Claude 2, vigil/intel/**) is optional: the payment path never depends on it.
+try:
+    from vigil.intel.api import router as intel_router  # type: ignore[import-not-found]
+
+    app.include_router(intel_router)
+    INTEL_AVAILABLE = True
+except Exception as exc:  # ImportError or missing ML dependencies
+    INTEL_AVAILABLE = False
+    log.warning("detection intelligence unavailable: %s", exc)
+
 if FRONTEND_DIST.is_dir():
     if (FRONTEND_DIST / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
