@@ -36,6 +36,9 @@ def test_counterfactuals_come_from_policy_engine(world):
     assert cfs and all(c.tier <= d.tier for c in cfs)
     safest = min(cfs, key=lambda c: c.tier)
     assert safest.tier <= 1 and safest.tier_delta < 0
+    for sid in ("s0", "s4"):  # Tier 0 (incl. the high-value legitimate control): nothing to make safer
+        d0, _ = _decision(sid)
+        assert d0.tier == 0 and replay.counterfactuals(d0.decision_id) == []
 
 
 def test_every_signal_has_provenance(world):
