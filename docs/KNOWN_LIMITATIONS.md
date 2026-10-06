@@ -15,6 +15,14 @@ Every component of the demo falls in exactly one of four buckets.
 * Razorpay **Test Mode** integration code: order creation via the real API and server-side payment-signature verification (HMAC-SHA256 of `order_id|payment_id`). *Requires valid test keys — the keys inherited from the PRIMA repo are rejected by Razorpay (HTTP 401) and must be replaced in `.env`.* When keys are missing or rejected, the app automatically uses the mock provider and says so.
 * Benchmarks and 211 automated tests.
 
+### Added in v2 (REAL)
+* **Decision Replay** — reconstructs the state leading to a decision from the recorded evidence, re-scoring each step with the same policy engine. It is a reconstruction, not a re-run against live data; if the policy file changed since the decision, the replay says so.
+* **Counterfactual ladder** — deterministic re-scoring with named evidence removed/changed ("with an established recipient → Tier 2"). Shows what the *policy* would do; it does not claim the customer's situation would be safe.
+* **Evidence provenance** on every signal (source, observed-at, freshness, version, status). Scenario-injected journey events are marked `simulated`.
+* **SHADOW MODE** — Vigil records recommendations without intervening; compared against a deliberately conventional, hand-written bank baseline (approve / OTP step-up / decline). The baseline is a stand-in, not a model of any specific bank.
+* **3D graph scene** with a frozen, precomputed layered layout (no physics) and caching.
+* **Ten attack patterns** from the original project as deterministic scenarios (injected as observed ledger postings).
+
 ## SIMULATED (stand-ins for things a bank would receive from elsewhere)
 
 * **External intelligence** — `LocalRegistryProvider` reads a local table shaped like a registry response. Labelled "SIMULATED EXTERNAL INTELLIGENCE". No DPIP, MuleHunter, I4C or DoT connection exists.

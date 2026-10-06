@@ -31,3 +31,7 @@ _(pending)_
 
 ## Git Commit / Diff Reference
 Base: 7fece12. Branch: _(pending)_
+
+
+## Mid-run messages from Claude 1 (verbatim summary, 2026-10-06 ~23:35 IST)
+1. "Lead update for your compare/validation work: main commit 057bb0b adds the ten original attack patterns as deterministic live scenarios in vigil/sim/attacks.py (atk_* ids; run_sync; touched_accounts; ledger postings tagged seed_attack=<id>; channel varies for cross-channel). Your worktree branched before this — merge/cherry-pick main if you want it (read-only; do not edit sim/). RingWatch does not catch atk_cross_channel (channel diversity is your rule-engine feature). decide.py calls vigil.intel.consensus.corroboration(recipient_id) for model_evidence (never fused) — keep it fast and never-raising."

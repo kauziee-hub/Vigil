@@ -53,6 +53,13 @@ Customer app (bank / PSP)  ──intent──▶  VIGIL pre-commit decision serv
 | **CircuitBreaker** | Bank | Pre-nominated trusted contact (customer consent) | Tier 4 | Notification service (SMS/push) | Facts-only alert, contact response | **Built** (WebSocket to a browser/phone on LAN) | Consent capture and revocation, verified contact channel, abuse safeguards |
 | **PaymentProvider** | Bank/PSP | Approved intent | After approval | UPI/IMPS rails; Razorpay as a demo PSP | Payment execution | **Built**: Mock; Razorpay **TEST** mode (needs valid test keys) | Real rail integration owned by the bank/PSP |
 
-## 4. One-line pitch
+## 4. Adoption path: shadow first
+
+1. **Shadow mode** — the bank calls Vigil for every intent but keeps its existing controls in charge. Vigil records what it *would* have done next to the bank's baseline decision (Governance → Shadow comparison).
+2. **Measure** — would-be interventions vs confirmed outcomes: catch rate, false-challenge rate, value that would have been held, latency.
+3. **Enable tiers gradually** — Tier 1 (inform) first, then confirm-purpose, then scoped holds; CircuitBreaker last, after trusted-contact consent flows exist.
+4. **Govern** — every decision record carries the policy version, provenance and model versions; policy changes are versioned and reviewable; models remain corroborating evidence until validated on real outcomes.
+
+## 5. One-line pitch
 
 > *India already has sophisticated detection — bank EFRMS, MuleHunter and DPIP. Vigil is the layer that converts those signals, plus local journey and network evidence, into an explainable, proportionate intervention at the last reversible moment — and then learns from where the money went.*

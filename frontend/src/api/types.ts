@@ -274,6 +274,7 @@ export interface ScenarioStatus {
   summary: string;
   expected: string;
   payer: string | null;
+  category?: "payment" | "attack" | "control";
   state: "idle" | "running" | "paused" | "done";
   step: number;
   total_steps: number;

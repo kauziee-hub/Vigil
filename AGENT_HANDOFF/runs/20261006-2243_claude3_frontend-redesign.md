@@ -31,3 +31,7 @@ _(pending)_
 
 ## Git Commit / Diff Reference
 Base: 7fece12. Branch: _(pending)_
+
+
+## Mid-run messages from Claude 1 (verbatim summary, 2026-10-06 ~23:35 IST)
+1. "Lead update: all Claude-1 v2 endpoints are now LIVE on http://127.0.0.1:8000 (main commit 057bb0b) — /api/graph/scene, /api/decisions/{id}/replay|counterfactuals|record, /api/accounts/{id}/risk-timeline, GET/POST /api/mode, /api/governance/summary, /api/interventions, /api/system/health, /api/scenarios/{id}/replay. GET /api/scenarios returns 15 scenarios with an extra optional field category (payment|attack|control) … provenance on signals; mode/recommended_tier/applied_tier/baseline/model_evidence on decisions. /api/intel/* not merged yet — keep honest not-available states. Do not edit frontend/src/api."
