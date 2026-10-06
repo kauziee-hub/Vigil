@@ -90,3 +90,36 @@ These are **behavioural acceptance checks**, enforced by `backend/tests/test_vig
 ## 7. What a credible ML step would look like (roadmap, not built)
 
 Train on real, bank-confirmed outcomes with a temporal split; features restricted to information available at commit time; evaluate per-segment precision at fixed intervention budgets (false-challenge rate as a first-class metric); calibrate probabilities; keep the model as one versioned, monitored input to fusion with rule evidence still rendered for every decision.
+
+---
+
+## Appendix A (2026-10-07, detection intelligence v2.1): models restored as corroborating evidence only
+
+*Appended by Claude 2. Sections 1–7 above still describe the payment decision path accurately and are unchanged.* The RandomForest and GAT have been **repaired, retrained and re-validated** on synthetic worlds. They are shown **beside** each decision as `model_evidence`, together with SHAP, behavioural drift, pattern memory, early warning, the windowed rule engine and a detector-consensus count.
+
+**The payment tier still comes only from the transparent policy engine.** Every decision record still says `ml_models_used: []`, and lists model outputs separately under `model_evidence_not_used_for_tier`. A test (`test_intel_consensus.py::test_model_evidence_is_never_fused_into_the_tier`) checks that score and tier are identical with and without the models.
+
+These are now **optional** dependencies (`backend/requirements-ml.txt`). Without them the platform runs, and RF, GNN and SHAP report `status="unavailable"`. The full audit, protocol and metrics are in `docs/ML_VALIDATION_REPORT.md`.
+
+| Model / family | Version | What it is | Value shown (`kind`) | Test worlds, **SYNTHETIC VALIDATION** (P / R / PR-AUC) | Main known failure |
+|---|---|---|---|---|---|
+| Random Forest | `rf-v2.1` | 100 trees on 15 windowed features; numpy serving; SHAP TreeExplainer | isotonic-calibrated probability (`probability_calibrated`, "calibrated on synthetic worlds"); raw score in `detail` | 0.93 / 0.85 / 0.92 | unseen smurfing (recall 0.28) and dormant (0.50) |
+| GNN (relational GAT) | `gnn-gat-v2.1` | 2 layers, sender→recipient and recipient→sender attention, plain torch training, numpy serving on the live 72 h graph | `probability_calibrated` | 0.98 / 0.91 / 0.95 | **does not generalise to unseen families**: shared device 0.17, volume spike 0.00, dormant 0.30, smurfing 0.34 |
+| Rule engine | `rules-v2.0` | the original six rules, 72 h-windowed, hand-set thresholds | points (`score`) | 0.26 / 0.35 / 0.19 | merchants and small traders |
+| Early warning | `early-warning-v2.0` | population-relative, ≥ 2 signals, top 8 % | anomaly `score` | 0.29 / 0.63 / 0.28 | merchants and traders |
+| Behavioural drift | `drift-v2.1` | change against the account's own 45-day baseline; HIGH needs ≥ 2 changed features | `level` | 0.57 / 0.76 / 0.66 | event organisers; victims after a large unusual payment |
+| Pattern memory | `pattern-memory-v2.1` | structural prototypes of the 10 families, built offline from **training** worlds; no labels at runtime | `similarity` ("not criminal attribution") | 0.83 / 0.46 / 0.66 | low recall on fan-out and cross-channel |
+
+**Intended use:** analyst-facing corroboration and explanation, side by side with RingWatch and the SIMULATED registry, with an explicit agreement count ("5 of 8 signal families agree").
+
+**Not intended for:** authorising, blocking or holding a payment; labelling a customer as a mule; quoting accuracy for real banks.
+
+**Data:** synthetic only. The training generator (`ml/datagen.py`) is not the demo world's generator (`vigil/sim/seed.py`). On the seeded demo world only the two seeded pass-through accounts are corroborated, and after the mule-ring scenario the ring is flagged by 4–6 of the 6 families. Those are acceptance checks, not accuracy evidence.
+
+**Two corrections in v2.1 came from wiring the models to the live world:**
+* **Payday calendar in the generator.** Salaries inside the evaluation window had made the GNN flag salary receivers.
+* **Drift baseline and breadth rule.** A monthly salary alone had driven drift to HIGH.
+
+Both are generic realism or robustness fixes and were re-validated only on held-out worlds. See `ML_VALIDATION_REPORT.md` §2.1.
+
+**What would make this credible:** the roadmap in §7 still applies. Real, bank-confirmed outcomes, a temporal split, alert-budget precision, and re-calibration on real data.
