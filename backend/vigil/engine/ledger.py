@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from vigil import clock, db
+from vigil.engine import hooks
 from vigil.graph.pathgraph import GRAPH
 
 
@@ -83,6 +84,7 @@ def post(
                 (sender_id, recipient_id, row["ts"]),
             )
     GRAPH.add_transaction(row)
+    hooks.emit(row)
     return row
 
 

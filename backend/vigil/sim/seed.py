@@ -74,6 +74,13 @@ def _acct(anchor: datetime, aid: str, name: str, *, kind: str = "customer", days
 
 
 def seed(anchor: datetime | None = None) -> dict[str, Any]:
+    from vigil.engine import hooks
+
+    with hooks.suspended():
+        return _seed(anchor)
+
+
+def _seed(anchor: datetime | None = None) -> dict[str, Any]:
     rng = random.Random(SEED)
     anchor = anchor or clock.now()
     db.wipe()

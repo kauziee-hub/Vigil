@@ -2,6 +2,7 @@
 // so no host is hard-coded anywhere in the frontend.
 import type {
   AccountIntel, Counterfactual, DecisionRecord, DecisionReplay, GovernanceSummary, GraphScene, IntelScores,
+  AttackRun, LiveStats, LiveUniverse,
   IntelOverview, InterventionRow, ModeView, ModelInfo, RiskPoint, ScenarioCompare, ScenarioReplay, SystemHealth,
   AccountSummary, ContactView, DecisionSummary, GraphEvidence, Health, IntentWithDecision, Investigation,
   LedgerTx, Metrics, PolicyView, RingRow, RiskDecision, ScenarioExplain, ScenarioStatus, TaintView,
@@ -99,6 +100,14 @@ export const api = {
     request<GraphScene>(`/api/graph/scene?${new URLSearchParams(
       Object.entries(p).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))}`),
   scenarioReplay: (id: string) => request<ScenarioReplay>(`/api/scenarios/${id}/replay`),
+
+  // ── v3: live platform (Claude 1) ──
+  universe: (p: { window_minutes?: number; history?: number } = {}) =>
+    request<LiveUniverse>(`/api/live/universe?${new URLSearchParams(
+      Object.entries(p).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))}`),
+  liveStats: () => request<LiveStats>("/api/live/stats"),
+  attackRuns: () => request<AttackRun[]>("/api/attacks/runs"),
+  attackRun: (runId: string) => request<AttackRun>(`/api/attacks/runs/${runId}`),
 
   // ── v2: detection intelligence (Claude 2, /api/intel/**) ──
   intelAccount: (accountId: string) => request<AccountIntel>(`/api/intel/accounts/${encodeURIComponent(accountId)}`),

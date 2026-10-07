@@ -586,3 +586,53 @@ export interface ScenarioReplay {
   events: { ts: string; kind: string; title: string; tx_id: string | null; source: string | null; target: string | null;
             amount_paise: number | null }[];
 }
+
+// ══ v3 live-platform contracts (frozen 2026-10-07, mirror of backend/vigil/contracts.py) ══
+export type AccountStatus = "normal" | "idle" | "new" | "early_warning" | "flagged" | "held" | "confirmed_fraud" | "external";
+
+export interface UniverseAccount {
+  id: string; label: string; kind: "customer" | "external";
+  group: "customer" | "merchant" | "demo" | "mule_attack" | "external";
+  status: AccountStatus; risk: number; model_risk: number | null; role: string | null;
+  opened_at: string; balance_paise: number; last_active: string | null;
+}
+export interface UniverseEdge {
+  id: string; source: string; target: string; amount_paise: number; ts: string; channel: string; kind: string;
+  origin: "history" | "ambient" | "scenario" | "user";
+  scenario: string | null;          // SIMULATOR GROUND TRUTH tag — display/evaluation only
+}
+export interface LiveUniverse {
+  version: string; as_of: string; window_minutes: number;
+  accounts: UniverseAccount[]; edges: UniverseEdge[]; history_edges: UniverseEdge[];
+  totals: Record<string, number>;
+}
+export interface TxScored {
+  tx_id: string; ts: string; sender_id: string; recipient_id: string; amount_paise: number; channel: string;
+  origin: string; scenario: string | null;
+  sender_status: AccountStatus; recipient_status: AccountStatus;
+  sender_risk: number | null; recipient_risk: number | null; scored_ms: number;
+}
+export interface AccountStatusChange {
+  account_id: string; status: AccountStatus; previous: AccountStatus; risk: number | null; role: string | null;
+  families_flagging: number; reason: string; ts: string;
+}
+export interface AttackRun {
+  run_id: string; scenario_id: string; name: string; category: string;
+  status: "running" | "paused" | "evaluating" | "completed";
+  started_at: string; completed_at: string | null; steps_total: number; steps_done: number; tx_count: number;
+  injected: string[]; warned: string[]; detected: string[]; missed: string[]; false_positives: string[];
+  first_warning_ms: number | null; detection_ms: number | null; precision: number | null; recall: number | null;
+  model_threshold: number | null;
+}
+export interface LiveStats {
+  as_of: string; throughput_tps: number;
+  volume: { t: string; normal: number; attack: number }[];
+  channels: Record<string, number>;
+  tiers: Record<string, number>;
+  tiers_over_time: { t: string; t0: number; t1: number; t2: number; t3: number; t4: number }[];
+  runs_by_type: { scenario_id: string; name: string; runs: number; detected_runs: number }[];
+  runs: AttackRun[];
+  roles_flagged: Record<string, number>;
+  threshold_history: { t: string; value: number; reason: string }[];
+  counts: Record<string, number>;
+}

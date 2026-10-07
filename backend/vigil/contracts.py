@@ -453,3 +453,115 @@ class GraphScene(BaseModel):
 
 
 RiskDecision.model_rebuild()
+
+
+# ══ v3 live-platform contracts (frozen 2026-10-07 by Claude 1 — see docs/V3_LIVE_PLATFORM_PLAN.md) ══
+AccountStatus = Literal["normal", "idle", "new", "early_warning", "flagged", "held", "confirmed_fraud", "external"]
+
+
+class UniverseAccount(BaseModel):
+    """One node of the live 3D transaction universe (every account, not a subgraph)."""
+
+    id: str
+    label: str
+    kind: Literal["customer", "external"]
+    group: Literal["customer", "merchant", "demo", "mule_attack", "external"]
+    status: AccountStatus
+    risk: float = 0.0                  # RingWatch network score (authorisation path)
+    model_risk: Optional[float] = None # strongest model-evidence value (corroborating only)
+    role: Optional[str] = None
+    opened_at: str
+    balance_paise: int = 0
+    last_active: Optional[str] = None
+
+
+class UniverseEdge(BaseModel):
+    id: str                            # ledger transaction id
+    source: str
+    target: str
+    amount_paise: int
+    ts: str
+    channel: str
+    kind: str                          # transfer | external_credit | external_debit
+    origin: Literal["history", "ambient", "scenario", "user"]
+    scenario: Optional[str] = None     # SIMULATOR GROUND TRUTH tag — display/evaluation only, never scored
+
+
+class LiveUniverse(BaseModel):
+    version: str
+    as_of: str
+    window_minutes: int
+    accounts: list[UniverseAccount]
+    edges: list[UniverseEdge]          # postings inside the live window (newest last), capped
+    history_edges: list[UniverseEdge] = Field(default_factory=list)  # sampled older postings ("constellation")
+    totals: dict[str, int] = Field(default_factory=dict)
+
+
+class TxScored(BaseModel):
+    """Pushed for every live posting after detection ran (WS topic console, type 'intel.tx_scored')."""
+
+    tx_id: str
+    ts: str
+    sender_id: str
+    recipient_id: str
+    amount_paise: int
+    channel: str
+    origin: str
+    scenario: Optional[str] = None
+    sender_status: AccountStatus
+    recipient_status: AccountStatus
+    sender_risk: Optional[float] = None
+    recipient_risk: Optional[float] = None
+    scored_ms: float
+
+
+class AccountStatusChange(BaseModel):
+    """Pushed when an account's live detector status changes (type 'intel.account_status')."""
+
+    account_id: str
+    status: AccountStatus
+    previous: AccountStatus
+    risk: Optional[float] = None
+    role: Optional[str] = None
+    families_flagging: int = 0
+    reason: str = ""
+    ts: str
+
+
+class AttackRun(BaseModel):
+    """One execution of an attack scenario, evaluated against SIMULATOR GROUND TRUTH."""
+
+    run_id: str
+    scenario_id: str
+    name: str
+    category: str
+    status: Literal["running", "paused", "evaluating", "completed"]
+    started_at: str
+    completed_at: Optional[str] = None
+    steps_total: int
+    steps_done: int
+    tx_count: int = 0
+    injected: list[str] = Field(default_factory=list)        # ground-truth mule accounts of this attack
+    warned: list[str] = Field(default_factory=list)          # reached early_warning or worse
+    detected: list[str] = Field(default_factory=list)        # reached flagged / confirmed
+    missed: list[str] = Field(default_factory=list)
+    false_positives: list[str] = Field(default_factory=list) # non-mule participants flagged during the run
+    first_warning_ms: Optional[float] = None                 # from first attack posting
+    detection_ms: Optional[float] = None
+    precision: Optional[float] = None
+    recall: Optional[float] = None
+    model_threshold: Optional[float] = None
+
+
+class LiveStats(BaseModel):
+    as_of: str
+    throughput_tps: float
+    volume: list[dict[str, Any]]           # [{t, normal, attack}] per 10 s bucket, last 10 min ("attack" = simulator ground truth)
+    channels: dict[str, int]
+    tiers: dict[str, int]                  # decisions by tier (all time since reset)
+    tiers_over_time: list[dict[str, Any]]  # [{t, t0..t4}] per minute
+    runs_by_type: list[dict[str, Any]]     # [{scenario_id, name, runs, detected_runs}]
+    runs: list[AttackRun]
+    roles_flagged: dict[str, int]
+    threshold_history: list[dict[str, Any]] = Field(default_factory=list)  # [{t, value, reason}] model-evidence threshold
+    counts: dict[str, int] = Field(default_factory=dict)  # transactions, accounts, active, warnings, flagged, held, confirmed
