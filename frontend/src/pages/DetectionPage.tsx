@@ -6,7 +6,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { DetectorFamily, IntelOverview, IntelScores, ModelInfo, RingRow } from "../api/types";
-import { ModelCard, RoleIcon } from "../components/intel";
+import { RoleIcon } from "../components/intel";
+import { ModelCard, ModelComparison, Synthetic } from "../components/ModelCard";
 import { useConsoleEvents } from "../components/Shell";
 import { Async, Bar, Glyph, PageHead, Panel, Pill, Seg } from "../components/ui";
 import { handle, pct } from "../lib/format";
@@ -22,6 +23,7 @@ export function DetectionPage() {
   const scores = useLoad<IntelScores>(api.intelScores);
   const ring = useLoad<RingRow[]>(api.ringwatch);
   const [sort, setSort] = useState<SortKey>("max");
+  const [picked, setPicked] = useState<string | null>(null);
   const refresh = useDebounced(() => { overview.reload(); models.reload(); scores.reload(); }, 800);
   const refreshRing = useDebounced(() => ring.reload(), 1500);
   useConsoleEvents((e) => {
@@ -52,7 +54,7 @@ export function DetectionPage() {
 
       <div className="banner-val" style={{ marginBottom: 12 }}>
         <span className="stamp">SYNTHETIC VALIDATION</span>
-        <span>Every model metric on this page is measured on synthetic, simulator-generated data with split-by-scenario evaluation. It is <b>not</b> real-bank accuracy.</span>
+        <span>Every model metric on this page is measured on synthetic, simulator-generated worlds, evaluated on held-out worlds never seen in training. It is <b>not</b> real-bank accuracy.</span>
         <span className="grow" />
         <b>Operational use: corroborating evidence only</b>
         <span className="xs muted">RF · GNN · drift · early warning · pattern memory never set a payment's tier.</span>
@@ -127,7 +129,7 @@ export function DetectionPage() {
         <Panel kicker="Per-account scores" title="Rules · Random Forest · GNN side by side" flush
                q={scores.data ? `${scoreRows.length} accounts in the default scene · graph v${scores.data.graph_version}` : undefined}
                actions={<Seg options={[["max", "Max"], ["rules", "Rules"], ["rf", "RF"], ["gnn", "GNN"]]} value={sort} onChange={setSort} />}
-               footer="Rules = RingWatch score. RF / GNN values are model outputs (see each model's value kind and calibration below), not probabilities unless calibrated.">
+               footer="Rules = rule-engine point score (points ÷ maximum; hand-set thresholds, not a probability). RF / GNN = calibrated on synthetic worlds — not a real-world probability. Model evidence never sets a payment's tier.">
           <Async load={scores} what="Per-account model scores" endpoint="/api/intel/scores">
             {() => scoreRows.length === 0 ? <div className="empty">No scored accounts.</div> : (
               <div className="tscroll" style={{ maxHeight: 460 }}>
@@ -167,15 +169,25 @@ export function DetectionPage() {
         </Panel>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <div className="spread" style={{ marginBottom: 8 }}>
-          <h2>Model registry</h2>
-          <span className="xs muted">precision · recall · F1 · ROC-AUC · PR-AUC · confusion matrix · calibration · per-attack · leave-one-attack-out — as reported by <span className="mono">/api/intel/models</span></span>
-        </div>
+      <div style={{ marginTop: 12 }}>
         <Async load={models} what="Model registry" endpoint="/api/intel/models">
-          {(ms) => ms.length === 0 ? <div className="empty">No model is registered.</div> : (
-            <div className="grid cols-2 align-start">{ms.map((m) => <ModelCard key={m.model_id} m={m} />)}</div>
-          )}
+          {(ms) => {
+            if (ms.length === 0) return <div className="empty">No model is registered.</div>;
+            const cur = ms.find((m) => m.model_id === picked) ?? ms[0];
+            return (
+              <div className="stack">
+                <Panel kicker="Model registry" title="All detectors on the same held-out test worlds" flush
+                       actions={<Synthetic />}
+                       footer="Click a row for the full validation record: confusion matrix, calibration, per-attack detection, leave-one-attack-out generalisation, leakage audit and global SHAP.">
+                  <ModelComparison models={ms} picked={cur.model_id} onPick={setPicked} />
+                </Panel>
+                <div className="tabs">
+                  {ms.map((m) => <button key={m.model_id} className={m.model_id === cur.model_id ? "on" : ""} onClick={() => setPicked(m.model_id)}>{m.model_id}</button>)}
+                </div>
+                <ModelCard m={cur} />
+              </div>
+            );
+          }}
         </Async>
       </div>
     </>

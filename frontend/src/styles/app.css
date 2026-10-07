@@ -234,6 +234,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
 .flash { animation: flash 1.8s ease-out; }
 .banner-val { display: flex; gap: 10px; align-items: center; padding: 7px 12px; border: 1px solid var(--line-2); background: var(--surface-2); border-radius: var(--r2); font-size: var(--fs-md); color: var(--ink-2); flex-wrap: wrap; }
+.stamp-sv { display: inline-flex; align-items: center; height: 19px; padding: 0 6px; border: 1px solid var(--ink-3); font: 600 9.5px/1 var(--font-data); letter-spacing: 0.12em; color: var(--ink); white-space: nowrap; }
 .banner-val .stamp { font: 600 var(--fs-xs)/1 var(--font-data); letter-spacing: 0.12em; padding: 4px 7px; border: 1px solid var(--ink-3); color: var(--ink); }
 
 /* ── dense tables ──────────────────────────────────────── */

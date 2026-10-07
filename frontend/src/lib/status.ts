@@ -102,7 +102,7 @@ export const DIM_GLYPH: Record<string, string> = {
 export const KIND_LABEL: Record<ValueKind, string> = {
   score: "score",
   probability_uncalibrated: "uncalibrated probability",
-  probability_calibrated: "calibrated probability",
+  probability_calibrated: "calibrated probability (synthetic worlds)",
   level: "level",
   similarity: "similarity",
   count: "count",
