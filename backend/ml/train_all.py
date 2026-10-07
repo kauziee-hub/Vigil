@@ -436,6 +436,19 @@ def family_correlation(s: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def flag_combinations_without_evidence(s: dict[str, Any]) -> dict[str, Any]:
+    """Accounts flagged by >= 2 families but by no mule-evidence family, by exact flag combination."""
+    out: dict[str, dict[str, int]] = {}
+    for row, y in zip(_flag_rows(s), s["y"]):
+        on = [d for d in DETECTORS if row[d]]
+        if len(on) < 2 or set(on) & C.MULE_EVIDENCE_FAMILIES:
+            continue
+        key = " + ".join(on)
+        out.setdefault(key, {"mules": 0, "non_mules": 0})
+        out[key]["mules" if y == 1 else "non_mules"] += 1
+    return dict(sorted(out.items(), key=lambda kv: -(kv[1]["mules"] + kv[1]["non_mules"])))
+
+
 def write_roles_consensus(rep: dict[str, Any], command: str, evaluated_at: str, artefacts: str,
                           extra: dict[str, Any] | None = None) -> Path:
     path = MODELS / "validation_v2_roles_consensus.json"
@@ -459,6 +472,7 @@ def roles_consensus_report(tables: list[dict[str, Any]], s: dict[str, Any]) -> d
         "roles": {name: role_evaluation(tables, s, gate) for name, gate in ROLE_GATES.items()},
         "consensus": {name: consensus_evaluation(s, rule) for name, rule in CONSENSUS_RULES.items()},
         "family_correlation_phi": family_correlation(s),
+        "combinations_without_mule_evidence": flag_combinations_without_evidence(s),
         "rules_in_use": {"roles": RO.ROLES_VERSION, "consensus": C.CONSENSUS_VERSION,
                          "mule_evidence_families": sorted(C.MULE_EVIDENCE_FAMILIES)},
     }

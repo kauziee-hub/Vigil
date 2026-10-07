@@ -1,6 +1,6 @@
 {
   "label": "SYNTHETIC VALIDATION \u2014 computer-generated worlds; not real-bank accuracy.",
-  "evaluated_at": "2026-10-07T02:49:26Z",
+  "evaluated_at": "2026-10-07T02:55:44Z",
   "command": "python ml/eval_roles_consensus.py",
   "artefacts": "committed artefacts in backend/models (no retraining; trained_at 2026-10-06T20:11:11Z)",
   "seed": 20261006,
@@ -1318,6 +1318,24 @@
         "drift": 0.442,
         "pattern_memory": 1.0
       }
+    }
+  },
+  "combinations_without_mule_evidence": {
+    "rules + early_warning": {
+      "mules": 0,
+      "non_mules": 238
+    },
+    "early_warning + drift": {
+      "mules": 0,
+      "non_mules": 44
+    },
+    "rules + early_warning + drift": {
+      "mules": 1,
+      "non_mules": 18
+    },
+    "rules + drift": {
+      "mules": 1,
+      "non_mules": 3
     }
   },
   "rules_in_use": {
