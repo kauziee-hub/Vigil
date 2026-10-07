@@ -137,19 +137,27 @@ def _code_tokens(node) -> list[str]:
 
 def test_no_runtime_component_reads_ground_truth():
     """seed_role / seed_attack / fraud labels are read ONLY by the scenario-compare read model
-    (vigil/intel/service.py::_involvement / scenario_compare), never by a detector."""
+    (vigil/intel/service.py::_involvement / scenario_compare), never by a detector.
+
+    v3 live stream (stream.py), each exception limited to one function and one token:
+      * `_vigil_state` reads bank-confirmed `fraud_labels` -> the plan's `confirmed_fraud` STATUS (Vigil state,
+        precedence above every detector status; never a detector input);
+      * `on_posting` passes the posting's `seed_attack` tag through as `TxScored.scenario` (display only).
+    """
     import ast
-    allowed = {"_involvement", "scenario_compare"}
+    bad_tokens = ("seed_role", "seed_attack", "fraud_labels", "is_fraud")
+    allowed = {"service.py": {"_involvement": bad_tokens, "scenario_compare": bad_tokens},
+               "stream.py": {"_vigil_state": ("fraud_labels",), "on_posting": ("seed_attack",)}}
     for path in INTEL.glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        nodes = [tree]
-        if path.name == "service.py":
+        nodes: list[tuple[ast.AST, tuple[str, ...]]] = [(tree, ())]
+        if path.name in allowed:
             body = tree.body[1:] if ast.get_docstring(tree) is not None else tree.body
-            nodes = [n for n in body if not (isinstance(n, ast.FunctionDef) and n.name in allowed)]
-        for node in nodes:
+            nodes = [(n, allowed[path.name].get(getattr(n, "name", ""), ())) for n in body]
+        for node, ok in nodes:
             for tok in _code_tokens(node):
-                for bad in ("seed_role", "seed_attack", "fraud_labels", "is_fraud"):
-                    assert bad not in tok, (path.name, tok)
+                for bad in bad_tokens:
+                    assert bad not in tok or bad in ok, (path.name, getattr(node, "name", ""), tok)
 
 
 def test_feature_function_is_shared_by_training_and_live(world):
