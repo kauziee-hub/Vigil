@@ -1,105 +1,121 @@
-// Decision explanation building blocks. Every number shown comes from the
-// backend decision record; nothing is re-computed or re-thresholded here.
-import { useState } from "react";
-import type { Dimension, JourneyItem, RiskDecision, RiskSignal } from "../api/types";
-import { DIM_LABEL, TIER_LABEL, formatINR, formatTime } from "../lib/format";
+// Operational-decision building blocks (ReasonLine). Every number comes from the backend decision
+// record; nothing is re-computed or re-thresholded here. These explain the OPERATIONAL DECISION —
+// model explanations (SHAP) live in components/intel.tsx and are never mixed in.
+import { Fragment, useState } from "react";
+import type { Dimension, JourneyItem, Provenance, RiskDecision, RiskSignal, RiskSignalV2 } from "../api/types";
+import { DIM_LABEL, evValue, formatStamp, formatTime, freshness, humanKey } from "../lib/format";
+import { DIM_GLYPH, tierStatus } from "../lib/status";
+import { Bar, Glyph, Sim, TierPill } from "./ui";
 
-export const DIM_COLOR: Record<Dimension, string> = {
-  external: "var(--d-external)",
-  network: "var(--d-network)",
-  sequence: "var(--d-sequence)",
-  behaviour: "var(--d-behaviour)",
-  context: "var(--d-context)",
-};
+export const SIMULATED_DIMS: Dimension[] = ["external", "context"];
 
-export function TierChip({ tier, big = false }: { tier: number | null | undefined; big?: boolean }) {
-  if (tier === null || tier === undefined) return <span className="chip">—</span>;
-  return <span className={`chip t${tier}`} style={big ? { fontSize: 13, padding: "4px 10px" } : undefined}>{TIER_LABEL[tier]}</span>;
-}
-
-export function SimChip({ text = "SIMULATED" }: { text?: string }) {
-  return <span className="chip sim" title="Simulated input — not a live institutional feed">{text}</span>;
-}
-
-export function ScoreBar({ decision }: { decision: RiskDecision }) {
-  const total = Math.max(decision.final_score, decision.base_score, 0.0001);
-  const bonus = Math.max(0, decision.final_score - decision.base_score);
+export function EvidenceChips({ ev }: { ev: Record<string, unknown> }) {
+  const entries = Object.entries(ev).filter(([k, v]) => k !== "simulated" && v !== null && v !== undefined && typeof v !== "object");
+  if (!entries.length) return null;
   return (
-    <div>
-      <div className="stacked" title="Contributions add up to the base score; the hatched part is the corroboration bonus">
-        {decision.dimensions.filter((d) => d.contribution > 0).map((d) => (
-          <span key={d.dimension} style={{ width: `${(d.contribution / Math.max(1, total)) * 100}%`, background: DIM_COLOR[d.dimension] }} />
-        ))}
-        {bonus > 0 && <span style={{ width: `${bonus * 100}%`, background: "repeating-linear-gradient(45deg, var(--ink-3) 0 3px, transparent 3px 6px)" }} />}
+    <span className="ev">
+      {entries.map(([k, v]) => <span key={k} className="ev-kv">{humanKey(k)} <b>{evValue(k, v)}</b></span>)}
+    </span>
+  );
+}
+
+export function ProvenanceLine({ p }: { p: Provenance | null | undefined }) {
+  if (!p) return <span className="xs dim">provenance not recorded for this signal</span>;
+  return (
+    <span className="xs muted mono">
+      {p.source} · observed {formatTime(p.observed_at)} · {freshness(p.freshness_s)} · {p.version} · {p.status}
+      {p.confidence ? ` · ${p.confidence}` : ""}
+    </span>
+  );
+}
+
+export function SignalRow({ s }: { s: RiskSignal }) {
+  const p = (s as RiskSignalV2).provenance;
+  return (
+    <div className="sig">
+      <span><b>{s.label}</b> <span className="mono xs dim">{s.rule_id}</span>{p?.status === "simulated" && <> <Sim /></>}</span>
+      <span className="mono sm">+{s.contribution.toFixed(3)}</span>
+      <span className="r">{s.reason}</span>
+      <EvidenceChips ev={s.evidence} />
+      {p !== undefined && <span style={{ gridColumn: "1 / -1" }}><ProvenanceLine p={p} /></span>}
+    </div>
+  );
+}
+
+/** Final score against the policy ladder thresholds. */
+export function ScoreLine({ decision, ladder }: { decision: RiskDecision; ladder?: { tier: number; below: number }[] }) {
+  const bonus = decision.final_score - decision.base_score;
+  return (
+    <div className="stack tight">
+      <div style={{ position: "relative" }}>
+        <div className="bar thick">
+          {/* A payment's final score is coloured by its TIER (policy ladder), never by the network score bands. */}
+          <i style={{ width: `${Math.min(1, decision.final_score) * 100}%`, background: `var(--st-${tierStatus(decision.tier)})` }} />
+          {(ladder ?? []).filter((l) => l.below < 1).map((l) => <span key={l.tier} className="tick" style={{ left: `${l.below * 100}%` }} />)}
+        </div>
       </div>
-      <div className="spread small muted" style={{ marginTop: 4 }}>
-        <span>0</span>
-        <span className="mono">base {decision.base_score.toFixed(2)}{bonus > 0 ? ` + ${bonus.toFixed(2)}` : ""} = <b style={{ color: "var(--ink)" }}>{decision.final_score.toFixed(2)}</b></span>
-        <span>1</span>
+      <div className="spread xs muted mono">
+        <span>base {decision.base_score.toFixed(3)}{Math.abs(bonus) > 1e-6 ? ` ${bonus > 0 ? "+" : "−"} ${Math.abs(bonus).toFixed(3)} policy` : ""}</span>
+        <span>final <b style={{ color: "var(--ink)" }}>{decision.final_score.toFixed(3)}</b> → <TierPill tier={decision.tier} /></span>
       </div>
     </div>
   );
 }
 
-function evidenceText(ev: Record<string, unknown>): string {
-  return Object.entries(ev)
-    .filter(([k]) => !["simulated"].includes(k))
-    .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-    .join("  ");
-}
-
-export function SignalCard({ s }: { s: RiskSignal }) {
+export function ContributionTable({ decision, openFirst = true }: { decision: RiskDecision; openFirst?: boolean }) {
+  const top = [...decision.dimensions].sort((a, b) => b.contribution - a.contribution)[0]?.dimension ?? null;
+  const [open, setOpen] = useState<Dimension | null>(openFirst ? top : null);
   return (
-    <div className="signal" style={{ borderLeftColor: DIM_COLOR[s.dimension] }}>
-      <div className="spread">
-        <b>{s.label}</b>
-        <span className="mono small">+{s.contribution.toFixed(2)}</span>
-      </div>
-      <div>{s.reason}</div>
-      <div className="rid">{s.rule_id}</div>
-      <div className="evidence">{evidenceText(s.evidence)}</div>
-    </div>
-  );
-}
-
-export function ContributionPanel({ decision }: { decision: RiskDecision }) {
-  const [open, setOpen] = useState<Dimension | null>(
-    [...decision.dimensions].sort((a, b) => b.contribution - a.contribution)[0]?.dimension ?? null);
-  return (
-    <div className="stack" style={{ gap: 14 }}>
-      <ScoreBar decision={decision} />
-      <div className="contrib">
+    <table className="dt compact">
+      <thead><tr><th>Dimension</th><th style={{ width: "34%" }}>Score</th><th className="num">Weight</th><th className="num">Contrib.</th></tr></thead>
+      <tbody>
         {decision.dimensions.map((d) => (
-          <div key={d.dimension} className="contrib-row" style={{ cursor: d.signals.length ? "pointer" : "default" }}
-               onClick={() => setOpen(open === d.dimension ? null : d.dimension)}>
-            <div className="contrib-head">
-              <span><b style={{ color: DIM_COLOR[d.dimension] }}>●</b> {DIM_LABEL[d.dimension]}
-                {d.dimension === "external" && <> <SimChip /></>}
-                {d.dimension === "context" && d.signals.length > 0 && <> <SimChip text="SIMULATED CONTEXT" /></>}
-              </span>
-              <span className="mono small">{d.score.toFixed(2)} × {d.weight.toFixed(2)} = <b>{d.contribution.toFixed(3)}</b></span>
-            </div>
-            <div className="bar"><i style={{ width: `${d.score * 100}%`, background: DIM_COLOR[d.dimension] }} /></div>
+          <Fragment key={d.dimension}>
+            <tr className={d.signals.length ? "click" : ""} onClick={() => d.signals.length && setOpen(open === d.dimension ? null : d.dimension)}>
+              <td>
+                <span className="row tight">
+                  <Glyph code={DIM_GLYPH[d.dimension]} />
+                  <span>{DIM_LABEL[d.dimension]}</span>
+                  {SIMULATED_DIMS.includes(d.dimension) && (d.dimension === "external" || d.signals.length > 0) && <Sim />}
+                  {d.signals.length > 0 && <span className="xs dim">{open === d.dimension ? "▾" : "▸"} {d.signals.length}</span>}
+                </span>
+              </td>
+              <td><div className="row tight"><div className="grow"><Bar value={d.score} /></div><span className="mono xs">{d.score.toFixed(2)}</span></div></td>
+              <td className="num">{d.weight.toFixed(2)}</td>
+              <td className="num"><b>{d.contribution.toFixed(3)}</b></td>
+            </tr>
             {open === d.dimension && d.signals.length > 0 && (
-              <div className="stack" style={{ marginTop: 8 }}>
-                {d.signals.map((s) => <SignalCard key={s.rule_id} s={s} />)}
-              </div>
+              <tr><td colSpan={4} style={{ background: "var(--surface-2)", height: "auto" }}>
+                {d.signals.map((s) => <SignalRow key={s.rule_id} s={s} />)}
+              </td></tr>
             )}
-          </div>
+          </Fragment>
         ))}
-      </div>
+      </tbody>
+    </table>
+  );
+}
+
+/** ReasonLine — explains the OPERATIONAL decision (policy engine), not the model. */
+export function ReasonLinePanel({ decision }: { decision: RiskDecision }) {
+  return (
+    <div className="stack">
+      <div className="md">{decision.reasons.analyst.summary}</div>
+      <ScoreLine decision={decision} />
+      <ContributionTable decision={decision} />
       {decision.adjustments.length > 0 && (
-        <div className="stack">
-          <div className="upper">Policy adjustments (named, versioned)</div>
+        <div className="stack tight">
+          <div className="up">Policy adjustments (named, versioned)</div>
           {decision.adjustments.map((a) => (
-            <div key={a.rule_id} className="notice small">
-              <b className="mono">{a.rule_id}</b> <span className="chip">{a.effect}</span><br />{a.reason}
+            <div key={a.rule_id} className="sig">
+              <span><span className="mono sm">{a.rule_id}</span> <span className="tag">{a.kind}</span></span>
+              <span className="mono sm">{a.effect}</span>
+              <span className="r">{a.reason}</span>
             </div>
           ))}
         </div>
       )}
-      <div className="notice small"><b>Counterfactual:</b> {decision.reasons.analyst.counterfactual}</div>
-      <div className="small muted mono">policy {decision.policy_version} · evaluated in {decision.latency_ms.toFixed(1)} ms · no ML model on this path</div>
+      <div className="xs muted mono">policy {decision.policy_version} · evaluated in {decision.latency_ms.toFixed(1)} ms · transparent engine only — no ML model on the authorisation path</div>
     </div>
   );
 }
@@ -108,32 +124,10 @@ export function CustomerView({ decision }: { decision: RiskDecision }) {
   const c = decision.reasons.customer;
   return (
     <div className="stack">
-      <div className={`tier-banner t${decision.tier}`}>
-        <div className="h">{c.headline}</div>
-        <div style={{ marginTop: 6, color: "var(--ink)" }}>{c.summary}</div>
-      </div>
-      {c.facts.length > 0 && (
-        <div className="q-block"><div className="q">Why we are interrupting</div>
-          <ul>{c.facts.map((f) => <li key={f}>{f}</li>)}</ul></div>
-      )}
-      <div className="q-block"><div className="q">What happens next</div>{c.what_happens_next}</div>
-    </div>
-  );
-}
-
-export function BankView({ decision }: { decision: RiskDecision }) {
-  const a = decision.reasons.analyst;
-  return (
-    <div className="stack">
-      <div className="notice"><b>{a.summary}</b><br /><span className="small">Intervention: {decision.intervention.bank_action}</span></div>
-      <ContributionPanel decision={decision} />
-      {a.external && (
-        <div className="q-block">
-          <div className="q">External intelligence <SimChip text="SIMULATED EXTERNAL INTELLIGENCE" /></div>
-          <div className="small">{a.external.identifier} · <b>{a.external.status}</b> · registry score {a.external.risk_score.toFixed(2)} · {a.external.source} · updated {formatTime(a.external.last_updated)}</div>
-          <div className="small mono">{a.external.reason_codes.join(", ") || "no reason codes"}</div>
-        </div>
-      )}
+      <div className="spread"><b>{c.headline}</b><TierPill tier={decision.tier} full /></div>
+      <div className="ink2">{c.summary}</div>
+      {c.facts.length > 0 && <div><div className="up">Why we are interrupting</div><ul className="md">{c.facts.map((f) => <li key={f}>{f}</li>)}</ul></div>}
+      <div><div className="up">What happens next</div><div className="md">{c.what_happens_next}</div></div>
     </div>
   );
 }
@@ -141,50 +135,31 @@ export function BankView({ decision }: { decision: RiskDecision }) {
 export function AuditView({ decision }: { decision: RiskDecision }) {
   return (
     <div className="stack">
-      <div className="small muted">Exact inputs, scores, policy version and action. SHA-256 is an integrity check, not a signature. The decision row is append-only (a database trigger rejects updates).</div>
-      <div className="mono small">sha256 {decision.payload_sha256}</div>
-      <pre className="audit">{JSON.stringify(decision.reasons.audit, null, 2)}</pre>
+      <div className="xs muted">Exact inputs, scores, policy version and action. SHA-256 is an integrity check, not a signature. The decision row is append-only.</div>
+      <div className="mono xs">sha256 {decision.payload_sha256}</div>
+      <pre className="raw">{JSON.stringify(decision.reasons.audit, null, 2)}</pre>
     </div>
   );
 }
 
-export function ExplainTabs({ decision, initial = "customer" }: { decision: RiskDecision; initial?: "customer" | "bank" | "audit" }) {
-  const [tab, setTab] = useState(initial);
-  return (
-    <div>
-      <div className="tabs">
-        <button className={tab === "customer" ? "active" : ""} onClick={() => setTab("customer")}>Customer reason</button>
-        <button className={tab === "bank" ? "active" : ""} onClick={() => setTab("bank")}>Bank evidence</button>
-        <button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}>Audit record</button>
-      </div>
-      {tab === "customer" && <CustomerView decision={decision} />}
-      {tab === "bank" && <BankView decision={decision} />}
-      {tab === "audit" && <AuditView decision={decision} />}
-    </div>
-  );
-}
+const HOT = new Set(["login_new_device", "payee_added", "limit_raised", "credential_changed", "screen_share_active"]);
 
 export function Timeline({ items, empty = "No journey events in this window." }: { items: JourneyItem[]; empty?: string }) {
   if (!items.length) return <div className="empty">{empty}</div>;
-  const hot = new Set(["login_new_device", "payee_added", "limit_raised", "credential_changed", "screen_share_active"]);
   return (
-    <div className="timeline">
+    <div className="tl">
       {items.map((it, i) => {
-        const cls = it.event_type === "simulated_context" ? "ctx" : hot.has(it.event_type) ? "hot"
-          : it.kind === "payment" || it.kind === "intent" ? "pay" : "";
-        const text = it.event_type === "simulated_context" ? String((it.payload as { text?: string }).text ?? "") : "";
+        const sim = it.event_type === "simulated_context";
+        const cls = sim ? "sim-i hot" : HOT.has(it.event_type) ? "hot" : "";
+        const text = sim ? String((it.payload as { text?: string }).text ?? "") : "";
         return (
-          <div key={`${it.ts}-${i}`} className={`tl-item ${cls}`}>
-            <div className="t">{formatTime(it.ts)} · {it.minutes_ago} min ago</div>
-            <div><b>{it.label}</b>{it.event_type === "simulated_context" && <> <SimChip text="SIMULATED CONTEXT" /></>}</div>
-            {text && <div className="small muted" style={{ fontStyle: "italic" }}>“{text.slice(0, 220)}{text.length > 220 ? "…" : ""}”</div>}
+          <div key={`${it.ts}-${i}`} className={`tl-i ${cls}`}>
+            <div className="t">{formatStamp(it.ts)} · {Math.round(it.minutes_ago)} min before</div>
+            <div className="row tight"><span>{it.label}</span>{sim && <Sim text="SIMULATED CONTEXT" />}</div>
+            {text && <div className="xs muted" style={{ fontStyle: "italic" }}>“{text.slice(0, 200)}{text.length > 200 ? "…" : ""}”</div>}
           </div>
         );
       })}
     </div>
   );
-}
-
-export function Amount({ paise }: { paise: number }) {
-  return <span className="mono">{formatINR(paise)}</span>;
 }
