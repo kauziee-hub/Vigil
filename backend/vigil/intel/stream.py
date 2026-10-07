@@ -132,16 +132,17 @@ def classify(risk: float | None, fam: str | None, flagging: Iterable[str], thres
     """The live detector-status rule (pure; shared with ml/eval_live_status.py).
 
     flagged:       strongest model evidence >= threshold AND another family flags;
-    early_warning: the early-warning detector flags, OR >= 2 families flag, OR model evidence >= threshold without
-                   corroboration. A single drift / rules / pattern-memory flag alone is NOT an early warning: drift
-                   alone is what a scam victim or a salaried customer shows (ML_VALIDATION_REPORT §7), rules alone
-                   is what a busy merchant shows; both stay visible on the account page.
+    early_warning: the early-warning detector flags, OR >= 2 families flag.
+    A single family on its own is uncorroborated (consensus-v2.1 "weak") and is NOT a live status: drift alone is
+    what a scam victim or a salaried customer shows (ML_VALIDATION_REPORT §7), rules alone a busy merchant, and a
+    lone GNN / RF opinion is what the ambient stream produced on an ordinary customer (receive ₹1,366, pay ₹1,882
+    minutes later: GNN 0.93, no other family). Such single flags stay visible on the account page.
     """
     flagging = list(flagging)
     above = risk is not None and risk >= threshold
     if above and any(f != fam for f in flagging):
         return "flagged"
-    if above or "early_warning" in flagging or len(flagging) >= 2:
+    if "early_warning" in flagging or len(flagging) >= 2:
         return "early_warning"
     return None
 
@@ -157,9 +158,6 @@ def detector_status(snap: live.Snapshot, account_id: str, threshold: float) -> t
                            f"corroborated by {', '.join(SHORT[f] for f in others)}")
     if status is None:
         return None, ""
-    if risk is not None and risk >= threshold:
-        return "early_warning", (f"Model evidence {risk:.2f} ({SHORT[fam]}) >= live threshold {threshold:.2f}, "
-                                 "but no other detector family agrees")
     if flagging:
         detail = []
         for f in flagging:
@@ -168,10 +166,20 @@ def detector_status(snap: live.Snapshot, account_id: str, threshold: float) -> t
                 detail.append("early warning" + (f" ({', '.join(sig)})" if sig else ""))
             elif f == "drift":
                 detail.append("drift HIGH")
+            elif f in MODEL_FAMILIES:
+                v = (snap.rf if f == "random_forest" else snap.gnn).get(account_id)
+                detail.append(SHORT[f] + (f" {v[1]:.2f}" if v else ""))
             else:
                 detail.append(SHORT[f])
-        lead = "Behaviour change" if set(flagging) <= {"early_warning", "drift"} else "Detector signal"
-        return "early_warning", f"{lead}: {', '.join(detail)} — not mule evidence on its own"
+        if set(flagging) <= {"early_warning", "drift"}:
+            return "early_warning", f"Behaviour change: {', '.join(detail)} — not mule evidence on its own"
+        if risk is not None and risk >= threshold:
+            tail = f"model evidence {risk:.2f} has no other family's corroboration"
+        elif risk is not None:
+            tail = f"model evidence {risk:.2f} is below the live threshold {threshold:.2f}"
+        else:
+            tail = "no model evidence"
+        return "early_warning", f"Detector signals: {', '.join(detail)}; {tail}"
     return None, ""
 
 
@@ -453,7 +461,7 @@ def threshold_step(T: float, fp_evidence: list[float], missed: list[tuple[float,
         return T, f"{len(fp_evidence)} false positive(s), none let through by model evidence — unchanged"
     if missed:
         lowered = _clamp(T - T_STEP)
-        near = [e for e, corr in missed if lowered <= e < T and corr]
+        near = [e for e, corr in missed if T - T_STEP <= e < T and corr]
         if near and lowered < T:
             n = collateral(lowered)
             if n:
