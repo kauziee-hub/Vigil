@@ -18,9 +18,16 @@ from fastapi import APIRouter
 
 from vigil.engine.ledger import VigilError
 from vigil.intel import live, service
+from vigil.intel import stream  # noqa: F401  (registers the live-posting hook listener at import)
 from vigil.intel.registry import models as _models
 
 router = APIRouter(prefix="/api/intel", tags=["intel"])
+
+
+@router.get("/stream")
+async def intel_stream():
+    """Live detection stream diagnostics: latency, status counts, live model-evidence threshold + history."""
+    return {**stream.stats(), "threshold_history": stream.threshold_history()}
 
 
 @router.get("/accounts/{account_id}")
