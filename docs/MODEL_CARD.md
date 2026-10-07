@@ -110,7 +110,7 @@ These are now **optional** dependencies (`backend/requirements-ml.txt`). Without
 | Behavioural drift | `drift-v2.1` | change against the account's own 45-day baseline; HIGH needs ≥ 2 changed features | `level` | 0.57 / 0.76 / 0.66 | event organisers; victims after a large unusual payment |
 | Pattern memory | `pattern-memory-v2.1` | structural prototypes of the 10 families, built offline from **training** worlds; no labels at runtime | `similarity` ("not criminal attribution") | 0.83 / 0.46 / 0.66 | low recall on fan-out and cross-channel |
 
-**Intended use:** analyst-facing corroboration and explanation, side by side with RingWatch and the SIMULATED registry, with an explicit agreement count ("5 of 8 signal families agree").
+**Intended use:** analyst-facing corroboration and explanation, side by side with RingWatch and the SIMULATED registry, with an explicit agreement count ("5 of 8 signal families agree"). Since run 4, agreement above "weak" requires a structural or model family (see the run-4 update below).
 
 **Not intended for:** authorising, blocking or holding a payment; labelling a customer as a mule; quoting accuracy for real banks.
 
@@ -123,3 +123,14 @@ These are now **optional** dependencies (`backend/requirements-ml.txt`). Without
 Both are generic realism or robustness fixes and were re-validated only on held-out worlds. See `ML_VALIDATION_REPORT.md` §2.1.
 
 **What would make this credible:** the roadmap in §7 still applies. Real, bank-confirmed outcomes, a temporal split, alert-budget precision, and re-calibration on real data.
+
+**Run 4 update (2026-10-07): roles-v2.1 and consensus-v2.1.** In the lead's walkthrough, an ordinary payer (`ramesh@vigil`) received his salary and paid ₹1,20,000 rent in the same 72 h. Drift and early warning flagged him; no structural or model family did. He was shown as a mule **distributor** with **moderate** agreement. Two combination rules changed. No model was retrained and no fitted artefact changed.
+* **Agreement** above "weak" now needs at least one *mule-evidence* family: RF, GNN, pattern memory, RingWatch, or a registry listing. Drift, early warning, the rule engine, TrailScore and ContextFlag can corroborate that evidence but cannot create agreement on their own. The `DetectorConsensus` fields are unchanged, and `families_flagging` is still the plain count.
+* **Roles** are assigned only when at least 2 account-level families flag the account and at least one of them is a mule-evidence family. Otherwise the role is `unclassified`, with the reason "behaviour changed … no mule-structure evidence".
+* **SYNTHETIC VALIDATION** (30 test worlds, `ML_VALIDATION_REPORT.md` §7):
+  * "agreement ≥ moderate" precision rose from 0.44 to 0.875, with recall 0.865 → 0.858;
+  * merchants at "moderate" fell from 197 to 0;
+  * non-mules given a role fell from 279 to 33, while mules given a role went from 238 to 235 of 310;
+  * accuracy by true role is unchanged except exit (0.51 → 0.50);
+  * among salaried non-mules with a large payment in the salary window, roles fell from 10 to 2 of 33 and "moderate" agreement from 15 to 3.
+* **Known limits:** RingWatch and the registry count as mule evidence without a synthetic-world measurement. Merging drift and early warning into one family was tested and rejected: it left 197 merchants at "moderate" and cut strong-level recall from 0.668 to 0.542. The collector role is still weak (0.10).

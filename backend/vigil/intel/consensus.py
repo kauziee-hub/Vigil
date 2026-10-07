@@ -15,7 +15,7 @@ Consensus semantics (DetectorConsensus; consensus-v2.1):
   Change and heuristic families (drift, early_warning, rules) and payment-journey families (trailscore,
   context) can corroborate mule evidence but cannot create agreement on their own: a salary arriving and
   rent leaving in the same 72 h trips drift + early warning on any salaried customer, and rules + early
-  warning both fire on busy merchants (see docs/ML_VALIDATION_REPORT.md §7.1 for the test-world numbers).
+  warning both fire on busy merchants (see docs/ML_VALIDATION_REPORT.md §7.2 for the test-world numbers).
   The families share inputs (the model families all read the same windowed features), so agreement is
   corroboration between different METHODS, not between statistically independent sources.
 """
@@ -50,7 +50,7 @@ SYNTHETIC_CAVEAT = "SYNTHETIC VALIDATION — trained and calibrated on computer-
 CONSENSUS_VERSION = "consensus-v2.1"
 
 # Families whose flag is evidence of mule STRUCTURE or mule IDENTITY. Validated on test worlds for RF, GNN and
-# pattern memory (ML_VALIDATION_REPORT §7.1); RingWatch (the payment engine's network rules) and the SIMULATED
+# pattern memory (ML_VALIDATION_REPORT §7); RingWatch (the payment engine's network rules) and the SIMULATED
 # registry exist only in the live world. Rules are deliberately NOT in this set: on test worlds rules + early
 # warning flag 197 of 331 merchants, so counting rules as structural evidence restores those false agreements.
 MULE_EVIDENCE_FAMILIES = frozenset({"random_forest", "gnn", "pattern_memory", "ringwatch", "external"})
