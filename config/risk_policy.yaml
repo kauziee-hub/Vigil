@@ -4,7 +4,7 @@
 # validated against real fraud data, and must not be presented as such.
 # Every decision records `policy_version` (version + content hash of this file).
 
-version: "2026.10.06-demo.2"
+version: "2026.10.07-v3.1"
 
 # ── Fusion ────────────────────────────────────────────────────────────────
 # base = Σ weight × dimension_score  (weights sum to 1.0)
@@ -53,10 +53,10 @@ external:
 network:
   window_hours: 72
   fan_in:           { min_distinct_senders: 4, contribution: 0.25 }
-  fan_out:          { min_distinct_recipients: 4, contribution: 0.15 }
+  fan_out:          { min_distinct_recipients: 4, contribution: 0.15 }   # counts FIRST-TIME recipients (v3)
   pass_through:     { max_minutes: 60, min_forwarded_fraction: 0.7, min_inflow_paise: 2000000, contribution: 0.30 }
   circular:         { max_hops: 4, contribution: 0.25 }
-  smurfing:         { below_paise: 1000000, min_count: 4, contribution: 0.15 }
+  smurfing:         { below_paise: 1000000, band_floor_paise: 800000, min_count: 4, contribution: 0.15 }  # transfers in [band_floor, below)
   velocity_chain:   { max_minutes_per_hop: 30, min_hops: 2, contribution: 0.15 }
   shared_device:    { min_accounts: 3, contribution: 0.15 }
   dormant_wake:     { min_quiet_days: 30, contribution: 0.15 }
