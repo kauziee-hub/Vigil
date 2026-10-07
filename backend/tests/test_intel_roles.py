@@ -26,6 +26,7 @@ def _r(family: str, flagged: bool) -> DetectorResult:
     ({"drift", "early_warning"}, "weak"),                              # the Ramesh case: change detectors only
     ({"rules", "early_warning"}, "weak"),                              # the busy-merchant case
     ({"rules", "early_warning", "drift", "trailscore", "context"}, "weak"),
+    ({"trailscore", "context"}, "weak"),                               # a coerced sender's journey: not mule evidence
     ({"drift", "early_warning", "random_forest"}, "moderate"),
     ({"drift", "pattern_memory"}, "moderate"),
     ({"drift", "early_warning", "external"}, "moderate"),             # registry listing is mule evidence
@@ -43,6 +44,10 @@ def test_agreement_needs_mule_evidence_above_weak(flagging, level):
     assert (c.families_flagging, c.families_evaluated) == (len(flagging), 10)   # the count itself is unchanged
     if len(flagging) >= 2 and level == "weak":
         assert "no structural or model family agrees" in c.summary
+        if flagging <= {"drift", "early_warning"}:
+            assert "behaviour-change signals only" in c.summary
+        if flagging == {"trailscore", "context"}:
+            assert "payment-journey signals only" in c.summary
 
 
 def test_role_gate():
@@ -123,6 +128,17 @@ def test_ordinary_payer_after_acts_and_control_has_no_role_and_weak_agreement(cl
             assert len(on) >= 2 and on & MULE_EVIDENCE_FAMILIES, (a, on)
     overview = client.get("/api/intel/overview").json()
     assert sum(overview["role_counts"].values()) == sum(1 for r in scores.values() if r["role"] is not None)
+
+
+def test_coerced_sender_journey_signals_do_not_make_her_a_mule(client):
+    """s3: TrailScore + ContextFlag flag Sunita's latest payment (a victim's journey), not mule structure."""
+    from vigil.sim import scenarios
+    scenarios.run_sync("s3")
+    scores = client.get("/api/intel/scores").json()["scores"]
+    sunita = _no_role(client, scores, "sunita@vigil")
+    flagged = {d.family for d in sunita.detectors if d.status == "ok" and d.flagged}
+    if flagged == {"trailscore", "context"}:
+        assert sunita.consensus.agreement == "weak" and "payment-journey" in sunita.consensus.summary
 
 
 def test_scenario_compare_victims_are_not_corroborated(client):

@@ -55,6 +55,7 @@ CONSENSUS_VERSION = "consensus-v2.1"
 # warning flag 197 of 331 merchants, so counting rules as structural evidence restores those false agreements.
 MULE_EVIDENCE_FAMILIES = frozenset({"random_forest", "gnn", "pattern_memory", "ringwatch", "external"})
 CHANGE_FAMILIES = frozenset({"drift", "early_warning"})          # change vs own history / population anomaly
+JOURNEY_FAMILIES = frozenset({"trailscore", "context"})          # one recent payment journey of a sender
 # Families that describe the ACCOUNT (roles are assessed from these). TrailScore / ContextFlag describe one
 # payment journey of a recent sender, not the account's position in a money flow.
 ACCOUNT_FAMILIES = CORROBORATION_ORDER + ("ringwatch", "external")
@@ -94,8 +95,10 @@ def summarise(results: Iterable[DetectorResult]) -> DetectorConsensus:
     elif n == 1:
         summary = f"1 of {m} signal families flags this account ({SHORT[flagging[0].family]}) — uncorroborated"
     elif not evidence:
-        what = ("behaviour-change signals only" if all(r.family in CHANGE_FAMILIES for r in flagging)
-                else "change / heuristic signals only")
+        kinds = [k for k, fams in (("behaviour-change", CHANGE_FAMILIES), ("rule-heuristic", {"rules"}),
+                                   ("payment-journey", JOURNEY_FAMILIES)) if any(r.family in fams for r in flagging)]
+        what = ((", ".join(kinds[:-1]) + " and " + kinds[-1]) if len(kinds) > 1 else (kinds or ["non-structural"])[0]) \
+            + " signals only"
         summary = (f"{n} of {m} signal families flag this account ({_names(r.family for r in flagging)}) — {what}, "
                    "no structural or model family agrees, so agreement stays weak")
     else:
