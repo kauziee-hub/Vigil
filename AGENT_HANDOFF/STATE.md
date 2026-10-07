@@ -3,13 +3,29 @@
 Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 1. `AGENT_HANDOFF/MASTER_PROMPT.md` — index of the user's prompts (verbatim files in `prompts/`); the binding one is `prompts/01_MASTER_PROMPT_v2_platform.md`.
 2. This file — what is done, what is running, how to run/verify, how to resume.
-3. `docs/FINAL_PARALLEL_PLAN.md` — BINDING for v2: 9-area IA, status colours, file ownership, frozen interfaces, merge protocol.
+3. `docs/V3_LIVE_PLATFORM_PLAN.md` — BINDING for v3 (live platform: interfaces, status semantics, ownership); `docs/FINAL_PARALLEL_PLAN.md` — v2 base (9-area IA, status colours, merge protocol).
 4. `AGENT_HANDOFF/AGENT_LEDGER.md` — one row per agent run; each row links its run record in `runs/`.
 5. Your role prompt in `prompts/` (v2: `v2_claude2_*`, `v2_claude3_*`, `v2_codex_engineering.md`, `v2_cursor_polish.md`).
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
-## Status: v2 platform build — core complete; polish/engineering pending (updated 2026-10-07 08:40 IST)
+## Status: v3 live platform — in progress (updated 2026-10-07 09:45 IST)
+
+User direction 2026-10-07 (`prompts/04_USER_refined_mule_repo_2026-10-07.md`): match/beat the refined money-mule repo's live 3D transaction universe, analytics and look, keeping every PRIMA feature.
+
+| Area | Owner | Where | State |
+|---|---|---|---|
+| Frozen v3 contracts (LiveUniverse, TxScored, AccountStatusChange, AttackRun, LiveStats), posting hooks, plan | Claude 1 | `main` `9bbd08e` | ✅ |
+| World v3: everyday economy (553 accounts, ~31k postings, anchor-relative, deterministic), habit-driven P2M ambient (3 s, routine-preserving), RingWatch fan-out/smurfing refinements (policy 2026.10.07-v3.1) | Claude 1 | `main` `d3bc3d3` | ✅ |
+| Live backend: `/api/live/universe`, `/api/live/stats`, `/api/attacks/runs` (+ WS `attack.run_updated`), live status resolver, attack-run evaluation | Claude 1 | `main` `0f8976a` | ✅ live on :8000 |
+| TaintTrace v3: exact forward-closure perimeter + incremental cache (2,026 ms → 13 ms on world v3) | Claude 1 | `main` `5acf440` | ✅ tested (matches full trace) |
+| Live detection stream, adaptive threshold, world-v3 revalidation (13 intel tests fail on world v3 until M4) | Claude 2 | run 1 → `claude2/v3-run1-wip` (`fd612e5`); run 2 running since 09:42 | 🔄 |
+| Live platform UI (design v3, LiveUniverse3D, Live Operations, Network, restyle all areas) | Claude 3 | run 1 → `claude3/v3-run1-wip` (`4f842af`, M1–M4); run 2 running since 09:42 | 🔄 |
+| Engineering tasks / UI polish | Codex / Cursor | operator | ⏳ prompts issued |
+
+Known red on `main` until Claude 2 v3 merges: 13 intel tests (world v3 shifted feature distributions — M4).
+
+## Status: v2 platform build — complete (as of 2026-10-07 08:40 IST)
 
 | Area | Owner | Where | State |
 |---|---|---|---|
@@ -35,8 +51,8 @@ backend\.venv\Scripts\python.exe scripts\smoke_demo.py             # 8 act check
 cd frontend; npm run build                                          # type-check + bundle
 ```
 
-## How to resume after an interruption (learned 2026-10-06 22:55)
-In-process subagents die when the lead's session restarts. On resume:
+## How to resume after an interruption (learned 2026-10-06 22:55; used 3×)
+In-process subagents die when the lead's session restarts. On resume (also: `ListAgents` to confirm they are dead; stop orphaned Vite servers they left; `cd` out of a worktree before removing it):
 1. `git worktree list` and `git branch -a`; compare with ledger rows marked IN PROGRESS.
 2. For each agent worktree: `git status`. Commit any uncommitted work verbatim as a WIP commit on its branch (say whether it builds), rename the branch (`<agent>/runN-wip`), then remove the worktree.
 3. Mark the run INTERRUPTED in its record + ledger; save a resume prompt in `prompts/` BEFORE relaunching; relaunch with a new run record.
@@ -84,3 +100,6 @@ In-process subagents die when the lead's session restarts. On resume:
 - 2026-10-07 07:29 user: "continue from where you left off". Claude 1 — Claude 3 WIP committed (`24f14cf`, tsc clean); backend restarted with intel live (5 routes 6–131 ms); found 130/140 accounts flagged on the live world → ambient stream made routine-preserving + 20 s interval (`0070ff4`, 269 pass, smoke 8/8); live world reset (07:36) → only kiran.traders + zenith.exports flagged; Claude 3 resumed with context (`prompts/v2_claude3_run3_continue_after_limit.md`); payment path verified (model evidence present, kinds honest, never in tier).
 - 2026-10-07 07:50–08:15 Claude 1 — Claude 3 returned (report saved `86da0b8`), merged `88823fb`; build green; implemented its `min_tier` request (`00f3920`); browser walkthrough of every act on the merged build → fixed cached v1 shell (`d6e83ae`), replay spark SVG (`4c5b750`), stale Lab panel (`a3b9ac9`); found an ordinary customer (ramesh) labelled "Distributor" by EW + drift alone → Claude 2 run 4 launched (`prompts/v2_claude2_run4_roles_consensus_followup.md`; resume of the run-3 agent failed because its worktree was removed). Demo world reset, ACTIVE.
 - 2026-10-07 08:30–08:40 Claude 1 — Claude 2 run 4 returned (report saved `9ac5ebb`), merged `c029fb6`, 286 pass; live check: ramesh weak/unclassified, kiran strong/collector; UI wording (`3e7984a`); demo world reset, ACTIVE. Docs: DEMO_SCRIPT v2 (`96b1ce6`), README + startup banner (`24697bc`), Cursor prompt v2.1 (`9ab441e`).
+- 2026-10-07 08:45–09:30 Claude 1 — v3: reviewed the refined repo (screenshots `docs/reference_refined/`), froze v3 contracts + plan + prompts (`9bbd08e`), launched Claude 2/3 v3 (08:59), world v3 (`d3bc3d3`), live backend (`0f8976a`), TaintTrace v3 (`5acf440`, 2,026 → 13 ms); server restarted 09:29:59.
+- 2026-10-07 ~09:30 — third session restart killed both v3 agents. 09:33 user: "continue" (`prompts/05_USER_continue_2026-10-07_0933.md`).
+- 2026-10-07 09:35–09:42 Claude 1 — recovered: Claude 3 WIP committed (`4f842af`, tsc ok) → `claude3/v3-run1-wip`; Claude 2 had no uncommitted work → `claude2/v3-run1-wip`; orphaned Vite :5181 stopped; worktrees removed; run records closed as INTERRUPTED; resume prompts saved; both relaunched as v3 run 2 (`6fb1b51`).
