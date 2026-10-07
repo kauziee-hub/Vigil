@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Agent | Claude 2 (same subagent as run 3, resumed with its context via SendMessage; works on a fresh worktree branch from master) |
+| Agent | Claude 2 — fresh subagent (resume of the run-3 agent failed: its worktree had been removed after merge), isolated worktree from master |
 | Timestamp | sent 2026-10-07 ~08:12 IST |
 | Objective | Roles only with structural/model evidence; drift + early warning not "moderate agreement" on their own; validate on synthetic test worlds; live acceptance test (Ramesh after Acts 1–2 + control has no role) |
 | Exact Prompt | Full message sent: `AGENT_HANDOFF/prompts/v2_claude2_run4_roles_consensus_followup.md` (verbatim) |
