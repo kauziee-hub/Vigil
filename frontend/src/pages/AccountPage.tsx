@@ -7,6 +7,7 @@ import { api } from "../api/client";
 import type { AccountSummary, GraphScene, LedgerTx, PolicyView, RiskPoint, RiskSignal, TransactionIntent } from "../api/types";
 import { SignalRow } from "../components/Decision";
 import { AccountIntelBlock, RoleIcon } from "../components/intel";
+import { AccountLivePanel } from "../components/live/AccountLivePanel";
 import { RiskEvolution } from "../components/Replay";
 import { SceneThumb } from "../components/SceneThumb";
 import { useConsoleEvents } from "../components/Shell";
@@ -183,6 +184,7 @@ export function AccountPage() {
           </Panel>
         </div>
         <div className="stack">
+            <AccountLivePanel accountId={a.id} />
             <Panel kicker="Neighbourhood" title={`${hops}-hop money network`} flush
                    q={scene.data ? `${scene.data.nodes.length} accounts · ${scene.data.edges.length} flows` : undefined}
                    actions={<>
