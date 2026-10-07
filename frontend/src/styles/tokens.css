@@ -1,73 +1,110 @@
-/* Vigil design tokens — see docs/DESIGN_SYSTEM.md.
-   Rule: hue encodes STATUS only (normal / watch / high / critical / held / confirmed fraud).
-   Everything else (structure, detector families, interaction) is neutral navy/steel. */
+/* Vigil design tokens v3 — "live platform" (docs/DESIGN_SYSTEM.md).
+   Base language adopted from the refined money-mule reference: deep green-black field, translucent panels with
+   hairline mint borders, mint accent, Space Grotesk (UI / display) + JetBrains Mono (data), generous radii, soft glow.
+   Rule kept from v2: hue encodes STATUS; mint is the brand / interaction accent and never means "safe". */
 :root {
   color-scheme: dark;
 
-  /* surfaces — institutional navy, flat, separated by hairlines (no shadows) */
-  --bg: #0a111b;
-  --bg-side: #0b1320;
-  --surface: #0e1724;
-  --surface-2: #121d2d;
-  --surface-3: #172438;
-  --surface-hi: #1b2a40;
-  --line: #1d2a3d;
-  --line-2: #283a53;
-  --line-3: #36506f;
+  /* field */
+  --bg-0: #05110d;
+  --bg-1: #081913;
+  --bg-2: #0c2018;
+  --bg: var(--bg-0);
+  --bg-side: rgba(6, 20, 15, 0.82);
+
+  /* surfaces — translucent over the field */
+  --surface: rgba(8, 24, 18, 0.84);
+  --surface-2: rgba(255, 255, 255, 0.03);
+  --surface-3: rgba(255, 255, 255, 0.055);
+  --surface-hi: rgba(71, 211, 140, 0.08);
+  --surface-strong: rgba(9, 28, 20, 0.96);
+  --surface-deep: rgba(2, 11, 8, 0.96);
+  --line: rgba(172, 210, 191, 0.12);
+  --line-2: rgba(172, 210, 191, 0.18);
+  --line-3: rgba(72, 213, 151, 0.32);
 
   /* ink */
-  --ink: #dce5ef;
-  --ink-2: #a2b2c5;
-  --ink-3: #6f8298;
-  --ink-4: #4b5c72;
+  --ink: #edf7f1;
+  --ink-2: #b9cfc3;
+  --ink-3: #96b1a2;
+  --ink-4: #5f7c6d;
 
-  /* interaction accent — steel blue, deliberately NOT a status hue */
-  --accent: #8fb0dc;
-  --accent-ink: #0a111b;
-  --accent-soft: rgba(143, 176, 220, 0.12);
-  --accent-line: rgba(143, 176, 220, 0.38);
-  --focus: #b4cdf0;
+  /* brand / interaction accent (mint) */
+  --accent: #47d38c;
+  --accent-strong: #22c55e;
+  --accent-ink: #03100b;
+  --accent-soft: rgba(71, 211, 140, 0.12);
+  --accent-line: rgba(71, 211, 140, 0.34);
+  --focus: #68f0af;
+  --warning: #ffbc4d;
+  --danger: #ff647f;
 
-  /* status scale (FINAL_PARALLEL_PLAN §2) */
-  --st-normal: #4e9c7c;
-  --st-watch: #c9a43b;
-  --st-high: #dc8642;
-  --st-critical: #e15656;
-  --st-held: #9886e6;
-  --st-fraud: #e2477c;
-  --st-normal-bg: rgba(78, 156, 124, 0.12);
-  --st-watch-bg: rgba(201, 164, 59, 0.13);
-  --st-high-bg: rgba(220, 134, 66, 0.13);
-  --st-critical-bg: rgba(225, 86, 86, 0.14);
-  --st-held-bg: rgba(152, 134, 230, 0.14);
-  --st-fraud-bg: rgba(226, 71, 124, 0.16);
-  --st-unknown: #5d6f86;
+  /* risk / decision status scale (pills, bars, tiers) */
+  --st-normal: #5b9bff;
+  --st-watch: #ffbc4d;
+  --st-high: #ff9157;
+  --st-critical: #ff647f;
+  --st-held: #a68bff;
+  --st-fraud: #e8264f;
+  --st-normal-bg: rgba(91, 155, 255, 0.12);
+  --st-watch-bg: rgba(255, 188, 77, 0.12);
+  --st-high-bg: rgba(255, 145, 87, 0.13);
+  --st-critical-bg: rgba(255, 100, 127, 0.13);
+  --st-held-bg: rgba(166, 139, 255, 0.14);
+  --st-fraud-bg: rgba(232, 38, 79, 0.2);
+  --st-unknown: #6d8a7b;
+
+  /* live account status scale (3D universe, streams) */
+  --as-normal: #2f7dff;
+  --as-idle: #1f4a8f;
+  --as-new: #22ff99;
+  --as-early: #ffc34d;
+  --as-flagged: #ff3d63;
+  --as-held: #9b7bff;
+  --as-fraud: #c8102e;
+  --as-external: #7e8f8a;
+
+  /* charts */
+  --ch-teal: rgba(43, 217, 176, 0.78);
+  --ch-amber: rgba(255, 188, 77, 0.82);
+  --ch-red: rgba(255, 77, 109, 0.82);
+  --ch-magenta: rgba(214, 92, 255, 0.78);
+  --ch-blue: rgba(47, 125, 255, 0.78);
+  --ch-grey: rgba(150, 177, 162, 0.6);
 
   /* typography */
-  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --fs-xs: 10.5px;
-  --fs-sm: 11.5px;
-  --fs-md: 12.5px;
-  --fs-base: 13px;
-  --fs-lg: 15px;
-  --fs-xl: 18px;
-  --fs-num: 17px;
+  --font-ui: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13.5px;
+  --fs-base: 14px;
+  --fs-lg: 17px;
+  --fs-xl: 30px;
+  --fs-num: 26px;
 
-  /* spacing + density */
+  /* spacing, radii, depth */
   --s1: 2px; --s2: 4px; --s3: 6px; --s4: 8px; --s5: 12px; --s6: 16px; --s7: 20px; --s8: 28px;
-  --row-h: 28px;
-  --r1: 2px; --r2: 3px; --r3: 5px;
-  --side-w: 212px;
-  --strip-h: 34px;
+  --row-h: 32px;
+  --r1: 8px; --r2: 14px; --r3: 18px; --r4: 22px; --r5: 28px;
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+  --glow: 0 0 18px rgba(71, 211, 140, 0.42);
+  --side-w: 232px;
+  --strip-h: 46px;
 }
 
+/* Light variant: same structure, paper field. Status hues are darkened for contrast on white. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #eef1f5; --bg-side: #f7f9fc; --surface: #ffffff; --surface-2: #f5f7fa; --surface-3: #ebeff4; --surface-hi: #e4e9f0;
-  --line: #dde3ea; --line-2: #c9d2dd; --line-3: #aab6c5;
-  --ink: #142030; --ink-2: #44546a; --ink-3: #6b7a8d; --ink-4: #95a2b3;
-  --accent: #2f5f9e; --accent-ink: #ffffff; --accent-soft: rgba(47, 95, 158, 0.1); --accent-line: rgba(47, 95, 158, 0.4); --focus: #2f6fd1;
-  --st-normal: #2f7a5a; --st-watch: #94700f; --st-high: #b8561f; --st-critical: #b8282f; --st-held: #5f47b8; --st-fraud: #a8124f;
-  --st-normal-bg: #e4f2ea; --st-watch-bg: #f7efd8; --st-high-bg: #fbe9de; --st-critical-bg: #f9e1e2; --st-held-bg: #ebe6f9; --st-fraud-bg: #f8dfe8;
+  --bg-0: #eef4f0; --bg-1: #f4f8f5; --bg-2: #e6efe9; --bg: var(--bg-0);
+  --bg-side: rgba(255, 255, 255, 0.82);
+  --surface: rgba(255, 255, 255, 0.9); --surface-2: rgba(10, 60, 35, 0.035); --surface-3: rgba(10, 60, 35, 0.06);
+  --surface-hi: rgba(20, 150, 90, 0.08); --surface-strong: #ffffff; --surface-deep: #06140f;
+  --line: rgba(20, 70, 45, 0.12); --line-2: rgba(20, 70, 45, 0.2); --line-3: rgba(20, 150, 90, 0.4);
+  --ink: #0d2018; --ink-2: #33503f; --ink-3: #5c7a6a; --ink-4: #8aa596;
+  --accent: #128a52; --accent-strong: #0f7a47; --accent-ink: #ffffff; --accent-soft: rgba(18, 138, 82, 0.1);
+  --accent-line: rgba(18, 138, 82, 0.4); --focus: #0f7a47;
+  --st-normal: #2457b8; --st-watch: #9a6a00; --st-high: #b8561f; --st-critical: #c02443; --st-held: #5f47b8; --st-fraud: #a8102f;
+  --st-normal-bg: #e3ecfb; --st-watch-bg: #f7efd8; --st-high-bg: #fbe9de; --st-critical-bg: #f9e1e5; --st-held-bg: #ebe6f9; --st-fraud-bg: #f8dbe2;
+  --shadow: 0 18px 50px rgba(10, 40, 25, 0.1);
 }
