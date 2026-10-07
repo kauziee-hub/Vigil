@@ -108,6 +108,8 @@ function Spark({ frames, i, onPick }: { frames: ReplayFrame[]; i: number; onPick
 }
 
 // ── Risk evolution ──────────────────────────────────────────────────────────
+const BAND_SHORT: Record<number, string> = { 0: "Pass", 1: "Inform", 2: "Confirm", 3: "Scoped hold", 4: "Hold + alert" };
+
 /** Short "why" for an on-chart marker label. */
 function shortWhy(p: RiskPoint): string {
   const l = p.label.replace(/\s*\(SIMULATED\)/i, "").replace(/ — .*$/, "").replace(/transfer attempted → .*/, "transfer attempted");
@@ -134,18 +136,33 @@ export function RiskEvolution({ points, ladder, height = 250, decisionId, onPick
     if (el.clientWidth) setCw(el.clientWidth);
     return () => ro.disconnect();
   }, []);
-  const W = Math.max(420, cw), H = height, L = 40, R = 118, T = 44, B = 34;
+  const W = Math.max(420, cw), L = 40, R = 118, B = 34, ROWS = 4, CW = 6.1;
   const n = points.length;
   const pts = useMemo(() => points.map((p, k) => ({ ...p, k })), [points]);
   const decisions = useMemo(() => [...new Set(points.map((p) => p.decision_id).filter(Boolean))] as string[], [points]);
   if (!n) return <div className="empty">No risk events recorded for this account in the evaluation window.</div>;
   const x = (k: number) => L + (n === 1 ? (W - L - R) / 2 : (k / (n - 1)) * (W - L - R));
+  // WHY labels only where the score (or tier) moved. Greedy row packing on estimated text width: each label takes the
+  // first of up to four rows where it clears the previous label; it is shortened to fit, never overlapped.
+  const moved = pts.filter((p, k) => k === 0 || p.score !== pts[k - 1].score || p.tier !== pts[k - 1].tier);
+  const rowEnd: number[] = Array(ROWS).fill(-Infinity);
+  const labels = moved.map((p) => {
+    const full = `${p.score.toFixed(2)} ${shortWhy(p)}`;
+    const px = x(p.k);
+    const maxChars = Math.floor((Math.min(W - 4 - px, 260) - 4) / CW);
+    for (let r = 0; r < ROWS; r++) {
+      if (rowEnd[r] > px - 4 || maxChars < 6) continue;
+      const text = full.length > maxChars ? `${full.slice(0, maxChars - 1)}…` : full;
+      rowEnd[r] = px + text.length * CW + 10;
+      return { p, row: r, text };
+    }
+    return { p, row: -1, text: "" };
+  });
+  const used = Math.max(1, ...labels.map((l) => l.row + 1));
+  const T = 10 + used * 12 + 8, H = height + (used - 2) * 12;
   const y = (v: number) => T + (1 - Math.min(1, Math.max(0, v))) * (H - T - B);
   const bands = (ladder ?? []).map((l, idx, arr) => ({ tier: l.tier, from: idx === 0 ? 0 : arr[idx - 1].below, to: Math.min(1, l.below) }));
   const path = pts.map((p, k) => (k === 0 ? `M${x(k)},${y(p.score)}` : `H${x(k)} V${y(p.score)}`)).join(" ");
-  // WHY labels only where the score (or tier) moved — staggered on three rows so neighbours never collide.
-  const moved = pts.filter((p, k) => k === 0 || p.score !== pts[k - 1].score || p.tier !== pts[k - 1].tier);
-  const spacing = n > 1 ? (W - L - R) / (n - 1) : W;
   const multi = decisions.length > 1;
   return (
     <div className="stack" ref={wrap}>
@@ -153,24 +170,19 @@ export function RiskEvolution({ points, ladder, height = 250, decisionId, onPick
         {bands.map((b) => (
           <g key={b.tier}>
             <rect x={L} width={W - L - R} y={y(b.to)} height={Math.max(0, y(b.from) - y(b.to))} fill={`var(--st-${tierStatus(b.tier)}-bg)`} opacity={0.6} />
-            <text x={W - R + 6} y={(y(b.to) + y(b.from)) / 2 + 3}>{TIER_SHORT[b.tier]?.split(" · ")[0]} · {TIER_SHORT[b.tier]?.split(" · ")[1]}</text>
+            <text x={W - R + 6} y={(y(b.to) + y(b.from)) / 2 + 3}><title>{TIER_SHORT[b.tier]}</title>T{b.tier} · {BAND_SHORT[b.tier] ?? ""}</text>
           </g>
         ))}
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="grid-l" /><text x={L - 6} y={y(v) + 3} textAnchor="end">{v.toFixed(2)}</text></g>
         ))}
         <path d={path} fill="none" stroke="var(--ink)" strokeWidth="1.6" />
-        {moved.map((p, j) => {
-          const row = j % 3;
+        {labels.filter((l) => l.row >= 0).map(({ p, row, text }) => {
           const ly = 10 + row * 12;
-          const chars = Math.max(8, Math.floor((spacing * 3) / 6.2));
-          const txt = shortWhy(p);
           return (
             <g key={`w${p.k}`}>
               <line x1={x(p.k)} x2={x(p.k)} y1={ly + 3} y2={y(p.score) - 6} stroke="var(--line-3)" strokeDasharray="2 2" />
-              <text x={x(p.k)} y={ly} textAnchor={p.k === 0 ? "start" : p.k === n - 1 ? "end" : "middle"} className="why-l">
-                {p.score.toFixed(2)} {txt.length > chars ? `${txt.slice(0, chars - 1)}…` : txt}
-              </text>
+              <text x={x(p.k) - 2} y={ly} className="why-l">{text}</text>
             </g>
           );
         })}
