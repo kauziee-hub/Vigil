@@ -214,23 +214,40 @@ export function AccountIntelBlock({ accountId, compact }: { accountId: string; c
     );
   }
   if (intel.error) return <div className="sect"><div className="notice err">{intel.error.message}</div></div>;
-  const x = intel.data!;
-  return (
-    <>
-      <Sub title="Detector consensus" tag={<span className="xs dim mono">graph v{x.graph_version} · {formatStamp(x.as_of)}</span>}>
-        <ConsensusStrip consensus={x.consensus} detectors={x.detectors} />
-        <div style={{ marginTop: 8 }}><DetectorTable detectors={x.detectors} compact={compact} /></div>
-      </Sub>
-      <Sub title={<>SHAP · explains the MODEL</>} tag={<span className="xs dim">not the operational decision</span>}>
-        {x.shap ? <ShapPanel shap={x.shap} /> : <div className="xs muted">No SHAP explanation: the RF model was not run for this account.</div>}
-      </Sub>
-      <Sub title="Behavioural drift">
-        {x.drift ? <DriftPanel drift={x.drift} /> : <div className="xs muted">Not enough history to establish a baseline.</div>}
-      </Sub>
-      <Sub title="Pattern memory" tag={<span className="xs dim">structural similarity, not attribution</span>}>
-        <PatternPanel patterns={x.patterns} />
-      </Sub>
-      <Sub title="Role"><RolePanel role={x.role} /></Sub>
-    </>
+  return <AccountIntelView x={intel.data!} compact={compact} />;
+}
+
+/** Render an already-loaded AccountIntel. `grid` lays the sections out in two columns (account investigation). */
+export function AccountIntelView({ x, compact, grid }: { x: AccountIntel; compact?: boolean; grid?: boolean }) {
+  const consensus = (
+    <Sub title="Detector consensus" tag={<span className="xs dim mono">graph v{x.graph_version} · {formatStamp(x.as_of)}</span>}>
+      <ConsensusStrip consensus={x.consensus} detectors={x.detectors} />
+      <div style={{ marginTop: 8 }}><DetectorTable detectors={x.detectors} compact={compact} /></div>
+    </Sub>
   );
+  const shap = (
+    <Sub title={<>SHAP · explains the MODEL</>} tag={<span className="xs dim">not the operational decision</span>}>
+      {x.shap ? <ShapPanel shap={x.shap} /> : <div className="xs muted">No SHAP explanation: the RF model was not run for this account.</div>}
+    </Sub>
+  );
+  const drift = (
+    <Sub title="Behavioural drift">
+      {x.drift ? <DriftPanel drift={x.drift} /> : <div className="xs muted">Not enough history to establish a baseline.</div>}
+    </Sub>
+  );
+  const patterns = (
+    <Sub title="Pattern memory" tag={<span className="xs dim">structural similarity, not attribution</span>}>
+      <PatternPanel patterns={x.patterns} />
+    </Sub>
+  );
+  const role = <Sub title="Role"><RolePanel role={x.role} /></Sub>;
+  if (grid) {
+    return (
+      <div className="intel-grid">
+        <div>{consensus}{role}</div>
+        <div>{shap}{drift}{patterns}</div>
+      </div>
+    );
+  }
+  return <>{consensus}{shap}{drift}{patterns}{role}</>;
 }

@@ -149,3 +149,10 @@ export function freshness(seconds: number | null | undefined): string {
   if (seconds < 1) return "live";
   return `${duration(seconds)} old`;
 }
+
+/** Repair UTF-8 text that was decoded as cp1252 once ("â‚¹" → "₹") — a display fix only; the data is unchanged. */
+export function clean(s: string | null | undefined): string {
+  if (!s) return "";
+  return s.replace(/â‚¹/g, "₹").replace(/â€”/g, "—").replace(/â€“/g, "–").replace(/â€™/g, "’")
+    .replace(/â‰¥/g, "≥").replace(/â‰¤/g, "≤").replace(/Ã—/g, "×");
+}
