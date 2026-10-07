@@ -6,14 +6,16 @@ import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type {
-  GraphScene, IntelScores, LedgerTx, RiskSignal, RingRow, ScenarioReplay, ScenarioStatus, SceneEdge, SceneNode, TaintView,
+  GraphScene, IntelScores, LedgerTx, RiskSignal, RingRow, ScenarioReplay, ScenarioStatus, SceneEdge, SceneNode, TaintView, UniverseAccount,
 } from "../api/types";
 import { SignalRow } from "../components/Decision";
 import { Graph3D, type Graph3DStyle } from "../components/Graph3D";
 import { AccountIntelBlock, RoleIcon } from "../components/intel";
 import { MoneyTrace } from "../components/MoneyTrace";
 import { useConsoleEvents } from "../components/Shell";
-import { KV, PageHead, Panel, Pill, Seg, Sim } from "../components/ui";
+import { KV, PageHead, Panel, Pill, Seg, Sim, Tabs } from "../components/ui";
+import { LiveUniverse3D, UniverseLegend, type UniverseInfo, type UniverseMode } from "../components/LiveUniverse3D";
+import { UniverseDrawer } from "../components/UniverseDrawer";
 import { formatINR, formatStamp, formatTime, handle } from "../lib/format";
 import { ROLE_SHAPE, SHAPE_ICON, evidenceFromScene, nodeStatus, roleKey, sceneFromEvidence } from "../lib/graphStyle";
 import { useDebounced, useLoad } from "../lib/hooks";
@@ -95,9 +97,9 @@ const HoverTip = memo(function HoverTip({ bind }: { bind: (set: (t: Tip) => void
   return tip ? <div className="net-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div> : null;
 });
 
-export function NetworkPage() {
+function EvidenceSceneView() {
   const [params, setParams] = useSearchParams();
-  const view = (params.get("view") as "3d" | "2d") || "3d";
+  const view = params.get("view") === "2d" ? "2d" : "3d";
   const mode = (params.get("mode") as Mode) || "risk";
   const cap = Number(params.get("cap")) || 60;
   const focus = params.get("focus") || undefined;
@@ -109,6 +111,7 @@ export function NetworkPage() {
   const setParam = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
     Object.entries(patch).forEach(([k, v]) => (v === null ? next.delete(k) : next.set(k, v)));
+    next.set("tab", "scene");
     setParams(next, { replace: true });
   };
 
@@ -236,15 +239,9 @@ export function NetworkPage() {
 
   return (
     <>
-      <PageHead crumb="03 · Intelligence" title="Network Intelligence"
-        lede="Suspicious subgraph by default: accounts with network evidence plus their counterparties. Layout is computed once on the server and frozen — no physics. Shape = role, colour = status, ring = held / confirmed / victim."
-        actions={<>
-          {stale && <button className="btn sm" onClick={() => { sceneCache.clear(); load(true); }} title="New ledger activity since this scene was built">New activity · update scene</button>}
-          <button className="btn sm ghost" onClick={() => { sceneCache.delete(key); load(true); }} disabled={loading}>{loading ? "Loading…" : "Reload"}</button>
-        </>} />
-
+      <div className="notice sm" style={{ marginBottom: 12 }}>Evidence scene: the suspicious subgraph (accounts with network evidence plus counterparties), a focus neighbourhood or one attack. Layout is computed once on the server and frozen — no physics. Shape = role, colour = status, ring = held / confirmed / victim.</div>
       <div className="net-toolbar">
-        <Seg options={[["3d", "3D"], ["2d", "2D"]]} value={view} onChange={(v) => setParam({ view: v === "3d" ? null : v })} />
+        <Seg options={[["3d", "3D"], ["2d", "2D"]]} value={view} onChange={(v) => setParam({ view: v === "3d" ? "scene" : v })} />
         <Seg options={MODES} value={mode} onChange={(m) => setParam({ mode: m === "risk" ? null : m })} />
         <label className="row tight xs muted">Scope
           <select className="select sm" style={{ width: 230 }} value={focus ? "__focus" : scenario ?? ""}
@@ -262,6 +259,9 @@ export function NetworkPage() {
         <button className={`btn sm ${replayOn ? "on" : ""}`} disabled={!timeline.length} onClick={() => { setReplayOn(!replayOn); setPlaying(false); setStep(0); }}
                 title={timeline.length ? "Replay the transactions in this scene in posting order" : "No timestamped transactions in this scene"}>
           {replayOn ? "Exit replay" : scope.scenario ? "Attack replay" : "Time replay"}</button>
+        <span className="grow" />
+        {stale && <button className="btn sm" onClick={() => { sceneCache.clear(); load(true); }} title="New ledger activity since this scene was built">New activity · update scene</button>}
+        <button className="btn sm ghost" onClick={() => { sceneCache.delete(key); load(true); }} disabled={loading}>{loading ? "Loading…" : "Reload"}</button>
       </div>
       {MODEL_MODES.has(mode) && !intelOk && (
         <div className="unavail" style={{ marginBottom: 8 }}><span className="ic">∅</span><div><b>{MODES.find((m) => m[0] === mode)?.[1]}: not yet available.</b> Per-account model scores come from <span className="mono">/api/intel/scores</span>, which this server does not serve yet. Nodes are shown unscored (dimmed) rather than estimated.</div></div>
@@ -534,6 +534,87 @@ function EdgeDrawer({ edge, onClose, onPick }: { edge: SceneEdge; onClose: () =>
           </tbody></table>
         </div>
       </div>
+    </>
+  );
+}
+
+// ══ v3: Network Intelligence = full-screen live universe (lenses) + the scoped evidence scene as a second view ══
+const UMODES: [UniverseMode, string][] = [["live", "Live status"], ["risk", "Risk"], ["model", "Model score"], ["roles", "Roles"], ["taint", "Taint"]];
+
+function LiveUniverseView() {
+  const [params, setParams] = useSearchParams();
+  const mode = (params.get("lens") as UniverseMode) || "live";
+  const taint = useLoad<TaintView>(api.taint);
+  const refreshTaint = useDebounced(() => taint.reload(), 1500);
+  useConsoleEvents((e) => { if (e.type === "taint.updated" || e.type === "demo.reset") refreshTaint(); });
+  const taintMap = useMemo(() => new Map((taint.data?.exposure ?? []).map((x) => [x.account_id, x.attributable_paise])), [taint.data]);
+  const accounts = useRef(new Map<string, UniverseAccount>());
+  const [info, setInfo] = useState<UniverseInfo | null>(null);
+  const onInfo = useCallback((i: UniverseInfo) => { accounts.current = i.accounts; setInfo(i); }, []);
+  const [sel, setSel] = useState<{ id: string; acct: UniverseAccount | null } | null>(null);
+  const [orbit, setOrbit] = useState(false);
+  const [gt, setGt] = useState(false);
+  const [focus, setFocus] = useState<{ ids: string[]; seq: number } | null>(null);
+  const onSelect = useCallback((id: string | null, acct: UniverseAccount | null) => setSel(id ? { id, acct } : null), []);
+  const setLens = (m: UniverseMode) => {
+    const n = new URLSearchParams(params);
+    if (m === "live") n.delete("lens"); else n.set("lens", m);
+    setParams(n, { replace: true });
+  };
+  const [q, setQ] = useState("");
+  const find = () => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return;
+    const hit = [...accounts.current.values()].find((a) => a.id.toLowerCase().includes(needle) || a.label.toLowerCase().includes(needle));
+    if (hit) { setSel({ id: hit.id, acct: hit }); setFocus({ ids: [hit.id], seq: Date.now() }); }
+  };
+  const alarm = useMemo(() => [...(info?.accounts.values() ?? [])]
+    .filter((a) => a.status === "flagged" || a.status === "held" || a.status === "confirmed_fraud"), [info]);
+
+  return (
+    <>
+      <div className="net-toolbar">
+        <Seg options={UMODES} value={mode} onChange={setLens} />
+        <button className={`btn sm ${orbit ? "on" : "ghost"}`} onClick={() => setOrbit(!orbit)}>Auto-orbit</button>
+        <button className={`btn sm ${gt ? "on" : "ghost"}`} onClick={() => setGt(!gt)} title="Colour postings tagged by the simulator (evaluation only — never scored)">Simulator ground truth</button>
+        <button className="btn sm ghost" onClick={() => setFocus({ ids: [...accounts.current.keys()], seq: Date.now() })}>Reset view</button>
+        {alarm.length > 0 && <button className="btn sm danger" onClick={() => setFocus({ ids: alarm.map((a) => a.id), seq: Date.now() })}>Zoom to {alarm.length} flagged / held</button>}
+        <span className="grow" />
+        <input className="input sm" style={{ width: 220 }} placeholder="Find account (id or name)" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && find()} />
+        <button className="btn sm" onClick={find}>Find</button>
+      </div>
+      {mode === "model" && <div className="notice sm" style={{ marginBottom: 10 }}>MODEL SCORE colours the strongest model evidence per account (RF / GNN, <span className="stamp-sv">SYNTHETIC VALIDATION</span>) — corroborating only, never used for authorisation.</div>}
+      <section className="stage">
+        <div className="stage-h">
+          <div><div className="k">Network intelligence · {UMODES.find((m) => m[0] === mode)?.[1]}</div><div className="t">Live Transaction Universe</div></div>
+          <UniverseLegend mode={mode} groundTruth={gt} />
+        </div>
+        <div style={{ position: "relative" }}>
+          <LiveUniverse3D mode={mode} groundTruth={gt} autoRotate={orbit && !sel} size="full" selected={sel?.id ?? null} onSelect={onSelect}
+                          onInfo={onInfo} taint={taintMap} focus={focus} />
+          {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} taint={taint.data ? taintMap.get(sel.id) ?? 0 : undefined}
+                                  onClose={() => setSel(null)} onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
+        </div>
+      </section>
+    </>
+  );
+}
+
+export function NetworkPage() {
+  const [params, setParams] = useSearchParams();
+  const explicit = params.get("tab");
+  const v = params.get("view");
+  const tab = explicit === "scene" || explicit === "live" ? explicit
+    : params.get("focus") || params.get("scenario") || v === "2d" || v === "3d" || v === "scene" ? "scene" : "live";
+  return (
+    <>
+      <PageHead crumb="03 · Intelligence" title="Network Intelligence"
+        lede={tab === "live"
+          ? "Every account and every live posting. Lenses: LIVE STATUS (detection intelligence), RISK (RingWatch network score — on the authorisation path), MODEL SCORE (corroborating), ROLES and TAINT (value traced from confirmed scams)."
+          : "Scoped evidence scene with replay, role shapes and an investigation drawer — the suspicious subgraph, an account's neighbourhood or one attack."}
+        actions={<Tabs tabs={[["live", "Live universe"], ["scene", "Evidence scene"]]} value={tab}
+                       onChange={(t) => setParams(t === "live" ? new URLSearchParams() : new URLSearchParams({ tab: "scene" }), { replace: true })} />} />
+      {tab === "live" ? <LiveUniverseView /> : <EvidenceSceneView />}
     </>
   );
 }
