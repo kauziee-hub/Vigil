@@ -75,7 +75,7 @@ export function HealthPage() {
       {!h && !err && <Loading text="Reading system health" />}
       {h && (
         <div className="stack loose">
-          <div className="mstrip">
+          <div className="mstrip inv-tiles">
             <Metric k="Status" v={h.status.toUpperCase()} status={h.status === "ok" ? "normal" : "critical"} d={`server time ${formatStamp(h.time)}`} />
             <Metric k="Uptime" v={duration(h.uptime_s)} d={h.seeded_at ? `seeded ${formatStamp(h.seeded_at)}` : "not seeded"} />
             <Metric k="Decision p95" v={h.latency_p95_ms != null ? `${h.latency_p95_ms.toFixed(1)} ms` : "—"} d={m?.latency_p50_ms != null ? `p50 ${m.latency_p50_ms.toFixed(1)} ms` : "per payment evaluation"} />

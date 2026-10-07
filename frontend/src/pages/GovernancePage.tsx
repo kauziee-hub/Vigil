@@ -101,7 +101,7 @@ function Oversight() {
                 </div>
               </Panel>
               <Panel kicker="Shadow comparison" title="Bank baseline vs Vigil recommendation" q="recorded on every decision">
-                <div className="mstrip" style={{ marginBottom: 10 }}>
+                <div className="mstrip dense" style={{ marginBottom: 10, gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                   <Metric k="Shadow" v={String(s.shadow.evaluated)} d="decisions evaluated" />
                   <Metric k="Vigil" v={String(s.shadow.vigil_would_intervene)} d="would intervene (T2+)" />
                   <Metric k="Baseline" v={String(s.shadow.baseline_would_challenge)} d="would challenge" />

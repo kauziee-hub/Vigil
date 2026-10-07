@@ -105,7 +105,7 @@ export function InterventionsPage() {
             <div className="tscroll" style={{ maxHeight: "calc(100vh - 300px)" }}>
               <table className="dt compact">
                 <thead>
-                  <tr><th>Opened · age</th><th>Tier</th><th>Intervention</th><th>State</th><th>Sender → recipient</th><th className="num">Amount</th><th>Hold</th><th>Review SLA</th><th>CircuitBreaker</th><th>Mode</th><th className="right">Bank action</th></tr>
+                  <tr><th>Opened · age</th><th>Tier</th><th>Intervention</th><th>State</th><th>Sender → recipient</th><th className="num">Amount</th><th>Hold</th><th>Review SLA</th><th>CircuitBreaker</th><th className="right">Bank action</th></tr>
                 </thead>
                 <tbody>
                   {shown.map((r) => {
@@ -117,7 +117,7 @@ export function InterventionsPage() {
                         <td className="mono xs nowrap">{formatTime(r.opened_at)}<div className="dim">{duration(age)}</div></td>
                         <td><TierPill tier={r.tier} /></td>
                         <td className="xs">{KIND_LABEL[r.kind] ?? r.kind}<div className="dim ell" style={{ maxWidth: 220 }}>{r.headline}</div></td>
-                        <td><StatePill state={r.state} />{r.outside && <div className="xs dim">no alert row</div>}</td>
+                        <td><StatePill state={r.state} />{r.mode === "shadow" && <div style={{ marginTop: 3 }}><Pill status="watch">shadow</Pill></div>}{r.outside && <div className="xs dim">no alert row</div>}</td>
                         <td className="xs"><Link to={`/investigations/account/${encodeURIComponent(r.sender_id)}`}>{handle(r.sender_id)}</Link>
                           <div>→ <Link to={`/investigations/account/${encodeURIComponent(r.recipient_id)}`}>{handle(r.recipient_id)}</Link></div></td>
                         <td className="num">{formatINR(r.amount_paise)}</td>
@@ -129,7 +129,6 @@ export function InterventionsPage() {
                           : <span>{duration(due)} left<div className="dim">by {formatTime(r.sla_due)}</div></span>}</td>
                         <td className="xs">{r.circuit_breaker ? <>{r.circuit_breaker.contact}
                           <div className={r.circuit_breaker.response ? "" : "dim"}>{r.circuit_breaker.response ? `${r.circuit_breaker.response.replace(/_/g, " ")} · ${formatTime(r.circuit_breaker.responded_at)}` : "awaiting response"}</div></> : <span className="dim">{r.tier === 4 && r.outside ? "see case" : "—"}</span>}</td>
-                        <td>{r.mode === "shadow" ? <Pill status="watch">shadow</Pill> : <span className="xs dim">active</span>}</td>
                         <td className="right nowrap">
                           {actionable && <>
                             <button className="btn xs ok" disabled={busy === r.intent_id} onClick={() => act(r, "release")}>Release</button>{" "}
