@@ -116,7 +116,9 @@ function ScenarioDetail({ s, tab, setTab, busy, act }: {
   s: ScenarioStatus; tab: Tab; setTab: (t: Tab) => void; busy: string | null; act: (k: string, fn: () => Promise<unknown>) => Promise<void>;
 }) {
   const cat = catOf(s);
-  const explain = useLoad<ScenarioExplain>(() => api.scenarioExplain(s.id), [s.id, s.state === "done", s.step]);
+  // run_id in the deps: re-running a 1-step scenario goes done 1/1 -> done 1/1, which alone would not refetch
+  const runId = s.log.length ? s.log[s.log.length - 1].run_id : null;
+  const explain = useLoad<ScenarioExplain>(() => api.scenarioExplain(s.id), [s.id, s.state === "done", s.step, runId]);
   const pct = s.total_steps ? (s.step / s.total_steps) * 100 : 0;
   const network = cat === "attack";
   return (
