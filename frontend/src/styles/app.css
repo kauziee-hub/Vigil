@@ -2,9 +2,9 @@
    borders, eyebrow labels, generous radii. Hue = status; mint = brand/interaction. See docs/DESIGN_SYSTEM.md. */
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
-html { overflow-x: hidden; }
+html { overflow-x: clip; }
 body {
-  margin: 0; color: var(--ink); overflow-x: hidden;
+  margin: 0; color: var(--ink); overflow-x: clip;
   font: var(--fs-base)/1.5 var(--font-ui); -webkit-font-smoothing: antialiased;
   font-feature-settings: "tnum" 1;
   background:

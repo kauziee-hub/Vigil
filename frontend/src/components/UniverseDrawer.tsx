@@ -47,8 +47,8 @@ export function UniverseDrawer({ id, acct, taint, onClose, onFocus }: {
               <div className="v">{acct?.model_risk != null ? acct.model_risk.toFixed(2) : "—"}</div>
               <div className="d">corroborating — not used for authorisation</div></div>
             <div className="m"><div className="k">Traced value</div>
-              <div className="v" style={{ color: taint ? STATUS_HEX.fraud : undefined }}>{taint ? formatINR(taint) : "₹0"}</div>
-              <div className="d">LIBR attributable</div></div>
+              <div className="v" style={{ color: taint ? STATUS_HEX.fraud : undefined }}>{taint === undefined ? "—" : formatINR(taint)}</div>
+              <div className="d">{taint === undefined ? "TaintTrace on the account page" : "LIBR attributable"}</div></div>
           </div>
           {a && (
             <div style={{ marginTop: 10 }}>
