@@ -7,10 +7,13 @@
 | Objective | Finish the redesign from `claude3/run2-wip`: Investigations (wire Replay.tsx; account view), Interventions, Governance & Audit, Scenario Lab, Overview, Detection & Models, System Health, contact alignment, screenshots |
 | Exact Prompt | Full message sent: `AGENT_HANDOFF/prompts/v2_claude3_run3_resume.md` (verbatim; it points to the binding `AGENT_HANDOFF/prompts/v2_claude3_frontend_redesign.md`). |
 | Previous run | `runs/20261006-2303_claude3_frontend-redesign-run2.md` — INTERRUPTED |
-| Status | IN PROGRESS |
+| Status | IN PROGRESS — stopped ~01:53 IST by API usage limit (HTTP 429) mid review pass; WIP committed by lead as `24f14cf` in its worktree; resumed with context intact ~07:40 IST via `prompts/v2_claude3_run3_continue_after_limit.md` |
 
 ## Agent Output / Summary
 _(pending — pasted verbatim on return)_
+
+### Interruption 1 (usage limit) — state found by Claude 1 at 07:29 IST
+Agent's last message before the stop: "Now re-capturing the case pages after the ladder/chart fixes, then reviewing the rest." Commits on `worktree-agent-ae4558870dbce67de` before the stop: f94eba3 (untrack tsbuildinfo), 77e7ab3 Investigations, 9a24105 Interventions, dd66b91 Governance & Audit, 908df2f Scenario Lab, a82d373 Overview, 2e05421 Detection & Models, 8c81794 System Health, 496e7bf trusted-contact alignment, be5e495 Network lazy Cytoscape + label declutter. Uncommitted: Replay.tsx, OverviewPage.tsx, app.css (+27/−11) and 17 screenshots in docs/ui_v2/ — `tsc -b --noEmit` exit 0 — committed verbatim by Claude 1 as `24f14cf`. Its Vite dev server (:5183) left running for the resumed agent.
 
 ## Files Changed
 _(pending)_
