@@ -17,12 +17,12 @@ function Tokens({ ids, kind }: { ids: string[]; kind?: "danger" | "warn" | "ok" 
 
 const fx = (v: number | null | undefined, d = 2) => (v === null || v === undefined ? "—" : v.toFixed(d));
 
-export function LastAttackResult({ runs, unavailable }: { runs: AttackRun[] | null; unavailable: boolean }) {
+export function LastAttackResult({ runs, unavailable, emptyText }: { runs: AttackRun[] | null; unavailable: boolean; emptyText?: string }) {
   const r = (runs ?? []).find((x) => x.status === "completed") ?? (runs ?? [])[0] ?? null;
   return (
     <Panel kicker="Outcome" title="Last Attack Result" actions={<span className="sim gt">simulator ground truth</span>}>
       {unavailable ? <Unavailable what="Attack-run evaluation" endpoint="/api/attacks/runs" /> : !r ? (
-        <div className="empty">No attack has run since the last reset. Spawn one in the Command Center.</div>
+        <div className="empty">{emptyText ?? "No attack has run since the last reset. Spawn one in the Command Center."}</div>
       ) : (
         <div className="stack" style={{ gap: 12 }}>
           <div className="ink2">{r.run_id} · {r.name} — {r.status === "completed" ? "evaluated against the simulator's injected mule list." : `${r.status} (${r.steps_done}/${r.steps_total} steps)…`}</div>

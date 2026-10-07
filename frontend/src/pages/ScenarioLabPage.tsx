@@ -4,13 +4,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { DetectorFamily, ScenarioCompare, ScenarioEvent, ScenarioExplain, ScenarioReplay, ScenarioStatus } from "../api/types";
+import type { AttackRun, DetectorFamily, ScenarioCompare, ScenarioEvent, ScenarioExplain, ScenarioReplay, ScenarioStatus } from "../api/types";
 import { ConsensusStrip, DetectorTable, detectorStatus } from "../components/intel";
+import { AttackHistory, LastAttackResult } from "../components/live/AttackResults";
+import { RunChips } from "../components/live/CommandCenter";
 import { Synthetic } from "../components/ModelCard";
 import { usePlatform, useConsoleEvents } from "../components/Shell";
 import { Async, Glyph, PageHead, Panel, Pill, Sim, Tabs, TierPill } from "../components/ui";
 import { formatINR, formatTime, handle } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
+import { useAttackRuns, type LiveSource } from "../lib/live";
 import { FAMILY, KIND_LABEL, type Status } from "../lib/status";
 
 type Cat = "payment" | "attack" | "control";
@@ -30,6 +33,7 @@ export function ScenarioLabPage() {
   const [err, setErr] = useState<string | null>(null);
   const [live, setLive] = useState<Record<string, ScenarioEvent>>({});
   const reloadList = useDebounced(() => list.reload(), 350);
+  const runs = useAttackRuns();
 
   useConsoleEvents((e) => {
     if (e.type.startsWith("scenario.")) {
@@ -106,14 +110,15 @@ export function ScenarioLabPage() {
         </Panel>
 
         {sel ? <ScenarioDetail key={sel.id} s={sel} tab={tab} setTab={(t) => setParam({ tab: t === "log" ? null : t })}
-                               busy={busy} act={act} /> : <Panel title="Select a scenario"><div className="empty">Pick a scenario on the left.</div></Panel>}
+                               busy={busy} act={act} runs={runs} /> : <Panel title="Select a scenario"><div className="empty">Pick a scenario on the left.</div></Panel>}
       </div>
     </>
   );
 }
 
-function ScenarioDetail({ s, tab, setTab, busy, act }: {
+function ScenarioDetail({ s, tab, setTab, busy, act, runs }: {
   s: ScenarioStatus; tab: Tab; setTab: (t: Tab) => void; busy: string | null; act: (k: string, fn: () => Promise<unknown>) => Promise<void>;
+  runs: LiveSource<AttackRun[]>;
 }) {
   const cat = catOf(s);
   // run_id in the deps: re-running a 1-step scenario goes done 1/1 -> done 1/1, which alone would not refetch
@@ -121,6 +126,8 @@ function ScenarioDetail({ s, tab, setTab, busy, act }: {
   const explain = useLoad<ScenarioExplain>(() => api.scenarioExplain(s.id), [s.id, s.state === "done", s.step, runId]);
   const pct = s.total_steps ? (s.step / s.total_steps) * 100 : 0;
   const network = cat === "attack";
+  const myRuns = (runs.data ?? []).filter((r) => r.scenario_id === s.id);
+  const run = myRuns[0] ?? null;
   return (
     <div className="stack">
       <Panel kicker={s.act.toLowerCase() === cat ? `${CAT_LABEL[cat]} · ${s.id}` : `${s.act} · ${CAT_LABEL[cat]} · ${s.id}`} title={s.name}
@@ -128,7 +135,8 @@ function ScenarioDetail({ s, tab, setTab, busy, act }: {
              footer={<span>Expected: {s.expected}</span>}>
         <div className="stack">
           <div className="md ink2">{s.summary}</div>
-          <div className="bar thick"><i style={{ width: `${pct}%`, background: "var(--accent)", transition: "width 0.3s" }} /></div>
+          <div className={`progress ${cat === "attack" ? "" : cat === "control" ? "ok" : "pay"}`}><i style={{ width: `${pct}%` }} /></div>
+          {network && run && <RunChips run={run} />}
           <div className="row wrap">
             {(s.state === "idle" || s.state === "done") && (
               <button className="btn sm primary" disabled={!!busy} onClick={() => act(s.id, () => api.scenarioStart(s.id))}>▶ Start</button>
@@ -160,6 +168,7 @@ function ScenarioDetail({ s, tab, setTab, busy, act }: {
               {(x) => <ul className="md ink2" style={{ display: "flex", flexDirection: "column", gap: 4 }}>{x.explain.map((t) => <li key={t}>{t}</li>)}</ul>}
             </Async>
           </Panel>
+          {network ? <LastAttackResult runs={myRuns} unavailable={runs.unavailable} emptyText="This pattern has not run since the last reset. Press Start — the run is evaluated against the simulator's injected mule list when it completes." /> : (
           <Panel kicker="Outcome" title="Decisions produced" flush>
             {explain.data && explain.data.decisions.length === 0 && <div className="empty">{network ? "Attack patterns post ledger transfers; they create no payment decision. See the 3D scene and COMPARE DETECTORS." : "No decision yet — start the scenario."}</div>}
             {explain.data && explain.data.decisions.length > 0 && (
@@ -175,9 +184,11 @@ function ScenarioDetail({ s, tab, setTab, busy, act }: {
               </table>
             )}
           </Panel>
+          )}
       </div>
+      {network && myRuns.length > 0 && <AttackHistory runs={myRuns} unavailable={runs.unavailable} />}
       <section className="panel">
-        <div style={{ padding: "0 12px" }}>
+        <div style={{ padding: "12px 12px 0" }}>
           <Tabs tabs={[["log", `Live step log · ${s.log.length}`], ["replay", "Replay"], ["compare", "Compare detectors"]]} value={tab} onChange={setTab} />
         </div>
         {tab === "log" && <StepLog s={s} />}

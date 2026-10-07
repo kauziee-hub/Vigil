@@ -4,10 +4,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "../api/client";
 import type { SystemHealth } from "../api/types";
+import { TiersOverTimeChart, VolumeChart } from "../components/live/LiveStatsCharts";
 import { usePlatform, useConsoleEvents } from "../components/Shell";
 import { ErrorNote, KV, Loading, Metric, PageHead, Panel, Pill, Sim } from "../components/ui";
 import { duration, formatBytes, formatINR, formatStamp, pct } from "../lib/format";
 import { useDebounced } from "../lib/hooks";
+import { useLiveStats } from "../lib/live";
 
 type Probe = { name: string; path: string; status: number | null; ms: number | null; note?: string };
 const PROBES: { name: string; path: string; run: () => Promise<unknown> }[] = [
@@ -29,6 +31,7 @@ export function HealthPage() {
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
   const [probes, setProbes] = useState<Probe[]>([]);
   const [busy, setBusy] = useState(false);
+  const live = useLiveStats(5000);
 
   const check = useCallback(async () => {
     const t0 = performance.now();
@@ -80,6 +83,16 @@ export function HealthPage() {
             <Metric k="Realtime" v={conn === "open" ? "LIVE" : conn.toUpperCase()} status={conn === "open" ? "normal" : conn === "connecting" ? "watch" : "critical"} d={`${h.ws_clients} socket${h.ws_clients === 1 ? "" : "s"} on the server`} />
             <Metric k="Intel layer" v={h.intel_available ? "ON" : "OFF"} status={h.intel_available ? "normal" : undefined} d="RF · GNN · drift · pattern memory" />
             <Metric k="Database" v={formatBytes(h.db_size_bytes)} d="SQLite + WAL" />
+            <Metric k="Throughput" v={live.data ? `${live.data.throughput_tps.toFixed(2)} tx/s` : "—"} d={live.unavailable ? "/api/live/stats not served" : "ledger postings · live stats"} />
+          </div>
+
+          <div className="grid cols-2 align-start">
+            <Panel kicker="Live pipeline" title="Ledger postings per 10 s" q="every posting is scored live; injected = simulator ground truth">
+              <div className="chart-shell"><VolumeChart stats={live.data} height={210} /></div>
+            </Panel>
+            <Panel kicker="Decision path" title="PRIMA decisions by tier" q={live.data?.tiers_over_time?.length ? "per minute" : "since seed"}>
+              <div className="chart-shell"><TiersOverTimeChart stats={live.data} tierMix={m?.decisions_by_tier} height={210} /></div>
+            </Panel>
           </div>
 
           <div className="grid cols-3 align-start">

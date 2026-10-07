@@ -7,9 +7,9 @@ import { ApiError, api } from "../api/client";
 import type { AccountSummary, DecisionRecord, RiskDecision, TransactionIntent } from "../api/types";
 import { AssessmentTable, CaseLinks, CaseMeta, InterventionShown, Outcome } from "../components/Assessment";
 import { CustomerDevice, type DeviceState, type Prefill } from "../components/CustomerDevice";
-import { useConsoleEvents } from "../components/Shell";
-import { PageHead, Panel, StatePill, TierPill } from "../components/ui";
-import { formatINR, formatTime, handle } from "../lib/format";
+import { useConsoleEvents, usePlatform } from "../components/Shell";
+import { Metric, PageHead, Panel, StatePill, TierPill } from "../components/ui";
+import { formatINR, formatTime, handle, pct } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
 
 const QUICK: Record<string, { label: string; to: string; amount: string; note: string }[]> = {
@@ -31,6 +31,7 @@ export function GuardPage() {
   const [picked, setPicked] = useState<{ intent: TransactionIntent; decision: RiskDecision | null } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const { metrics: m, mode, health } = usePlatform();
   const recent = useLoad<TransactionIntent[]>(() => api.intents(payer), [payer]);
   const refreshRecent = useDebounced(() => recent.reload(), 800);
 
@@ -87,6 +88,13 @@ export function GuardPage() {
         </div>
 
         <div className="stack loose" style={{ minWidth: 0 }}>
+          <div className="mstrip dense guard-kpis">
+            <Metric k="Decision p50 · p95" v={m?.latency_p50_ms != null ? `${m.latency_p50_ms.toFixed(1)} · ${m.latency_p95_ms?.toFixed(1) ?? "—"} ms` : "—"} d="pre-commit evaluation" />
+            <Metric k="Zero friction" v={m?.zero_friction_rate != null ? pct(m.zero_friction_rate, 1) : "—"} d="payments passed at Tier 0" />
+            <Metric k="Decisions" v={m ? m.decisions_total.toLocaleString("en-IN") : "—"} d={`policy ${health?.policy_version.split("+")[0] ?? "…"}`} />
+            <Metric k="Open interventions" v={m ? String(m.open_interventions) : "—"} status={m && m.open_interventions ? "held" : undefined} d={m ? `held ${formatINR(m.held_paise)}` : ""} />
+            <Metric k="Mode" v={mode ? mode.mode.toUpperCase() : "—"} status={mode?.mode === "shadow" ? "watch" : undefined} d={mode?.mode === "shadow" ? "recommend only" : "interventions applied"} />
+          </div>
           {err && <div className="notice err">{err}</div>}
           {intent && decision ? (
             <CaseView intent={intent} decision={decision} historical={!device.intent && !!picked} />

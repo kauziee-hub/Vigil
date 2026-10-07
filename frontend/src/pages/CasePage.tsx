@@ -99,7 +99,7 @@ export function CasePage() {
         </>} />
       {err && <div className="notice err" style={{ marginBottom: 10 }}>{err}</div>}
 
-      <div className="mstrip" style={{ marginBottom: 12 }}>
+      <div className="mstrip inv-tiles case-tiles" style={{ marginBottom: 20 }}>
         <Metric k="Final score" v={d.final_score.toFixed(3)} d={`base ${d.base_score.toFixed(3)} · ${d.adjustments.length} adjustment${d.adjustments.length === 1 ? "" : "s"}`} status={tierStatus(d.tier)} />
         <Metric k="Intervention" v={<span style={{ fontSize: 13 }}>{d.intervention.title}</span>} d={d.intervention.kind.replace(/_/g, " ")} />
         <Metric k="State" v={<StatePill state={it.state} />} d={`${it.source} · ${formatTime(it.updated_at)}`} />
