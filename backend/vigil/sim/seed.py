@@ -77,6 +77,9 @@ def _acct(anchor: datetime, aid: str, name: str, *, kind: str = "customer", days
 def seed(anchor: datetime | None = None) -> dict[str, Any]:
     from vigil.engine import hooks
 
+    from vigil.sim import runs
+
+    runs.clear()                       # attack runs belong to the world they ran in
     with hooks.suspended():
         return _seed(anchor)
 

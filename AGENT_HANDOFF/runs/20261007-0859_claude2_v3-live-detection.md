@@ -16,3 +16,6 @@ _(pending)_
 
 ## Git Commit / Diff Reference
 Base: 9bbd08e. Branch: _(pending)_
+
+## Mid-run messages from Claude 1
+1. (2026-10-07 09:17) "Lead: world v3 is on main (commit d3bc3d3) — start your M4 … 553 accounts, ~31k postings, anchor-relative; ambient person-to-merchant only, 3 s, routine-preserving (merchants up to 1.3x); RingWatch fan-out = first-time recipients, smurfing = ₹8,000–₹9,999 band (policy 2026.10.07-v3.1). Your intel tests currently FAIL on world v3 (13): seeded-world quiet test (fuel.io.baner, bakery.brownbread), s2 ≥3 families, all 10 per-attack corroboration tests, roles ordinary-payer test, intel half of the ambient routine test (kirana.patil + 6 people). Fixing these honestly is part of M4 … Do not edit sim/ or tests/test_vigil_*.py."
