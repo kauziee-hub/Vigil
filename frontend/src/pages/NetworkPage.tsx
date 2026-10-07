@@ -47,9 +47,9 @@ async function fetchScene(s: Scope): Promise<GraphScene> {
   }
 }
 
-const NEUTRAL = "#7f93ad";
-const NEUTRAL_DIM = "#3f5068";
-const EDGE_BASE = "#4a6383";
+const NEUTRAL = "#8fae9f";
+const NEUTRAL_DIM = "#34493f";
+const EDGE_BASE = "#2c6b57";
 
 function useStyle(mode: Mode, scores: IntelScores | null): Graph3DStyle {
   return useMemo<Graph3DStyle>(() => {
@@ -66,14 +66,14 @@ function useStyle(mode: Mode, scores: IntelScores | null): Graph3DStyle {
     switch (mode) {
       case "flow":
         return { ...base, nodeColor: (n) => (n.kind === "external" ? NEUTRAL_DIM : NEUTRAL), nodeDim: () => false,
-                 edgeColor: (e) => (e.tainted_paise > 0 ? STATUS_HEX.fraud : "#5b7699"),
+                 edgeColor: (e) => (e.tainted_paise > 0 ? STATUS_HEX.fraud : "#3a8a70"),
                  label: (n) => (n.risk >= 0.75 || n.labelled ? n.label : null) };
       case "taint":
         return { ...base, nodeColor: (n) => (n.labelled || n.taint_paise > 0 ? STATUS_HEX.fraud : NEUTRAL),
                  nodeDim: (n) => !(n.labelled || n.taint_paise > 0),
                  label: (n) => (n.labelled ? `${n.label} · confirmed` : n.taint_paise > 0 ? `${n.label} · ${formatINR(n.taint_paise)}` : null) };
       case "roles":
-        return { ...base, nodeColor: (n) => (roleKey(n.role, n.kind) === "normal" ? NEUTRAL_DIM : "#c8d6ea"),
+        return { ...base, nodeColor: (n) => (roleKey(n.role, n.kind) === "normal" ? NEUTRAL_DIM : "#d6efe2"),
                  nodeDim: (n) => roleKey(n.role, n.kind) === "normal" && !n.victim,
                  label: (n) => (roleKey(n.role, n.kind) !== "normal" && n.kind !== "external" ? `${ROLE_LABEL[n.role ?? ""] ?? n.role} · ${n.label}` : null) };
       case "gnn": case "rules": case "ml":
@@ -371,13 +371,13 @@ function Legend({ mode }: { mode: Mode }) {
   return (
     <div className="net-legend">
       {statuses.map((s) => <span key={s}><i className="sw" style={{ background: STATUS_HEX[s] }} />{STATUS_LABEL[s]}</span>)}
-      {(mode === "flow" || mode === "roles") && <span><i className="sw" style={{ background: mode === "flow" ? NEUTRAL : "#c8d6ea" }} />{mode === "flow" ? "Account (neutral)" : "Role holder"}</span>}
+      {(mode === "flow" || mode === "roles") && <span><i className="sw" style={{ background: mode === "flow" ? NEUTRAL : "#d6efe2" }} />{mode === "flow" ? "Account (neutral)" : "Role holder"}</span>}
       <span><svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke={STATUS_HEX.fraud} strokeWidth="2" /></svg>Confirmed fraud</span>
       <span><svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke={STATUS_HEX.held} strokeWidth="2" /></svg>Held</span>
-      <span><svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#dce5ef" strokeWidth="2" /></svg>Victim</span>
-      <span><svg width="22" height="10" viewBox="0 0 22 10"><path d="M1 5h15" stroke="#5b7699" strokeWidth="2" /><path d="M14 1l7 4-7 4z" fill="#5b7699" /></svg>Direction · width ∝ √amount</span>
+      <span><svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#edf7f1" strokeWidth="2" /></svg>Victim</span>
+      <span><svg width="22" height="10" viewBox="0 0 22 10"><path d="M1 5h15" stroke="#3a8a70" strokeWidth="2" /><path d="M14 1l7 4-7 4z" fill="#3a8a70" /></svg>Direction · width ∝ √amount</span>
       {roles.map((r) => (
-        <span key={r}><svg width="12" height="12" viewBox="0 0 16 16"><path d={SHAPE_ICON[ROLE_SHAPE[r].shape]} fill="none" stroke="#a2b2c5" strokeWidth="1.4" /></svg>{ROLE_SHAPE[r].label}</span>
+        <span key={r}><svg width="12" height="12" viewBox="0 0 16 16"><path d={SHAPE_ICON[ROLE_SHAPE[r].shape]} fill="none" stroke="#b9cfc3" strokeWidth="1.4" /></svg>{ROLE_SHAPE[r].label}</span>
       ))}
     </div>
   );

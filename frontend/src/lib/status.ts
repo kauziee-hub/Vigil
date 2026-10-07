@@ -1,5 +1,5 @@
 // The one status scale (FINAL_PARALLEL_PLAN §2). Colour encodes status ONLY.
-import type { DetectorFamily, IntentState, ValueKind } from "../api/types";
+import type { AccountStatus, DetectorFamily, IntentState, ValueKind } from "../api/types";
 
 export type Status = "normal" | "watch" | "high" | "critical" | "held" | "fraud" | "unknown";
 
@@ -15,13 +15,13 @@ export const STATUS_LABEL: Record<Status, string> = {
 
 /** Hex values used where CSS variables are unavailable (WebGL). Mirror of tokens.css. */
 export const STATUS_HEX: Record<Status, string> = {
-  normal: "#4e9c7c",
-  watch: "#c9a43b",
-  high: "#dc8642",
-  critical: "#e15656",
-  held: "#9886e6",
-  fraud: "#e2477c",
-  unknown: "#5d6f86",
+  normal: "#5b9bff",
+  watch: "#ffbc4d",
+  high: "#ff9157",
+  critical: "#ff647f",
+  held: "#a68bff",
+  fraud: "#e8264f",
+  unknown: "#6d8a7b",
 };
 
 /** Tier → status. T3 is a scoped hold: its *risk* level is HIGH; the HELD state is shown separately. */
@@ -122,3 +122,49 @@ export const ROLE_LABEL: Record<string, string> = {
   normal: "Account",
   victim: "Victim",
 };
+
+// ── v3 live account status (universe, streams). Precedence (contract):
+//    confirmed_fraud > held > flagged > early_warning > new > normal > idle.
+
+export const ACCOUNT_STATUS_LABEL: Record<AccountStatus, string> = {
+  normal: "Normal",
+  idle: "Idle",
+  new: "New account",
+  early_warning: "Early warning",
+  flagged: "Flagged",
+  held: "Held",
+  confirmed_fraud: "Confirmed fraud",
+  external: "External",
+};
+
+/** WebGL / canvas colours for live account status (mirror of --as-* in tokens.css). */
+export const ACCOUNT_STATUS_HEX: Record<AccountStatus, string> = {
+  normal: "#2f7dff",
+  idle: "#1f4a8f",
+  new: "#22ff99",
+  early_warning: "#ffc34d",
+  flagged: "#ff3d63",
+  held: "#9b7bff",
+  confirmed_fraud: "#c8102e",
+  external: "#5d6b67",
+};
+
+export const ACCOUNT_STATUS_RANK: Record<AccountStatus, number> = {
+  idle: 0, external: 0, normal: 1, new: 2, early_warning: 3, flagged: 4, held: 5, confirmed_fraud: 6,
+};
+
+/** Live status → risk status scale (for pills that use the decision scale). */
+export function accountStatusToStatus(s: AccountStatus | null | undefined): Status {
+  switch (s) {
+    case "confirmed_fraud": return "fraud";
+    case "held": return "held";
+    case "flagged": return "critical";
+    case "early_warning": return "watch";
+    case "normal": case "new": case "idle": return "normal";
+    default: return "unknown";
+  }
+}
+
+export const isAlarm = (s: AccountStatus | null | undefined) =>
+  s === "flagged" || s === "held" || s === "confirmed_fraud";
+export const isRisky = (s: AccountStatus | null | undefined) => s === "early_warning" || isAlarm(s);

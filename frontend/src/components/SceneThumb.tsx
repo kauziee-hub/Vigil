@@ -34,7 +34,7 @@ export const SceneThumb = memo(function SceneThumb({ scene, height = 200, focus,
          aria-label={`Network thumbnail: ${scene.nodes.length} accounts, ${scene.edges.length} aggregated money flows`}>
       <defs>
         <marker id="th-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M0 0 8 4 0 8z" fill="#5b7699" />
+          <path d="M0 0 8 4 0 8z" fill="#3a8a70" />
         </marker>
         <marker id="th-arrow-f" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
           <path d="M0 0 8 4 0 8z" fill="var(--st-fraud)" />
@@ -48,7 +48,7 @@ export const SceneThumb = memo(function SceneThumb({ scene, height = 200, focus,
         const tainted = e.tainted_paise > 0;
         return (
           <line key={e.id} x1={a[0] + (dx / L) * r} y1={a[1] + (dy / L) * r} x2={b[0] - (dx / L) * (r + 1)} y2={b[1] - (dy / L) * (r + 1)}
-                stroke={tainted ? "var(--st-fraud)" : "#4a6383"} strokeOpacity={tainted ? 0.9 : 0.55}
+                stroke={tainted ? "var(--st-fraud)" : "#2c6b57"} strokeOpacity={tainted ? 0.9 : 0.55}
                 strokeWidth={0.6 + 2.2 * Math.sqrt(e.amount_paise / geo.maxAmt)} markerEnd={`url(#${tainted ? "th-arrow-f" : "th-arrow"})`} />
         );
       })}
@@ -56,13 +56,13 @@ export const SceneThumb = memo(function SceneThumb({ scene, height = 200, focus,
         const p = geo.pos.get(n.id)!;
         const st = nodeStatus(n);
         const isFocus = focus === n.id;
-        const ring = n.labelled ? "var(--st-fraud)" : n.held ? "var(--st-held)" : n.victim ? "#dce5ef" : isFocus ? "#8fb0dc" : null;
+        const ring = n.labelled ? "var(--st-fraud)" : n.held ? "var(--st-held)" : n.victim ? "#edf7f1" : isFocus ? "#68f0af" : null;
         return (
           <g key={n.id} transform={`translate(${p[0]},${p[1]})`} onClick={onPick ? () => onPick(n.id) : undefined}
              style={{ cursor: onPick ? "pointer" : undefined }}>
             <title>{`${n.label} · risk ${n.risk.toFixed(2)}${n.role ? ` · ${n.role}` : ""}`}</title>
             {ring && <circle r={isFocus ? 8.5 : 7} fill="none" stroke={ring} strokeWidth={1.6} />}
-            <circle r={isFocus ? 5.5 : n.kind === "external" ? 3 : 4} fill={n.kind === "external" && st === "unknown" ? "#3f5068" : `var(--st-${st})`} />
+            <circle r={isFocus ? 5.5 : n.kind === "external" ? 3 : 4} fill={n.kind === "external" && st === "unknown" ? "#34493f" : `var(--st-${st})`} />
             {label && (top.has(n.id) || isFocus) && (
               <text x={8} y={-7} className="thumb-l">{handle(n.id)}</text>
             )}

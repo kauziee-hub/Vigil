@@ -118,7 +118,7 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
         const rzp = new window.Razorpay({
           key: it.payment.key_id, order_id: it.payment.order_id, amount: it.payment.amount_paise, currency: "INR",
           name: "Vigil demo · Razorpay TEST MODE", description: `${it.intent_id} → ${handle(it.recipient_id)} (test funds)`,
-          theme: { color: "#12233b" },
+          theme: { color: "#0c2018" },
           handler: async (r: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
             try { setIntent(await api.confirmRazorpay(it.intent_id, r)); refreshAccount(); }
             catch (e) { setGatewayIssue(e instanceof ApiError ? e.message : String(e)); }
