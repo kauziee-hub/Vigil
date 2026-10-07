@@ -250,6 +250,8 @@ table.dt tr.click:hover td { background: var(--surface-2); }
 table.dt tr.sel td { background: var(--accent-soft); }
 table.dt tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 table.dt td.top { vertical-align: top; }
+/* the cell that absorbs remaining width and truncates its .ell children instead of pushing columns out */
+table.dt td.fill { width: 100%; max-width: 0; }
 table.dt.compact td { height: 24px; padding: 3px 8px; }
 table.dt.compact th { padding: 5px 8px; }
 .tscroll { overflow: auto; }
@@ -359,7 +361,7 @@ table.cm td.bad { background: var(--st-high-bg); }
 
 /* counterfactual ladder */
 .ladder { display: flex; flex-direction: column; }
-.rung { display: grid; grid-template-columns: 90px minmax(0, 1fr) 64px; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); align-items: start; font-size: var(--fs-md); }
+.rung { display: grid; grid-template-columns: 124px minmax(0, 1fr) 64px; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); align-items: start; font-size: var(--fs-md); }
 .rung:first-child { border-top: 0; }
 .rung.cur { background: var(--surface-2); margin: 0 -12px; padding: 7px 12px; }
 

@@ -95,10 +95,9 @@ export function OverviewPage() {
                     {attention.slice(0, 8).map((r) => (
                       <tr key={r.decision_id} className="click" onClick={() => nav(`/investigations/decision/${r.decision_id}`)}>
                         <td style={{ width: 44 }}><TierPill tier={r.tier} /></td>
-                        <td className="xs"><b>{handle(r.sender_id)}</b> → {handle(r.recipient_id)}<div className="dim ell" style={{ maxWidth: 260 }}>{r.headline}</div></td>
-                        <td className="num">{formatINR(r.amount_paise)}</td>
+                        <td className="xs fill"><div className="ell"><b>{handle(r.sender_id)}</b> → {handle(r.recipient_id)}</div><div className="dim ell">{r.headline}</div></td>
+                        <td className="num">{formatINR(r.amount_paise)}<div className="xs dim">{duration(rowAge(r, now, q.fetchedAt))}</div></td>
                         <td><StatePill state={r.state} /></td>
-                        <td className="mono xs dim nowrap">{duration(rowAge(r, now, q.fetchedAt))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -118,7 +117,7 @@ export function OverviewPage() {
                       <tr key={d.decision_id} className={`click ${fresh === d.decision_id ? "flash" : ""}`} onClick={() => nav(`/investigations/decision/${d.decision_id}`)}>
                         <td className="mono xs dim" style={{ width: 62 }}>{formatTime(d.created_at)}</td>
                         <td style={{ width: 44 }}><TierPill tier={d.tier} /></td>
-                        <td className="xs">{handle(d.sender_id)} → {handle(d.recipient_id)}<div className="dim ell" style={{ maxWidth: 280 }}>{d.tier === 0 ? "approved silently" : d.labels.join(" · ") || d.headline}</div></td>
+                        <td className="xs fill"><div className="ell">{handle(d.sender_id)} → {handle(d.recipient_id)}</div><div className="dim ell">{d.tier === 0 ? "approved silently" : d.labels.join(" · ") || d.headline}</div></td>
                         <td className="num">{formatINR(d.amount_paise)}</td>
                       </tr>
                     ))}

@@ -1,7 +1,7 @@
 // Decision Replay, Risk Evolution, Counterfactual ladder, Evidence provenance.
 // All deterministic outputs of the policy engine (Claude 1's /replay, /counterfactuals, /record,
 // /risk-timeline). Nothing here is interpolated: the chart only connects points the API returned.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Counterfactual, DecisionRecord, Dimension, PolicyView, ReplayFrame, RiskPoint } from "../api/types";
 import { DIM_LABEL, evValue, formatStamp, formatTime, freshness, humanKey } from "../lib/format";
 import { DIM_GLYPH, TIER_SHORT, tierStatus } from "../lib/status";
@@ -123,7 +123,18 @@ export function RiskEvolution({ points, ladder, height = 250, decisionId, onPick
   points: RiskPoint[]; ladder?: PolicyView["ladder"]; height?: number; decisionId?: string;
   onPickDecision?: (id: string) => void;
 }) {
-  const W = 900, H = height, L = 40, R = 118, T = 44, B = 34;
+  // The viewBox tracks the container's pixel width so chart text stays 10 px in a half-width panel.
+  const wrap = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(900);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => { if (el.clientWidth) setCw(el.clientWidth); });
+    ro.observe(el);
+    if (el.clientWidth) setCw(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const W = Math.max(420, cw), H = height, L = 40, R = 118, T = 44, B = 34;
   const n = points.length;
   const pts = useMemo(() => points.map((p, k) => ({ ...p, k })), [points]);
   const decisions = useMemo(() => [...new Set(points.map((p) => p.decision_id).filter(Boolean))] as string[], [points]);
@@ -137,8 +148,8 @@ export function RiskEvolution({ points, ladder, height = 250, decisionId, onPick
   const spacing = n > 1 ? (W - L - R) / (n - 1) : W;
   const multi = decisions.length > 1;
   return (
-    <div className="stack">
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Risk score over time; each marker labelled with why it changed">
+    <div className="stack" ref={wrap}>
+      <svg className="chart" viewBox={`0 0 ${W} ${H}`} style={{ height: H }} role="img" aria-label="Risk score over time; each marker labelled with why it changed">
         {bands.map((b) => (
           <g key={b.tier}>
             <rect x={L} width={W - L - R} y={y(b.to)} height={Math.max(0, y(b.from) - y(b.to))} fill={`var(--st-${tierStatus(b.tier)}-bg)`} opacity={0.6} />
@@ -196,6 +207,10 @@ export function RiskEvolution({ points, ladder, height = 250, decisionId, onPick
 }
 
 // ── Counterfactual ladder ───────────────────────────────────────────────────
+function RungTier({ tier }: { tier: number }) {
+  return <div><TierPill tier={tier} /><div className="xs muted" style={{ marginTop: 2 }}>{TIER_SHORT[tier]?.split(" · ")[1]}</div></div>;
+}
+
 export function CounterfactualLadder({ items, tier, score }: { items: Counterfactual[]; tier: number; score: number }) {
   if (!items.length) {
     return tier === 0
@@ -206,13 +221,13 @@ export function CounterfactualLadder({ items, tier, score }: { items: Counterfac
   return (
     <div className="ladder">
       <div className="rung cur">
-        <TierPill tier={tier} full />
+        <RungTier tier={tier} />
         <div><b>As decided</b><div className="xs muted">all evidence present — why this tier: every signal in the provenance table below</div></div>
         <span className="mono right">{score.toFixed(3)}</span>
       </div>
       {sorted.map((c) => (
         <div key={c.id} className="rung">
-          <TierPill tier={c.tier} full />
+          <RungTier tier={c.tier} />
           <div>
             <b>{c.label}</b>
             <ul className="xs muted" style={{ margin: "2px 0 0" }}>{c.changes.map((x) => <li key={x}>{x}</li>)}</ul>
