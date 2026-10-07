@@ -133,7 +133,7 @@ def test_ambient_stream_keeps_every_account_within_its_own_routine(world):
         ambient_rows = db.scalar("SELECT COUNT(*) FROM transactions WHERE source = 'ambient' "
                                  "AND (sender_id = ? OR recipient_id = ?)", (a, a))
         if ambient_rows:
-            assert not _over_routine(a), a
+            assert not _over_routine(a, allowance=_allowance(a)), a
     pytest.importorskip("numpy")
     from vigil.intel import service
 
@@ -143,7 +143,14 @@ def test_ambient_stream_keeps_every_account_within_its_own_routine(world):
     assert flagged == []                                     # ordinary customers do not look like mules
 
 
-def _over_routine(account_id: str) -> bool:
+def _allowance(account_id: str) -> float:
+    from vigil.sim import ambient
+
+    persona = db.scalar("SELECT persona FROM accounts WHERE id = ?", (account_id,))
+    return ambient.MERCHANT_ALLOWANCE if persona == "merchant" else 1.0
+
+
+def _over_routine(account_id: str, allowance: float = 1.0) -> bool:
     from datetime import timedelta
 
     from vigil import clock
@@ -160,7 +167,7 @@ def _over_routine(account_id: str) -> bool:
         else:
             k = int((window_start - t).total_seconds() // (ambient.WINDOW_H * 3600))
             blocks[k] = blocks.get(k, 0) + 1
-    return current > max(blocks.values(), default=0)
+    return current > max(blocks.values(), default=0) * allowance
 
 
 def test_attack_scenarios_are_deterministic_and_balanced(world):

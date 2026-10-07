@@ -48,7 +48,7 @@ def _customer_fact(sig: RiskSignal) -> str | None:
     if r == "NET_TAINT_EXPOSURE":
         return f"{_rupees(e['attributable_paise'])} now in this account traces back to a payment the bank confirmed was stolen."
     if r == "NET_FAN_OUT":
-        return f"This account quickly sends money on to many others ({e['distinct_recipients']} in 3 days)."
+        return f"This account quickly sends money on to many accounts it never paid before ({e['first_time_recipients']} in 3 days)."
     if r == "SEQ_ORDERED_CHAIN":
         return f"In the last {e['span_minutes']} minutes: new device → new payee → limit raised → this payment."
     if r == "SEQ_LOGIN_NEW_DEVICE":

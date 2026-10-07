@@ -24,6 +24,7 @@ from vigil.engine import ledger
 from vigil.engine.ledger import VigilError
 from vigil.graph.pathgraph import GRAPH
 from vigil.risk import taint
+from vigil.sim import economy
 
 SEED = 20261006
 HISTORY_DAYS = 95
@@ -132,6 +133,14 @@ def _seed(anchor: datetime | None = None) -> dict[str, Any]:
             _acct(anchor, handle, handle.split("@")[0].replace(".", " ").title(), days_old=rng.randint(200, 3500))
 
         customers = population + VICTIMS + SMURF_TARGETS + EARLY_SENDERS
+
+        # ── world v3: everyday economy (own RNG; see sim/economy.py) ──
+        economy.build(
+            anchor=anchor, used=used, first=FIRST, last=LAST, existing_population=list(population),
+            make_account=lambda aid, name, days_old, persona=None: _acct(anchor, aid, name, days_old=days_old,
+                                                                        persona=persona),
+            plan=plan, iso=clock.iso,
+        )
 
         # opening balances (bookkeeping journal from outside the perimeter)
         opening = {aid: rng.randint(40_000, 300_000) * 100 for aid in customers}

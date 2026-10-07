@@ -74,7 +74,7 @@ def get_settings() -> Settings:
         razorpay_key_id=os.environ.get("RAZORPAY_KEY_ID", ""),
         razorpay_key_secret=os.environ.get("RAZORPAY_KEY_SECRET", ""),
         ambient_default=os.environ.get("VIGIL_AMBIENT", "1") not in {"0", "false", "no"},
-        ambient_interval_s=float(os.environ.get("VIGIL_AMBIENT_INTERVAL", "20")),
+        ambient_interval_s=float(os.environ.get("VIGIL_AMBIENT_INTERVAL", "3")),
     )
 
 

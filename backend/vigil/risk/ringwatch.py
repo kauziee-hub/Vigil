@@ -85,11 +85,14 @@ def features(account_id: str, now_t: float | None = None) -> dict[str, Any]:
         "distinct_senders": len({e.src for e in inflows}),
         "first_time_senders": len(new_senders),
         "distinct_recipients": len({e.dst for e in outflows}),
+        "first_time_recipients": len({e.dst for e in outflows} - {e.dst for e in GRAPH.outflows(account_id) if e.t < since}),
         "total_in_paise": total_in,
         "total_out_paise": total_out,
         "forwarded_fraction": round(forwarded_fraction, 3),
         "median_forward_minutes": round(sorted(quick_minutes)[len(quick_minutes) // 2], 1) if quick_minutes else None,
-        "small_outflows": sum(1 for e in outflows if e.amount_paise < int(cfg["smurfing"]["below_paise"])),
+        # structuring = transfers JUST under a threshold (everyday small payments are not smurfing)
+        "small_outflows": sum(1 for e in outflows if int(cfg["smurfing"]["band_floor_paise"]) <= e.amount_paise
+                              < int(cfg["smurfing"]["below_paise"])),
         "age_days": age_days,
         "device_peers": len(GRAPH.device_peers(account_id)),
         "inflows": inflows,
@@ -114,11 +117,12 @@ def evaluate(account_id: str, now_t: float | None = None) -> tuple[list[RiskSign
              "total_in_paise": f["total_in_paise"], "window_hours": hours},
             cfg["fan_in"]["contribution"],
         ))
-    if f["distinct_recipients"] >= cfg["fan_out"]["min_distinct_recipients"]:
+    if f["first_time_recipients"] >= cfg["fan_out"]["min_distinct_recipients"]:
         signals.append(_sig(
             "NET_FAN_OUT", "Splits money out",
-            f"Sent money on to {f['distinct_recipients']} different accounts in the last {hours} hours.",
-            {"distinct_recipients": f["distinct_recipients"], "total_out_paise": f["total_out_paise"]},
+            f"Sent money to {f['first_time_recipients']} accounts it had never paid before, in the last {hours} hours.",
+            {"first_time_recipients": f["first_time_recipients"], "distinct_recipients": f["distinct_recipients"],
+             "total_out_paise": f["total_out_paise"]},
             cfg["fan_out"]["contribution"],
         ))
     pt = cfg["pass_through"]
@@ -142,8 +146,10 @@ def evaluate(account_id: str, now_t: float | None = None) -> tuple[list[RiskSign
     if f["small_outflows"] >= sm["min_count"]:
         signals.append(_sig(
             "NET_SMURFING", "Many small transfers",
-            f"Made {f['small_outflows']} outgoing transfers below {_rupees(sm['below_paise'])} in {hours} hours.",
-            {"small_outflows": f["small_outflows"], "below_paise": sm["below_paise"]}, sm["contribution"],
+            f"Made {f['small_outflows']} outgoing transfers just under {_rupees(sm['below_paise'])} "
+            f"({_rupees(sm['band_floor_paise'])}–{_rupees(sm['below_paise'] - 100)}) in {hours} hours.",
+            {"small_outflows": f["small_outflows"], "band_floor_paise": sm["band_floor_paise"],
+             "below_paise": sm["below_paise"]}, sm["contribution"],
         ))
     chain = _velocity_chain(account_id, f, float(cfg["velocity_chain"]["max_minutes_per_hop"]) * 60)
     if chain >= cfg["velocity_chain"]["min_hops"]:
@@ -252,7 +258,7 @@ def role_of(f: dict[str, Any]) -> str | None:
         return "collector"
     if f["forwarded_fraction"] >= 0.7:
         return "pass-through"
-    if f["distinct_recipients"] >= 3 and f["total_out_paise"] >= f["total_in_paise"] * 0.6:
+    if f["first_time_recipients"] >= 3 and f["total_out_paise"] >= f["total_in_paise"] * 0.6:
         return "distributor"
     return None
 
