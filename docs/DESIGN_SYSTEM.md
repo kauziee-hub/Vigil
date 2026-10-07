@@ -74,6 +74,11 @@ Tier vs state: a tier is a *risk level* (T3 = HIGH); HELD is a *state* shown wit
 | Charts | `.chart` (inline SVG) | Risk evolution: step line + threshold bands + numbered markers whose labels say *why* the score moved. No chart library. |
 | Network stage | `.net .net-hud .net-legend .net-label .net-replay` | WebGL canvas with mono HUD, legend, LOD labels, replay bar. |
 | Customer device | `.phone .tier-banner .q-block` | Light consumer variant; the four-question intervention (RISK LEVEL / WHAT CHANGED / WHY / ACTION) kept verbatim from v1. |
+| Trusted-contact phone | `.contact-wrap .contact .alert-card .c-note` | Same light consumer palette as the customer device; 48 px response buttons; mobile-first. |
+| Scene thumbnail | `SceneThumb` / `svg.thumb` | Static SVG of the server's frozen layered layout: x = money-flow depth, y = position around the layer ring. No WebGL, no physics — cheap enough for Overview and the account view. |
+| Model card | `ModelCard`, `ModelComparison` (`components/ModelCard.tsx`) | Registry comparison table + one model's validation record: metric strip, confusion matrix, raw-vs-calibrated reliability diagram, per-attack + leave-one-attack-out table, leakage audit, global SHAP, rule table, FP by persona; unknown metric keys under "training details" (nothing hidden). `.stamp-sv` = SYNTHETIC VALIDATION. |
+| Detector matrix | `table.matrix .cell` | Accounts × detector families (Scenario Lab COMPARE DETECTORS): flagged cells outlined in the family's status colour, unflagged grey; scripted role + consensus pill per row; row drill-down. |
+| Next steps | `ol.steps` | Numbered investigator actions with inline release / reject. |
 
 ## 5. Network visual grammar (`lib/graphStyle.ts`)
 
@@ -121,3 +126,13 @@ Run 1 (interrupted) produced the tokens, primitives, status scale, Graph3D and E
 * Scene payloads are cached client-side per query (cap · focus · hops · scenario) and only re-fetched when a console event indicates structural change (ringwatch scan, taint, scenario, reset), debounced; ambient ledger traffic marks the scene *stale* (one-click update) instead of rebuilding geometry every transaction.
 * The customer device was extracted into one component shared by `/guard` (with the bank assessment beside it) and the `/pay?as=` kiosk (customer only, no shell), so the v1 intervention copy and flows exist exactly once.
 * Shell reads `/api/system/health` (superset of `/api/health`) and shows a SHADOW band when Vigil is not intervening.
+
+## 9. Decisions in run 3
+
+* **A payment's final score is coloured by its tier** (policy ladder), never by the 0.30 / 0.50 / 0.75 network bands — those bands apply only to RingWatch / network risk and model scores. Dimension subscore bars are neutral (families are identifiers, not statuses).
+* **Value kinds are printed, not implied.** RF / GNN detector values are "calibrated probability (synthetic worlds)"; the SHAP prediction is the raw RF output, "uncalibrated probability"; the rule engine is a point score ("2/12 pts"); drift is a level; pattern memory is a similarity.
+* **ReasonLine and model evidence never share a panel.** Case view: left = "Explains the OPERATIONAL DECISION", right = "Explains the MODEL" (authorisation-path families, model evidence recorded on the decision, then account intelligence with SHAP / drift / pattern / role).
+* **Risk evolution labels say why on the chart.** Ordinal x-axis (events in order, clock under each marker); labels only where score or tier moved, packed greedily into up to four rows by measured width so they never overlap; the table underneath carries the full reason codes.
+* **The intervention window gap is shown, not hidden.** `/api/interventions` returns the newest 100 alerts, which the background stream can fill with Tier 1 heads-ups. Investigations / Interventions / Overview merge scenario and customer decisions (tier ≥ 2) with their live intent state and label them "outside alert window" (request filed: `min_tier` param).
+* **Bundle:** main 382 kB, 3D network 537 kB (lazy), Cytoscape 2D fallback 543 kB (lazy, loaded only on the 2D toggle). Graph3D declutters LOD labels in screen space (priority: selected, hovered, risk).
+* **Screenshots** (`docs/ui_v2/`) are captured headless at 1440 × 900 (tall captures for long pages) and at exactly 390 × 844 via DevTools device metrics for the two phone pages.
