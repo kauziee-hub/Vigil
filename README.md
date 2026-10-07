@@ -58,7 +58,7 @@ backend/vigil/      FastAPI service: contracts, sqlite3 (WAL) db, intent lifecyc
 backend/vigil/intel/  detection intelligence: rules, early warning, drift, pattern memory, roles, RF + GNN inference, SHAP, consensus, /api/intel/*
 backend/ml/         synthetic-world generator + training/evaluation (train_all.py); artefacts in backend/models/
 backend/prima/      vendored PRIMA lineage engine (LIBR / pro-rata tracing with exact conservation)
-backend/tests/      269 tests (190 lineage + Vigil lifecycle, scenarios, API, invariants, v2, intel)
+backend/tests/      286 tests (190 lineage + Vigil lifecycle, scenarios, API, invariants, v2, intel)
 frontend/           Vite + React + TypeScript; three.js 3D network, Cytoscape 2D fallback — built and served by the backend
 config/risk_policy.yaml   the only place weights, thresholds and windows live (versioned)
 scripts/benchmark_demo.py latency benchmark

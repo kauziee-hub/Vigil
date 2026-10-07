@@ -9,7 +9,7 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
-## Status: v2 platform build — in progress (updated 2026-10-07 08:15 IST)
+## Status: v2 platform build — core complete; polish/engineering pending (updated 2026-10-07 08:40 IST)
 
 | Area | Owner | Where | State |
 |---|---|---|---|
@@ -20,7 +20,7 @@ Append to the **Log** at the bottom when you finish a unit of work. Contract/API
 | Reset determinism across all 15 scenarios | Claude 1 | `main` `315ef07` | ✅ test enforces identical world |
 | Ambient stream routine-preserving (was flagging ordinary customers within minutes); scenarios pin time-of-day rules | Claude 1 | `main` `0070ff4`, `23dcbbf` | ✅ tested |
 | Scoped scenes (`?scenario=`, `?focus=`), touched_accounts = participants only, no Tier-0 counterfactuals | Claude 1 | `main` `0fb20ef`, `e2ea443`, `d2a880e` | ✅ tested |
-| ML / detection intelligence (`/api/intel/*`, RF/GAT retrain, SHAP, drift, pattern memory, roles, consensus) | Claude 2 | `main` (merged `4fe0a17`; branch `claude2/run3`) | ✅ merged + live on :8000; 268 tests; report `docs/ML_VALIDATION_REPORT.md` (SYNTHETIC VALIDATION) |
+| ML / detection intelligence (`/api/intel/*`, RF/GAT retrain, SHAP, drift, pattern memory, roles, consensus) | Claude 2 | `main` (run 3 `4fe0a17`, run 4 `c029fb6`; branches `claude2/run3`, `claude2/run4`) | ✅ merged + live; roles/agreement need mule-structure evidence (run 4); report `docs/ML_VALIDATION_REPORT.md` (SYNTHETIC VALIDATION) |
 | Frontend redesign (9 areas, 3D network, replay UI, governance) | Claude 3 | `main` (merged `88823fb`; branch `claude3/run3`) | ✅ merged; lead browser walkthrough Acts 1–5 + control + shadow + Guard pass; 3 UI fixes on main |
 | Engineering tasks (benchmarks, reset/concurrency/realtime tests, Razorpay harness, fixtures) | Codex | `codex/<task>` | ⏳ prompt issued to operator |
 | UI polish | Cursor | `cursor/<task>` | ⏳ unblocked (Claude 3 merged) — operator pastes `prompts/v2_cursor_polish.md`; known items: interventions table height at ~800 px, drift "CHANGE" column = capped z |
@@ -30,7 +30,7 @@ Append to the **Log** at the bottom when you finish a unit of work. Contract/API
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset      # start fresh (builds UI, seeds, serves :8000)
-cd backend; .venv\Scripts\python.exe -m pytest -q                 # 271 tests (211 v1 + 15 v2 + 45 intel)
+cd backend; .venv\Scripts\python.exe -m pytest -q                 # 286 tests (211 v1 + 15 v2 + 60 intel)
 backend\.venv\Scripts\python.exe scripts\smoke_demo.py             # 8 act checks
 cd frontend; npm run build                                          # type-check + bundle
 ```
@@ -83,3 +83,4 @@ In-process subagents die when the lead's session restarts. On resume:
 - 2026-10-07 ~01:53 — usage limit stopped the session and Claude 3 (HTTP 429). Claude 2 had returned at ~01:51 (report saved verbatim `e26122d`, merged `4fe0a17`, 268 pass).
 - 2026-10-07 07:29 user: "continue from where you left off". Claude 1 — Claude 3 WIP committed (`24f14cf`, tsc clean); backend restarted with intel live (5 routes 6–131 ms); found 130/140 accounts flagged on the live world → ambient stream made routine-preserving + 20 s interval (`0070ff4`, 269 pass, smoke 8/8); live world reset (07:36) → only kiran.traders + zenith.exports flagged; Claude 3 resumed with context (`prompts/v2_claude3_run3_continue_after_limit.md`); payment path verified (model evidence present, kinds honest, never in tier).
 - 2026-10-07 07:50–08:15 Claude 1 — Claude 3 returned (report saved `86da0b8`), merged `88823fb`; build green; implemented its `min_tier` request (`00f3920`); browser walkthrough of every act on the merged build → fixed cached v1 shell (`d6e83ae`), replay spark SVG (`4c5b750`), stale Lab panel (`a3b9ac9`); found an ordinary customer (ramesh) labelled "Distributor" by EW + drift alone → Claude 2 run 4 launched (`prompts/v2_claude2_run4_roles_consensus_followup.md`; resume of the run-3 agent failed because its worktree was removed). Demo world reset, ACTIVE.
+- 2026-10-07 08:30–08:40 Claude 1 — Claude 2 run 4 returned (report saved `9ac5ebb`), merged `c029fb6`, 286 pass; live check: ramesh weak/unclassified, kiran strong/collector; UI wording (`3e7984a`); demo world reset, ACTIVE. Docs: DEMO_SCRIPT v2 (`96b1ce6`), README + startup banner (`24697bc`), Cursor prompt v2.1 (`9ab441e`).

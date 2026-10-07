@@ -7,7 +7,7 @@
 | Objective | Roles only with structural/model evidence; drift + early warning not "moderate agreement" on their own; validate on synthetic test worlds; live acceptance test (Ramesh after Acts 1–2 + control has no role) |
 | Exact Prompt | Full message sent: `AGENT_HANDOFF/prompts/v2_claude2_run4_roles_consensus_followup.md` (verbatim) |
 | Trigger | Lead browser walkthrough of merged main: `ramesh@vigil` → role Distributor, consensus moderate (EW + drift only) after the s4 rent payment; RF/GNN/PM/RingWatch clean |
-| Status | RETURNED — saved verbatim below; lead review/merge recorded after it |
+| Status | DONE — merged into main `c029fb6` (report saved first, `9ac5ebb`) |
 
 ## Agent Output / Summary (verbatim final report)
 
@@ -92,13 +92,15 @@ Branch `worktree-agent-a199de5f7319b1693`, HEAD **`8391a0c`**, branched from mas
 _(end of verbatim report)_
 
 ## Files Changed
-_(lead review pending)_
+Lead ownership check: 10 files, +2077/−65, all inside Claude 2's ownership. `docs/MODEL_CARD.md`: the single changed line is inside its own Appendix A (allowed); the rest appended. Only new artefact: `backend/models/validation_v2_roles_consensus.json` (no fitted artefact changed). Worktree clean.
 
 ## Tests Run / Test Results
-_(lead verification pending)_
+Lead, on main after merge: `pytest` → **286 passed** (the test skipped in the agent's worktree runs on main because the frontend is built). Live on :8000 after restart: demo reset → s0, s1, s4 → `ramesh@vigil` agreement **weak** ("behaviour-change signals only, no structural or model family agrees"), role **unclassified** with the reason; then s2 → kiran.traders **strong / collector**. Detection page shows the retitled early-warning panel; no console errors.
 
 ## Problems Found / Decisions Made / Remaining Work
-_(lead review pending)_
+* Agent's question — Sunita reads "weak" after s3 (only TrailScore + ContextFlag, from her own coerced payment): **agreed** by the lead. The account-level mule view should not call a coerced victim a mule; her Tier 4 hold is unaffected.
+* Ramesh stays in the early-warning list (honest: behaviour changed). Lead applied both UI wording suggestions on main (`3e7984a`): consensus line drops "independent"; Detection panel retitled "Behaviour change — not mule evidence on its own".
+* Known limits carried to the report: RingWatch / registry as mule evidence are not validated on synthetic worlds; Ramesh-shape group small (33); collector role weak (0.10).
 
 ## Git Commit / Diff Reference
-Branch `worktree-agent-a199de5f7319b1693` @ `8391a0c` (from master `69f3197`).
+Branch `worktree-agent-a199de5f7319b1693` @ `8391a0c` (from master `69f3197`) → renamed `claude2/run4`; worktree removed. Merge commit on main: `c029fb6`.
