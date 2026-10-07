@@ -1,7 +1,7 @@
-"""Small, controlled stream of ordinary payments (optional, toggleable).
+"""Live stream of ordinary everyday payments (optional, toggleable).
 
-Seeded RNG; ordinary customers pay one of their existing payees roughly their
-usual amount. Every ambient payment goes through the full intent pipeline,
+Seeded RNG; habit-driven: an ordinary customer pays one of their habitual
+payees (weighted by how often they pay them) roughly their usual amount. Every ambient payment goes through the full intent pipeline,
 so the command center shows real decisions (overwhelmingly Tier 0).
 Nothing in the demo depends on this stream.
 
@@ -25,6 +25,7 @@ from vigil.engine import lifecycle
 from vigil.engine.ledger import VigilError
 from vigil.realtime import HUB
 from vigil.settings import get_settings
+from vigil.sim.seed import VICTIMS
 
 EXCLUDE_ROLES = ("mule_collector", "mule_layer", "mule_downstream", "coercion_beneficiary", "known_mule")
 STATE = {"enabled": False, "task": None, "count": 0, "errors": 0, "skipped": 0}
@@ -34,8 +35,12 @@ BASELINE_DAYS = 45
 CANDIDATES_PER_TICK = 8
 
 
-def _within_routine(account_id: str) -> bool:
-    """True if one more posting keeps the account at or below its busiest baseline 72 h block."""
+MERCHANT_ALLOWANCE = 1.3   # a shop can have a few days up to 30% busier than its busiest recent stretch
+
+
+def _within_routine(account_id: str, merchant: bool = False) -> bool:
+    """True if one more posting keeps the account at or below its busiest baseline 72 h block
+    (merchants: up to MERCHANT_ALLOWANCE x that block — ordinary trade varies more than a person's habits)."""
     now = clock.now()
     window_start = now - timedelta(hours=WINDOW_H)
     base_start = window_start - timedelta(days=BASELINE_DAYS)
@@ -50,35 +55,58 @@ def _within_routine(account_id: str) -> bool:
         else:
             k = int((window_start - t).total_seconds() // (WINDOW_H * 3600))
             blocks[k] = blocks.get(k, 0) + 1
-    return current < max(blocks.values(), default=0)
+    busiest = max(blocks.values(), default=0)
+    return current + 1 <= (busiest * MERCHANT_ALLOWANCE if merchant else busiest)
+
+
+_PEOPLE: dict[str, list[str]] = {"ids": [], "epoch": None}
+
+
+def _people() -> list[str]:
+    """Ordinary customers eligible to pay (cached per seed)."""
+    epoch = db.get_meta("seeded_at")
+    if _PEOPLE["epoch"] != epoch:
+        rows = db.q(
+            "SELECT id FROM accounts WHERE kind = 'customer' AND is_demo_customer = 0 AND seed_role = 'legit' "
+            "AND (persona IS NULL OR persona != 'merchant') ORDER BY id")
+        excluded = set(VICTIMS) | {"dormant.savings@vigil"}
+        _PEOPLE.update(ids=[r["id"] for r in rows if r["id"] not in excluded], epoch=epoch)
+    return _PEOPLE["ids"]
 
 
 def _candidate() -> dict | None:
-    return db.q1(
-        "SELECT p.account_id, p.payee_id FROM payees p "
-        "JOIN accounts s ON s.id = p.account_id JOIN accounts r ON r.id = p.payee_id "
-        "WHERE s.is_demo_customer = 0 AND s.kind = 'customer' AND s.seed_role = 'legit' "
+    """A person and one of their habitual MERCHANTS, weighted by how often they pay them.
+
+    Person-to-merchant only: in a time-compressed demo, person-to-person money would be re-spent within
+    minutes and read as a (small) velocity chain; merchants never forward within the hour (weekly settlement).
+    """
+    people = _people()
+    if not people:
+        return None
+    sender = people[_rng.randrange(len(people))]
+    habits = db.q(
+        "SELECT t.recipient_id AS payee, COUNT(*) AS n, CAST(AVG(t.amount_paise) AS INTEGER) AS typical "
+        "FROM transactions t JOIN accounts r ON r.id = t.recipient_id "
+        "WHERE t.sender_id = ? AND t.kind = 'transfer' AND t.source IN ('seed', 'ambient') AND r.persona = 'merchant' "
         f"AND r.seed_role NOT IN ({','.join('?' * len(EXCLUDE_ROLES))}) "
-        "AND s.id NOT IN (SELECT id FROM accounts WHERE id LIKE 'anita%' OR id LIKE 'vikram%' OR id LIKE 'farah%' "
-        "OR id LIKE 'joseph%' OR id LIKE 'lakshmi%') "
-        "ORDER BY p.account_id, p.payee_id LIMIT 1 OFFSET ?",
-        (*EXCLUDE_ROLES, _rng.randint(0, 400)),
-    )
+        "GROUP BY t.recipient_id ORDER BY t.recipient_id", (sender, *EXCLUDE_ROLES))
+    if not habits:
+        return None
+    pick = _rng.choices(habits, weights=[h["n"] for h in habits])[0]
+    return {"account_id": sender, "payee_id": pick["payee"], "typical": pick["typical"]}
 
 
 def _tick() -> None:
     row = None
     for _ in range(CANDIDATES_PER_TICK):
         c = _candidate()
-        if c is not None and _within_routine(c["account_id"]) and _within_routine(c["payee_id"]):
+        if c is not None and _within_routine(c["account_id"]) and _within_routine(c["payee_id"], merchant=True):
             row = c
             break
     if row is None:
         STATE["skipped"] += 1
         return
-    typical = db.scalar("SELECT CAST(AVG(amount_paise) AS INTEGER) FROM transactions WHERE sender_id=? AND recipient_id=?",
-                        (row["account_id"], row["payee_id"])) or 50_000
-    amount = max(10_000, int(typical * _rng.uniform(0.7, 1.2)) // 100 * 100)
+    amount = max(1_000, int((row["typical"] or 50_000) * _rng.uniform(0.75, 1.25)) // 100 * 100)
     try:
         lifecycle.create(CreateIntentRequest(sender_id=row["account_id"], recipient_id=row["payee_id"],
                                              amount_paise=amount, source="ambient"))

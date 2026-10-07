@@ -24,6 +24,7 @@ from vigil.engine import ledger, lifecycle
 from vigil.graph.pathgraph import GRAPH
 from vigil.realtime import HUB
 from vigil.risk import ringwatch
+from vigil.sim import runs as runs_mod
 from vigil.sim import seed as seed_mod
 
 COERCION_CONTEXT = (
@@ -251,11 +252,19 @@ async def _execute(run: Run) -> None:
             run.step += 1
             with clock.pinned_local_hour():
                 result = step.action() if step.action else None
+            runs_mod.after_step(run.run_id, result)
             if run.step == len(run.steps):
                 run.state = "done"
             _emit(run, step, result)
             if run.state != "done":
                 await asyncio.sleep(STEP_DELAY_S)
+        if run.run_id in runs_mod.RUNS:
+            # detection keeps working after the last posting: watch for a short grace period
+            runs_mod.mark_evaluating(run.run_id)
+            for _ in range(int(runs_mod.GRACE_S / 0.5)):
+                await asyncio.sleep(0.5)
+                runs_mod.poll(run.run_id)
+            runs_mod.finish(run.run_id)
     except Exception as exc:  # surface, never crash the server
         run.state = "done"
         HUB.publish("console", "scenario.error", {"scenario_id": run.scenario_id, "error": str(exc)})
@@ -270,6 +279,7 @@ def start(scenario_id: str) -> dict[str, Any]:
         raise ledger.VigilError(409, "already_running", "This scenario is already running.")
     run = Run(scenario_id=scenario_id, run_id=db.next_id("RUN"), steps=scenario.steps())
     RUNS[scenario_id] = run
+    runs_mod.begin(scenario_id, run.run_id, scenario.name, scenario.category, len(run.steps))
     HUB.publish("console", "scenario.started", {"scenario_id": scenario_id, "run_id": run.run_id,
                                                 "total_steps": len(run.steps)})
     run.task = asyncio.get_event_loop().create_task(_execute(run))
@@ -282,6 +292,7 @@ def pause(scenario_id: str) -> dict[str, Any]:
         raise ledger.VigilError(409, "not_running", "Scenario is not running.")
     run.state = "paused"
     run.resume.clear()
+    runs_mod.set_paused(run.run_id, True)
     HUB.publish("console", "scenario.paused", {"scenario_id": scenario_id})
     return {"scenario_id": scenario_id, "state": run.state}
 
@@ -292,6 +303,7 @@ def resume(scenario_id: str) -> dict[str, Any]:
         raise ledger.VigilError(409, "not_paused", "Scenario is not paused.")
     run.state = "running"
     run.resume.set()
+    runs_mod.set_paused(run.run_id, False)
     HUB.publish("console", "scenario.resumed", {"scenario_id": scenario_id})
     return {"scenario_id": scenario_id, "state": run.state}
 
@@ -301,12 +313,23 @@ def cancel_all() -> None:
         if run.task and not run.task.done():
             run.task.cancel()
     RUNS.clear()
+    runs_mod.clear()
 
 
 def run_sync(scenario_id: str) -> list[Any]:
-    """Execute all steps immediately (tests, benchmark, CLI)."""
+    """Execute all steps immediately (tests, benchmark, CLI). Attack scenarios are evaluated as a run."""
+    sc = SCENARIOS[scenario_id]
+    steps = sc.steps()
+    run_id = f"SYNC-{scenario_id}-{len(runs_mod.ORDER) + 1}"
+    runs_mod.begin(scenario_id, run_id, sc.name, sc.category, len(steps))
+    results = []
     with clock.pinned_local_hour():
-        return [step.action() if step.action else None for step in SCENARIOS[scenario_id].steps()]
+        for step in steps:
+            result = step.action() if step.action else None
+            runs_mod.after_step(run_id, result)
+            results.append(result)
+    runs_mod.finish(run_id)
+    return results
 
 
 def touched_accounts(scenario_id: str) -> list[str]:
