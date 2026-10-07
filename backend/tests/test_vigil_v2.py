@@ -246,6 +246,20 @@ def test_interventions_min_tier_keeps_holds_visible(world):
         assert len(c.get("/api/interventions?status=all&limit=1").json()) <= 1
 
 
+def test_spa_shell_is_never_cached(world):
+    import pytest
+    from fastapi.testclient import TestClient
+    from vigil.app import app
+    from vigil.settings import FRONTEND_DIST
+
+    if not (FRONTEND_DIST / "index.html").is_file():
+        pytest.skip("frontend not built")
+    with TestClient(app) as c:
+        for path in ("/", "/network", "/investigations/decision/DEC-000001"):
+            r = c.get(path)
+            assert r.status_code == 200 and r.headers.get("cache-control") == "no-cache", path
+
+
 def test_touched_accounts_are_exactly_the_attack_participants(world):
     for sid in scenarios.SCENARIOS:
         if not sid.startswith("atk_"):

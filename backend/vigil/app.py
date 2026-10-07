@@ -109,7 +109,9 @@ if FRONTEND_DIST.is_dir():
         candidate = FRONTEND_DIST / full_path
         if full_path and candidate.is_file():
             return FileResponse(candidate)
-        return FileResponse(FRONTEND_DIST / "index.html")
+        # index.html names the hashed bundles of the current build; never let a browser keep an old one
+        # (without this, browsers heuristically cached the v1 shell and kept showing it after an upgrade)
+        return FileResponse(FRONTEND_DIST / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 def lan_ip() -> str:
