@@ -131,9 +131,10 @@ def main() -> None:
     s = get_settings()
     ip = lan_ip()
     print("\n  VIGIL — PRIMA pre-commitment risk engine")
-    print(f"  Command center : http://localhost:{s.port}/")
-    print(f"  Pay (laptop)   : http://localhost:{s.port}/pay")
-    print(f"  Trusted contact: http://{ip}:{s.port}/contact/arjun   (open on a phone on the same Wi-Fi)")
+    print(f"  Overview         : http://localhost:{s.port}/")
+    print(f"  Transaction Guard: http://localhost:{s.port}/guard   (customer device + pre-commit assessment)")
+    print(f"  Scenario Lab     : http://localhost:{s.port}/lab")
+    print(f"  Trusted contact  : http://{ip}:{s.port}/contact/arjun   (open on a phone on the same Wi-Fi)")
     print(f"  Payment mode   : {s.payment_provider}\n")
     uvicorn.run(app, host=s.host, port=s.port, log_level="warning")
 

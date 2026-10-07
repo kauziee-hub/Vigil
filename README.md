@@ -23,11 +23,14 @@ powershell -ExecutionPolicy Bypass -File run_demo.ps1          # Windows
 
 The script creates the venv, installs dependencies, builds the UI, seeds the deterministic demo database on first run, starts one server on port 8000 and prints:
 
-* Command center — `http://localhost:8000/`
-* Pay — `http://localhost:8000/pay`
+* Overview — `http://localhost:8000/`
+* Transaction Guard — `http://localhost:8000/guard` (customer device + the bank's pre-commit assessment); customer-only kiosk at `/pay?as=ramesh@vigil`
+* Scenario Lab — `http://localhost:8000/lab`
 * Trusted contact (open on a phone on the same Wi-Fi) — `http://<lan-ip>:8000/contact/arjun`
 
-Options: `-Reset` / `--reset` (wipe + reseed), `-Mock` / `--mock` (force offline payments), `-Port 8001`. The **Reset demo** button in the command center does the same reset at runtime.
+The console has nine areas: Overview · Transaction Guard · Network Intelligence (3D) · Detection & Models · Investigations · Interventions · Governance & Audit · Scenario Lab · System Health.
+
+Options: `-Reset` / `--reset` (wipe + reseed), `-Mock` / `--mock` (force offline payments), `-Port 8001`. The **Reset demo** button in the Scenario Lab does the same reset at runtime.
 
 ### Razorpay (optional)
 
@@ -41,10 +44,12 @@ Full script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 |---|---|---|
 | 1 | Ramesh pays his grocer ₹500 | Tier 0, approved, paid |
 | 2 | Ramesh → Kiran Traders ₹45,000 | Tier 2, confirm purpose — before any money moves |
-| 3 | Inject mule ring, confirm one victim payment | RingWatch highlights the ring; TaintTrace attributes value; Kiran Traders now Tier 3 |
-| 4 | Sunita, 67: new device → payee → limit → simulated threat call → 95 % of savings | Tier 4, scoped hold, CircuitBreaker alert to her son's phone, live |
-| 5 | Open any decision | Customer reason · bank evidence · audit record |
+| 3 | Mule ring (Scenario Lab), compare detectors, 3D attack scene, confirm one victim payment | Rules / RF / GNN / drift / pattern memory agree on the ring; TaintTrace attributes value (conserved); Kiran Traders now Tier 3 |
+| 4 | Sunita, 67: new device → payee → limit → simulated threat call → 95 % of savings | Tier 4, scoped hold, CircuitBreaker alert to her son's phone, live; bank rejects |
+| 5 | Open the decision record; toggle SHADOW mode | Replay · counterfactuals · provenance · versions · operator trail; shadow records without intervening |
 | Control | Ramesh pays landlord ₹1,20,000 | Tier 0 — unusual amount, no friction |
+
+Plus ten attack patterns from the original mule project (fan-in, fan-out, circular ring, velocity chain, cross-channel, shared device, behavioural drift, volume spike, smurfing, dormant) as deterministic scenarios.
 
 ## Repository
 
@@ -54,7 +59,7 @@ backend/vigil/intel/  detection intelligence: rules, early warning, drift, patte
 backend/ml/         synthetic-world generator + training/evaluation (train_all.py); artefacts in backend/models/
 backend/prima/      vendored PRIMA lineage engine (LIBR / pro-rata tracing with exact conservation)
 backend/tests/      269 tests (190 lineage + Vigil lifecycle, scenarios, API, invariants, v2, intel)
-frontend/           Vite + React + TypeScript + Cytoscape (dagre) — built and served by the backend
+frontend/           Vite + React + TypeScript; three.js 3D network, Cytoscape 2D fallback — built and served by the backend
 config/risk_policy.yaml   the only place weights, thresholds and windows live (versioned)
 scripts/benchmark_demo.py latency benchmark
 docs/               audit, architecture, positioning, model card, demo script, limitations, agent prompts
