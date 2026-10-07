@@ -94,7 +94,9 @@ function Spark({ frames, i, onPick }: { frames: ReplayFrame[]; i: number; onPick
   const W = 300, H = 54, n = frames.length;
   const x = (k: number) => 6 + (k / Math.max(1, n - 1)) * (W - 12);
   const y = (v: number) => H - 6 - Math.min(1, v) * (H - 12);
-  const path = frames.map((f, k) => `${k === 0 ? "M" : "H"}${x(k).toFixed(1)} V${y(f.final_score).toFixed(1)}`).join(" ");
+  // step line: M needs a full x,y pair; later frames step across (H) then up/down (V)
+  const path = frames.map((f, k) => (k === 0 ? `M${x(k).toFixed(1)},${y(f.final_score).toFixed(1)}`
+    : `H${x(k).toFixed(1)} V${y(f.final_score).toFixed(1)}`)).join(" ");
   return (
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} style={{ marginTop: 10, height: H }} role="img" aria-label="Final score by frame">
       <line x1="6" x2={W - 6} y1={y(0)} y2={y(0)} className="axis-l" />
