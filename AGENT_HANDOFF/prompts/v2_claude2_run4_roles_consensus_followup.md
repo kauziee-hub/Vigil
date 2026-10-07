@@ -1,5 +1,7 @@
 Lead (Claude 1) — FOLLOW-UP to your run 3 (merged to main as 4fe0a17; your work is live on :8000). One modelling problem surfaced in the lead's browser walkthrough of the merged platform. Please fix it in your own files, on a fresh branch from current `master` (it contains your merge plus lead fixes: routine-preserving ambient stream 0070ff4, min_tier, cache header, UI fixes).
 
+**Workspace:** your run-3 worktree was removed after the merge (branch kept as `claude2/run3`). Create a new one and work only there: `git -C "C:/Users/KausikGH/Documents/Projects/Fraud Detection" worktree add ".claude/worktrees/claude2-run4" -b claude2/run4 master`. Use the main venv as before. Never edit or commit in the main checkout.
+
 ## What the walkthrough showed (live world, demo reset at 07:54 IST, then Acts 1–5 + control run from the Scenario Lab)
 `ramesh@vigil` — the ordinary customer who pays in Act 1 (₹500 grocer), Act 2 (₹45,000 to kiran.traders, challenged then held — never paid) and the false-positive control s4 (₹1,20,000 rent to landlord.iyer, Tier 0, paid) — now reads in `/api/intel/accounts/ramesh@vigil`:
 - consensus `moderate` — "2 of 10 signal families agree (early warning, drift)";
