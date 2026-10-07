@@ -1,6 +1,6 @@
-// The intervention queue as the console shows it: /api/interventions (newest 100 alerts) plus scenario / customer
-// decisions (tier ≥ 2) that fell outside that window, each with its LIVE intent state from /api/intents/{id}.
-// The window is otherwise filled by background-stream Tier 1 heads-ups (see AGENT_HANDOFF/REQUESTS.md).
+// The intervention queue as the console shows it: /api/interventions — every Tier ≥ 2 alert (min_tier=2, up to 200)
+// merged with the newest 100 alerts of any tier, so Tier 1 heads-ups never push a hold out of view — plus any
+// tier ≥ 2 decision without an alert row, each with its LIVE intent state from /api/intents/{id}.
 import { useMemo } from "react";
 import { api } from "../api/client";
 import type { IntentState, InterventionRow } from "../api/types";
@@ -9,8 +9,15 @@ import { useLoad } from "./hooks";
 export type QueueRow = InterventionRow & { outside?: boolean };
 export const OPEN_STATES = new Set<IntentState | string>(["HELD", "ESCALATED", "CHALLENGED", "CREATED", "RISK_EVALUATED"]);
 
+/** Every Tier ≥ 2 alert (up to 200) merged with the newest 100 alerts of any tier. */
+export async function loadAlerts(status: "open" | "all"): Promise<InterventionRow[]> {
+  const [serious, recent] = await Promise.all([api.interventions(status, { minTier: 2, limit: 200 }), api.interventions(status)]);
+  const seen = new Set(serious.map((r) => r.decision_id));
+  return [...serious, ...recent.filter((r) => !seen.has(r.decision_id))];
+}
+
 export function useInterventionQueue(status: "open" | "all") {
-  const rows = useLoad<InterventionRow[]>(() => api.interventions(status), [status]);
+  const rows = useLoad<InterventionRow[]>(() => loadAlerts(status), [status]);
   const fetchedAt = useMemo(() => Date.now(), [rows.data]);
   const extra = useLoad<QueueRow[]>(async () => {
     if (!rows.data) return [];

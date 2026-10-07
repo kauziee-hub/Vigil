@@ -10,6 +10,7 @@ import { useConsoleEvents } from "../components/Shell";
 import { Async, PageHead, Panel, Pill, Seg, StatePill, TierPill } from "../components/ui";
 import { duration, formatINR, formatTime, handle } from "../lib/format";
 import { useDebounced, useLoad, useNow } from "../lib/hooks";
+import { loadAlerts } from "../lib/queue";
 import { ROLE_LABEL, scoreStatus } from "../lib/status";
 
 export function InvestigationsPage() {
@@ -20,7 +21,7 @@ export function InvestigationsPage() {
   const [q, setQ] = useState("");
   const [acct, setAcct] = useState("");
   const now = useNow(10000);
-  const rows = useLoad<InterventionRow[]>(() => api.interventions(status), [status]);
+  const rows = useLoad<InterventionRow[]>(() => loadAlerts(status), [status]);
   const feed = useLoad<DecisionSummary[]>(() => api.decisions(1));
   const ring = useLoad<RingRow[]>(api.ringwatch);
   const refresh = useDebounced(() => { rows.reload(); feed.reload(); }, 1200);
@@ -42,8 +43,8 @@ export function InvestigationsPage() {
   // age_s is computed by the server at fetch time; the local clock only advances it between pushes.
   const fetchedAt = useMemo(() => Date.now(), [rows.data]);
   const labels = useMemo(() => new Map((feed.data ?? []).map((d) => [d.decision_id, d])), [feed.data]);
-  // The interventions endpoint returns the newest 100 alerts, which the background stream can fill with Tier 1
-  // heads-ups. Scenario / customer decisions (≤ 50, non-ambient) are merged in so they never drop out of the list;
+  // Alerts = every Tier ≥ 2 alert + the newest 100 of any tier (lib/queue.ts loadAlerts). Scenario / customer
+  // decisions (≤ 50, non-ambient) without an alert row are merged in so they never drop out of the list;
   // their live state is shown only when the alert row is present (never guessed).
   const all = useMemo(() => {
     const out: (InterventionRow & { partial?: boolean })[] = [...(rows.data ?? [])];
@@ -80,7 +81,7 @@ export function InvestigationsPage() {
 
       <div className="grid cols-ms align-start">
         <Panel kicker="Cases" title={`${shown.length} case${shown.length === 1 ? "" : "s"}`} flush
-               q={status === "open" ? "open alerts" : "newest 100 alerts + every scenario / customer decision"}
+               q={status === "open" ? "open alerts" : "every Tier ≥ 2 alert + newest 100 alerts + every scenario / customer decision"}
                actions={<>
                  <input className="input sm" style={{ width: 200 }} placeholder="Filter id / account / headline" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter cases" />
                  <Seg options={[["4", `T4 · ${tierCount(4)}`], ["3", `T3+ · ${tierCount(3)}`], ["2", `T2+ · ${tierCount(2)}`], ["1", `T1+ · ${tierCount(1)}`]]}
@@ -107,7 +108,7 @@ export function InvestigationsPage() {
                           <td className="xs">{handle(r.sender_id)}<div className="dim">→ {handle(r.recipient_id)}</div></td>
                           <td className="num">{formatINR(r.amount_paise)}</td>
                           <td><TierPill tier={r.tier} /></td>
-                          <td>{r.partial ? <span className="xs dim" title="Outside the last-100 alert window; open the case for its live state">open case</span> : <StatePill state={r.state} />}</td>
+                          <td>{r.partial ? <span className="xs dim" title="No alert row in the list; open the case for its live state">open case</span> : <StatePill state={r.state} />}</td>
                           <td className="xs" style={{ maxWidth: 300 }}>
                             <div className="ell">{d && d.labels.length ? d.labels.join(" · ") : r.headline}</div>
                           </td>

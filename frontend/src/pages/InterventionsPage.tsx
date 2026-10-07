@@ -1,5 +1,5 @@
 // INTERVENTIONS — what action is active, its SLA, and the bank's release / reject decision.
-// Queue = /api/interventions (newest alerts). Scenario / customer T2+ decisions that fell outside that window are
+// Queue = /api/interventions (every Tier ≥ 2 alert + newest 100 of any tier). Tier ≥ 2 decisions without an alert row are
 // added with their LIVE intent state from /api/intents/{id} (never guessed). Release / reject call the real
 // bank-action endpoint; the payment provider is only called on release.
 import { useMemo, useState } from "react";
@@ -97,7 +97,7 @@ export function InterventionsPage() {
                     value={queue} onChange={(v) => setParam("queue", v === "holds" ? null : v)} />
                <Seg options={[["open", "Open"], ["all", "All states"]]} value={status} onChange={(v) => setParam("status", v === "open" ? null : v)} />
              </>}
-             footer={<>Source: <span className="mono">/api/interventions</span> (newest 100 alerts){(extra.data ?? []).length > 0 && <> + {(extra.data ?? []).length} scenario/customer case{(extra.data ?? []).length === 1 ? "" : "s"} outside that window, shown with live intent state (review clock and contact response are on the case page)</>}. Ages advance on a local clock between pushes; nothing is polled.</>}>
+             footer={<>Source: <span className="mono">/api/interventions</span> (every Tier ≥ 2 alert + the newest 100 of any tier){(extra.data ?? []).length > 0 && <> + {(extra.data ?? []).length} Tier ≥ 2 decision{(extra.data ?? []).length === 1 ? "" : "s"} without an alert row, shown with live intent state (review clock and contact response are on the case page)</>}. Ages advance on a local clock between pushes; nothing is polled.</>}>
         <Async load={rows} what="Intervention queue" endpoint="/api/interventions">
           {() => shown.length === 0 ? (
             <div className="empty">{queue === "holds" ? "No payment is on hold. Holds appear here the moment a Tier 3 / Tier 4 decision is made (Scenario Lab · Act 4)." : "Nothing in this queue."}</div>
@@ -117,7 +117,7 @@ export function InterventionsPage() {
                         <td className="mono xs nowrap">{formatTime(r.opened_at)}<div className="dim">{duration(age)}</div></td>
                         <td><TierPill tier={r.tier} /></td>
                         <td className="xs">{KIND_LABEL[r.kind] ?? r.kind}<div className="dim ell" style={{ maxWidth: 220 }}>{r.headline}</div></td>
-                        <td><StatePill state={r.state} />{r.outside && <div className="xs dim">outside alert window</div>}</td>
+                        <td><StatePill state={r.state} />{r.outside && <div className="xs dim">no alert row</div>}</td>
                         <td className="xs"><Link to={`/investigations/account/${encodeURIComponent(r.sender_id)}`}>{handle(r.sender_id)}</Link>
                           <div>→ <Link to={`/investigations/account/${encodeURIComponent(r.recipient_id)}`}>{handle(r.recipient_id)}</Link></div></td>
                         <td className="num">{formatINR(r.amount_paise)}</td>

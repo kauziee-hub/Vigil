@@ -105,7 +105,9 @@ export const api = {
   intelScores: () => request<IntelScores>("/api/intel/scores"),
   intelModels: () => request<ModelInfo[]>("/api/intel/models"),
   intelOverview: () => request<IntelOverview>("/api/intel/overview"),
-  interventions: (status: "open" | "all" = "open") => request<InterventionRow[]>(`/api/interventions?status=${status}`),
+  interventions: (status: "open" | "all" = "open", opts: { limit?: number; minTier?: number } = {}) =>
+    request<InterventionRow[]>(`/api/interventions?status=${status}` + (opts.limit ? `&limit=${opts.limit}` : "")
+      + (opts.minTier ? `&min_tier=${opts.minTier}` : "")),
   intelCompare: (scenarioId: string) => request<ScenarioCompare>(`/api/intel/scenarios/${scenarioId}/compare`),
 
   contact: (token: string) => request<ContactView>(`/api/contact/${encodeURIComponent(token)}`),

@@ -64,12 +64,14 @@ async def set_mode(body: ModeBody):
 
 # ── interventions queue ───────────────────────────────────────────────────
 @router.get("/interventions")
-async def interventions(status: Literal["open", "all"] = "open", limit: int = Query(100, le=500)):
+async def interventions(status: Literal["open", "all"] = "open", limit: int = Query(100, ge=1, le=500),
+                        min_tier: int = Query(0, ge=0, le=4)):
+    where = ["a.tier >= ?"] + (["a.status = 'open'"] if status == "open" else [])
     sql = ("SELECT a.*, i.state, i.hold_id FROM alerts a JOIN transaction_intents i ON i.id = a.intent_id"
-           + (" WHERE a.status = 'open'" if status == "open" else "") + " ORDER BY a.ts DESC LIMIT ?")
+           f" WHERE {' AND '.join(where)} ORDER BY a.ts DESC LIMIT ?")
     now_t = clock.now().timestamp()
     out = []
-    for a in db.q(sql, (limit,)):
+    for a in db.q(sql, (min_tier, limit)):
         hold = db.q1("SELECT id, held_paise, reference, outcome, review_by FROM scoped_holds WHERE intent_id = ?",
                      (a["intent_id"],))
         cb = db.q1("SELECT c.id, c.response, c.responded_at, t.name FROM circuit_breaker_events c "

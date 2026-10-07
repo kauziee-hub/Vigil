@@ -229,6 +229,23 @@ def test_scene_route_rejects_unknown_scenario(world):
         assert r.status_code == 404 and r.json()["error"]["code"] == "unknown_scenario"
 
 
+def test_interventions_min_tier_keeps_holds_visible(world):
+    from fastapi.testclient import TestClient
+    from vigil.app import app
+
+    scenarios.run_sync("s3")                                   # Tier 4 hold + CircuitBreaker
+    with TestClient(app) as c:
+        for _ in range(3):
+            scenarios.run_sync("s0")                           # newer, lower-tier traffic
+        allrows = c.get("/api/interventions?status=all").json()
+        serious = c.get("/api/interventions?status=all&min_tier=2").json()
+        assert serious and all(r["tier"] >= 2 for r in serious)
+        assert any(r["tier"] == 4 and r["hold"] for r in serious)
+        assert {r["decision_id"] for r in serious} <= {r["decision_id"] for r in allrows}
+        assert c.get("/api/interventions?min_tier=5").status_code == 422
+        assert len(c.get("/api/interventions?status=all&limit=1").json()) <= 1
+
+
 def test_touched_accounts_are_exactly_the_attack_participants(world):
     for sid in scenarios.SCENARIOS:
         if not sid.startswith("atk_"):
