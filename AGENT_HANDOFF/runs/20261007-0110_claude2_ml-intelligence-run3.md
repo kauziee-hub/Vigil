@@ -7,7 +7,7 @@
 | Objective | Finish detection intelligence from `claude2/run2-wip`: `consensus.corroboration` + `warm()`, `/api/intel/*` (5 routes), tests, requirements-ml.txt, train_all < 10 min + re-run, ML_VALIDATION_REPORT metrics + MODEL_CARD appendix |
 | Exact Prompt | Full message sent: `AGENT_HANDOFF/prompts/v2_claude2_run3_resume.md` (verbatim; it points to the binding `AGENT_HANDOFF/prompts/v2_claude2_ml_intelligence.md`). |
 | Previous run | `runs/20261006-2303_claude2_ml-intelligence-run2.md` — INTERRUPTED |
-| Status | RETURNED — saved verbatim below; lead review/merge recorded in the sections after it |
+| Status | DONE — merged into main `4fe0a17` (report saved first, `e26122d`) |
 
 ## Agent Output / Summary (verbatim final report)
 
@@ -109,25 +109,30 @@ Branch `worktree-agent-a91d0e8bba17e1c06`, HEAD **`7a3f647`** (merges master `d6
 _(end of verbatim report)_
 
 ## Files Changed
-_(lead review pending)_
+Lead ownership check: 37 files, +8294, every path inside Claude 2's ownership (`backend/vigil/intel/**`, `backend/ml/**`, `backend/models/**`, `backend/requirements-ml.txt`, `backend/tests/test_intel_*.py`, `docs/ML_VALIDATION_REPORT.md`, `docs/MODEL_CARD.md`); MODEL_CARD append-only (0 lines removed). Worktree clean at return.
 
 ## Tests Run / Test Results
-_(lead verification pending)_
+Lead, on main after merge (07:29 IST): `pytest` → **268 passed** (counted with `-rA`). After the lead's ambient fix: 269 passed; `scripts/smoke_demo.py` 8/8.
+Live on :8000 after restart: `/api/intel/models` 200 7 ms · `/overview` 200 30 ms · `/scores` 200 6 ms · `/accounts/kiran.traders@vigil` 200 20 ms · `/accounts/nobody@vigil` 404 · `/scenarios/s2/compare` 200 131 ms · `/scenarios/atk_circular/compare` 200 76 ms · unknown scenario 404. `/api/system/health` → `intel_available: true`.
+Payment path (temp DB, s2 then s1/s0/s3): every decision carries 5 model families with honest kinds (`probability_calibrated`, `score`, `level`, `similarity`); audit lists them under `model_evidence_not_used_for_tier`; `ml_models_used: []`; s1 after s2 → Tier 3 (as the feedback-loop test expects); s3 coercion recipient not flagged by any model (correct: coercion is caught by payment context, not mule structure). `warm()` 132 ms.
+**Reproducibility check (lead):** re-ran `python ml/train_all.py` in a throwaway detached worktree of main `65a0706`: exit 0, 171 s wall (158.9 s internal). `gnn_v2.npz` and `rf_v2.joblib` byte-identical; `rf_v2.npz` model arrays identical (left/right/feature/threshold/p1/offsets/max_depth), only the stored port-check reference predictions differ by 2.2e-16; every metric in `validation_v2.json` identical — diffs are only `trained_at`, timings, the npz hash and the port-check value. Claim "committed artefacts match the committed code" verified to float precision.
 
 ## Screenshots / Artifacts
-_(pending)_
+`backend/models/*` (v2.1 artefacts + `validation_v2.json`, `validation_v2_full_loao.json`), `docs/ML_VALIDATION_REPORT.md` §1–12, MODEL_CARD appendix.
 
 ## Problems Found
-_(lead review pending)_
+1. (lead, after merge) On the long-running live server 130/140 accounts were flagged by ≥ 1 family. Root cause was the lead's ambient stream (1 payment / 3 s ≈ 100× each account's history), not the models — fixed in `0070ff4` (routine-preserving stream, 20 s); live world reset; only kiran.traders + zenith.exports flagged afterwards. Lead note appended to report §10 (`ca195a0`).
+2. `vigil.intel.warm()` docstring said it never imports shap; it warms SHAP on a daemon thread (no DB access) — docstring corrected by lead in `0070ff4`.
+3. Roles remain weak (collector 10 % correct) — documented by the agent as descriptions, not validated classifications.
 
 ## Decisions Made
-_(lead review pending)_
+Merge as-is (no functional change needed). Keep the SHAP warm-up thread: it does no DB access, so the single-threaded DB invariant holds. Unknown account → 404 accepted (UI must show an honest empty state).
 
 ## Remaining Work
-_(lead review pending)_
+UI verification against live intel (Claude 3, resumed 07:40). DEMO_SCRIPT v2 / README after the UI merge.
 
 ## Git Commit / Diff Reference
-Base: main @ `9351a91`; merged master `d63a901` during the run. Branch: `worktree-agent-a91d0e8bba17e1c06` @ `7a3f647`.
+Base: main @ `9351a91`; merged master `d63a901` during the run. Branch: `worktree-agent-a91d0e8bba17e1c06` @ `7a3f647` → renamed `claude2/run3` after merge; worktree removed. Merge commit on main: `4fe0a17`.
 
 ## Mid-run messages from Claude 1 (verbatim)
 1. (~01:22 IST) "Lead update (main commit 23dcbbf; merge `master` into your branch before you rely on a full-suite run): if `test_vigil_lifecycle.py::test_s1_risky_recipient_intervenes_before_payment` and `::test_feedback_loop_mule_ring_raises_recipient_risk` fail for you, that is NOT your bug. The BEH_ODD_HOUR rule read the wall clock, so between 00:00 and 05:00 IST s1 scored 0.45 -> Tier 3 instead of Tier 2. Fixed on main: scripted scenarios (scenarios.run_sync and the async runner) now evaluate time-of-day rules at a pinned hour (`clock.DEMO_LOCAL_HOUR_IST` = 14, via `clock.pinned_local_hour()`); live/ambient payments keep the real hour. Two other main changes that touch you: (1) `app.py` now calls `vigil.intel.warm()` once at startup when your router imports, so implement `warm()` in `vigil/intel/__init__.py` exactly as your prompt says (never raises, idempotent); (2) `GraphScene.version` is now a content hash (`scene-<16 hex>`), not the graph-counter cache key, so do not parse it — use `GRAPH.version` for your own caching. Main: 223 tests pass at 01:19 IST. Do not edit clock.py / sim / engine."
