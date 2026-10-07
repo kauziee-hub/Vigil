@@ -2,11 +2,14 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { useRealtime, type ConnState } from "../api/realtime";
-import type { Health, Metrics, ModeView, SystemHealth, WsEnvelope } from "../api/types";
+import type { AccountStatusChange, AttackRun, Health, Metrics, ModeView, SystemHealth, WsEnvelope } from "../api/types";
+import { handle } from "../lib/format";
 import { useDebounced } from "../lib/hooks";
+import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK } from "../lib/status";
 import { ErrorBoundary, Sim } from "./ui";
 
 type Listener = (e: WsEnvelope<any>) => void;
+interface Toast { id: number; kind: "danger" | "held" | "warn" | "ok"; title: string; body: string; link?: string }
 interface Platform {
   subscribe: (l: Listener) => () => void;
   conn: ConnState;
@@ -36,7 +39,7 @@ export function usePlatform() {
 }
 
 export const NAV: { to: string; label: string; end?: boolean; group?: string }[] = [
-  { to: "/", label: "Overview", end: true, group: "Operate" },
+  { to: "/", label: "Live Operations", end: true, group: "Operate" },
   { to: "/guard", label: "Transaction Guard" },
   { to: "/network", label: "Network Intelligence", group: "Intelligence" },
   { to: "/detection", label: "Detection & Models" },
@@ -62,6 +65,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [modeAvailable, setModeAvailable] = useState<boolean | null>(null);
   const [intelAvailable, setIntelAvailable] = useState<boolean | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const announced = useRef(new Set<string>());
 
   const subscribe = useCallback((l: Listener) => {
     listeners.current.add(l);
@@ -83,7 +87,32 @@ export function Shell({ children }: { children: ReactNode }) {
   }, []);
   const loadMetrics = useDebounced(() => { api.metrics().then(setMetrics).catch(() => undefined); }, 1500);
 
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastSeq = useRef(0);
+  const pushToast = useCallback((t: Omit<Toast, "id">) => {
+    const id = ++toastSeq.current;
+    setToasts((xs) => [...xs.slice(-3), { ...t, id }]);
+    window.setTimeout(() => setToasts((xs) => xs.filter((x) => x.id !== id)), 6500);
+  }, []);
+
   const conn = useRealtime(["console"], (e) => {
+    if (e.type === "intel.account_status") {
+      const c = e.data as AccountStatusChange;
+      const up = c && ACCOUNT_STATUS_RANK[c.status] > ACCOUNT_STATUS_RANK[c.previous];
+      if (up && (c.status === "flagged" || c.status === "held" || c.status === "confirmed_fraud")) {
+        pushToast({ kind: c.status === "held" ? "held" : "danger", link: `/investigations/account/${encodeURIComponent(c.account_id)}`,
+          title: `${handle(c.account_id)} · ${ACCOUNT_STATUS_LABEL[c.status].toLowerCase()}`,
+          body: `${c.reason || `was ${ACCOUNT_STATUS_LABEL[c.previous].toLowerCase()}`}${c.families_flagging ? ` · ${c.families_flagging} detector families agree` : ""}` });
+      }
+    }
+    if (e.type === "attack.run_updated") {
+      const r = e.data as AttackRun;
+      if (r?.status === "completed" && !announced.current.has(r.run_id)) {
+        announced.current.add(r.run_id);
+        pushToast({ kind: r.detected.length ? "ok" : "warn", link: "/#attack-history", title: `${r.run_id} · ${r.name} completed`,
+          body: `Detected ${r.detected.length} of ${r.injected.length} injected mules (simulator ground truth)` });
+      }
+    }
     if (e.type === "ambient.changed" || e.type === "demo.reset" || e.type === "intel.updated") loadHealth();
     if (e.type === "mode.changed") {
       const d = e.data as Partial<ModeView>;
@@ -122,7 +151,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className="mark">V</span>
             <span className="txt">
               <div className="name">VIGIL</div>
-              <div className="sub">Payment risk &amp; mule intelligence</div>
+              <div className="sub">PRIMA live platform · payment risk &amp; mule intelligence</div>
             </span>
           </NavLink>
           <nav className="side-nav">
@@ -190,6 +219,14 @@ export function Shell({ children }: { children: ReactNode }) {
           )}
           <main className="page"><ErrorBoundary resetKey={loc.pathname}>{children}</ErrorBoundary></main>
         </div>
+      </div>
+      <div className="toasts" aria-live="polite">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast ${t.kind}`}>
+            <b>{t.link ? <Link to={t.link}>{t.title}</Link> : t.title}</b>
+            <span className="muted sm">{t.body}</span>
+          </div>
+        ))}
       </div>
     </ConsoleBus.Provider>
   );
