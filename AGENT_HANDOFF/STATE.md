@@ -9,7 +9,7 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
-## Status: v2 platform build — in progress (updated 2026-10-07 07:50 IST)
+## Status: v2 platform build — in progress (updated 2026-10-07 08:15 IST)
 
 | Area | Owner | Where | State |
 |---|---|---|---|
@@ -21,16 +21,16 @@ Append to the **Log** at the bottom when you finish a unit of work. Contract/API
 | Ambient stream routine-preserving (was flagging ordinary customers within minutes); scenarios pin time-of-day rules | Claude 1 | `main` `0070ff4`, `23dcbbf` | ✅ tested |
 | Scoped scenes (`?scenario=`, `?focus=`), touched_accounts = participants only, no Tier-0 counterfactuals | Claude 1 | `main` `0fb20ef`, `e2ea443`, `d2a880e` | ✅ tested |
 | ML / detection intelligence (`/api/intel/*`, RF/GAT retrain, SHAP, drift, pattern memory, roles, consensus) | Claude 2 | `main` (merged `4fe0a17`; branch `claude2/run3`) | ✅ merged + live on :8000; 268 tests; report `docs/ML_VALIDATION_REPORT.md` (SYNTHETIC VALIDATION) |
-| Frontend redesign (9 areas, 3D network, replay UI, governance) | Claude 3 | worktree branch (run 3) | 🔄 all 9 areas committed; stopped 01:53 by usage limit (WIP `24f14cf`); resumed 07:40 to verify against live intel + re-capture screenshots |
+| Frontend redesign (9 areas, 3D network, replay UI, governance) | Claude 3 | `main` (merged `88823fb`; branch `claude3/run3`) | ✅ merged; lead browser walkthrough Acts 1–5 + control + shadow + Guard pass; 3 UI fixes on main |
 | Engineering tasks (benchmarks, reset/concurrency/realtime tests, Razorpay harness, fixtures) | Codex | `codex/<task>` | ⏳ prompt issued to operator |
-| UI polish | Cursor | `cursor/<task>` | ⏳ blocked until Claude 3 merges |
+| UI polish | Cursor | `cursor/<task>` | ⏳ unblocked (Claude 3 merged) — operator pastes `prompts/v2_cursor_polish.md`; known items: interventions table height at ~800 px, drift "CHANGE" column = capped z |
 | Razorpay test path | — | `backend/vigil/payments/providers.py` | ⚠️ keys rejected (401) → mock fallback; fresh `rzp_test_` keys in `.env` re-enable it |
 
 ## How to run / verify
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset      # start fresh (builds UI, seeds, serves :8000)
-cd backend; .venv\Scripts\python.exe -m pytest -q                 # 269 tests (211 v1 + 13 v2 + 45 intel)
+cd backend; .venv\Scripts\python.exe -m pytest -q                 # 271 tests (211 v1 + 15 v2 + 45 intel)
 backend\.venv\Scripts\python.exe scripts\smoke_demo.py             # 8 act checks
 cd frontend; npm run build                                          # type-check + bundle
 ```
@@ -82,3 +82,4 @@ In-process subagents die when the lead's session restarts. On resume:
 - 2026-10-07 01:15–01:30 Claude 1 — found s1 → Tier 3 between 00:00–05:00 IST (BEH_ODD_HOUR read the wall clock; 2 lifecycle tests failed at night): scenarios now pin the local hour, audit records `evaluation_context`; scene version = content hash; `app.py` calls `vigil.intel.warm()` when present (`23dcbbf`). 223 tests + smoke 8/8 at 01:25 IST. Backend restarted under preview config `vigil` (:8000, DB kept). Mid-run notes: Claude 2 (wall-clock fix, warm(), scene version), Claude 3 (restart; final-score colour must follow tier, not network bands).
 - 2026-10-07 ~01:53 — usage limit stopped the session and Claude 3 (HTTP 429). Claude 2 had returned at ~01:51 (report saved verbatim `e26122d`, merged `4fe0a17`, 268 pass).
 - 2026-10-07 07:29 user: "continue from where you left off". Claude 1 — Claude 3 WIP committed (`24f14cf`, tsc clean); backend restarted with intel live (5 routes 6–131 ms); found 130/140 accounts flagged on the live world → ambient stream made routine-preserving + 20 s interval (`0070ff4`, 269 pass, smoke 8/8); live world reset (07:36) → only kiran.traders + zenith.exports flagged; Claude 3 resumed with context (`prompts/v2_claude3_run3_continue_after_limit.md`); payment path verified (model evidence present, kinds honest, never in tier).
+- 2026-10-07 07:50–08:15 Claude 1 — Claude 3 returned (report saved `86da0b8`), merged `88823fb`; build green; implemented its `min_tier` request (`00f3920`); browser walkthrough of every act on the merged build → fixed cached v1 shell (`d6e83ae`), replay spark SVG (`4c5b750`), stale Lab panel (`a3b9ac9`); found an ordinary customer (ramesh) labelled "Distributor" by EW + drift alone → Claude 2 run 4 launched (`prompts/v2_claude2_run4_roles_consensus_followup.md`; resume of the run-3 agent failed because its worktree was removed). Demo world reset, ACTIVE.
