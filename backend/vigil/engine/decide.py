@@ -107,6 +107,10 @@ def evaluate(intent: dict[str, Any]) -> RiskDecision:
             {"family": m.family, "display": m.display, "kind": m.kind, "version": m.version} for m in model_evidence
         ],
         "provenance": {s.rule_id: s.provenance.model_dump() for s in all_signals if s.provenance},
+        "evaluation_context": {
+            "local_hour_ist": clock.local_hour_ist(),
+            "local_hour_source": "pinned by scripted scenario" if clock.local_hour_pinned() else "wall clock",
+        },
     }
     reasons, digest = reasonline.build(
         amount_paise=amount, tier=fused.tier, intervention=intervention, signals=all_signals,

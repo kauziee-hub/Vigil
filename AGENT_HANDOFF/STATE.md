@@ -29,7 +29,7 @@ Append to the **Log** at the bottom when you finish a unit of work. Contract/API
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset      # start fresh (builds UI, seeds, serves :8000)
-cd backend; .venv\Scripts\python.exe -m pytest -q                 # 221 tests (211 v1 + 10 v2)
+cd backend; .venv\Scripts\python.exe -m pytest -q                 # 223 tests (211 v1 + 12 v2)
 backend\.venv\Scripts\python.exe scripts\smoke_demo.py             # 8 act checks
 cd frontend; npm run build                                          # type-check + bundle
 ```
@@ -51,7 +51,8 @@ In-process subagents die when the lead's session restarts. On resume:
 * No account-freeze function; inbound money never held; no RBI branding or text implying real RBI/NPCI/DPIP data.
 * Customer text must never contain words in `reasonline.BANNED_CUSTOMER_WORDS`.
 * Reset must restore an identical world (test: `test_reset_restores_identical_world_after_every_scenario`).
-* Expected tiers (tests enforce): s0→0, s1→2, s4→0, s3→4 (+breaker), s2+label then s1→3.
+* Expected tiers (tests enforce): s0→0, s1→2, s4→0, s3→4 (+breaker), s2+label then s1→3 — at ANY hour: scripted scenarios run with `clock.pinned_local_hour()` (14:00 IST); never read `datetime.now()` hour directly, use `clock.local_hour_ist()`.
+* `GraphScene.version` is a content hash; don't parse it.
 
 ## Next steps (lead)
 1. On each agent return: save the verbatim report into its run record + ledger FIRST, then review the diff against the ownership table, merge, run pytest + smoke + `npm run build` + browser walkthrough of all acts.
@@ -77,3 +78,4 @@ In-process subagents die when the lead's session restarts. On resume:
 - 2026-10-06 ~23:45 — second session restart killed both run-2 agents (last writes: Claude 3 23:31, Claude 2 23:43). Milestone commits survived this time.
 - 2026-10-07 01:00 user: "CONTINUE IMPLEMENTATION" (`prompts/03_USER_resume_2026-10-07_0100.md`).
 - 2026-10-07 01:02–01:10 Claude 1 — recovered uncommitted work verbatim: `claude2/run2-wip` (`871df51`: detectors, train_all, trained artefacts), `claude3/run2-wip` (`ba5f83d`: Replay.tsx; tsc clean); stopped orphaned Vite :5183; removed both worktrees; records + ledger updated; `*.tsbuildinfo` ignored; relaunched both as run 3 (`prompts/v2_claude{2,3}_run3_resume.md`).
+- 2026-10-07 01:15–01:30 Claude 1 — found s1 → Tier 3 between 00:00–05:00 IST (BEH_ODD_HOUR read the wall clock; 2 lifecycle tests failed at night): scenarios now pin the local hour, audit records `evaluation_context`; scene version = content hash; `app.py` calls `vigil.intel.warm()` when present (`23dcbbf`). 223 tests + smoke 8/8 at 01:25 IST. Backend restarted under preview config `vigil` (:8000, DB kept). Mid-run notes: Claude 2 (wall-clock fix, warm(), scene version), Claude 3 (restart; final-score colour must follow tier, not network bands).

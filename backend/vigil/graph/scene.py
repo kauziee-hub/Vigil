@@ -6,10 +6,13 @@ Layout ("layered-3d-v1") is deterministic and computed once per cache key:
     barycentre of their upstream neighbours (one sweep) to reduce crossings;
   * no force simulation ever runs (server or client).
 Cache key = graph version + labels/taint state + active holds + parameters.
+GraphScene.version = hash of the scene content (identical picture → identical version).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import time
 from collections import defaultdict, deque
@@ -190,7 +193,11 @@ def build(cap: int = 60, focus: str | None = None, hops: int = 1, scenario: str 
                        channels=sorted(a["ch"]), txs=a["txs"])
              for (s, d), a in agg.items() if s in set(keep) and d in set(keep)]
     times = sorted(t.ts for e in edges for t in e.txs)
-    scene = GraphScene(version=key, nodes=nodes, edges=edges, focus=focus, cap=cap,
+    # version = content hash, not the cache key: ambient postings elsewhere bump GRAPH.version
+    # without changing this picture, and clients keep (not rebuild) a scene whose version is unchanged.
+    digest = hashlib.sha1(json.dumps([[n.model_dump() for n in nodes], [e.model_dump() for e in edges]],
+                                     sort_keys=True, default=str).encode()).hexdigest()[:16]
+    scene = GraphScene(version=f"scene-{digest}", nodes=nodes, edges=edges, focus=focus, cap=cap,
                        truncated=len(candidates) > cap, total_candidates=len(candidates),
                        time_range=[times[0], times[-1]] if times else None,
                        built_ms=round((time.perf_counter() - started) * 1000, 2), cached=False)

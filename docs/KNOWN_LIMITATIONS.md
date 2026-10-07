@@ -31,6 +31,7 @@ Every component of the demo falls in exactly one of four buckets.
 * **Bank review** — the analyst's Release/Reject buttons stand in for a fraud-ops queue; no SLA timer auto-releases holds.
 * **Mule-ring transfers in Scenario 2** — injected as observed ledger postings (representing payments made before Vigil coverage), not as intents.
 * **Time compression** — Scenario 3 back-dates journey events by up to 8 minutes so the story plays in seconds.
+* **Pinned local hour in scripted scenarios** — while a scenario step runs, time-of-day rules (the "unusual hour" behaviour signal, 00:00–05:00 IST) see a fixed 14:00 IST, so every scenario gives the same tier whenever the demo is run. Live and ambient payments use the real hour. Each decision's audit record states which (`evaluation_context.local_hour_source`).
 * **Mock payments** — "DEMO PAYMENT", no gateway.
 * **Trusted-contact delivery** — a web page over WebSocket, not SMS/push.
 

@@ -82,6 +82,87 @@ def test_scene_is_capped_cached_and_layered(world):
     assert all(e.source in ids and e.target in ids for e in a.edges)
 
 
+def test_scene_version_tracks_content_not_graph_counter(world):
+    from vigil.graph.pathgraph import GRAPH
+
+    scenarios.run_sync("atk_circular")
+    a = scene.build(scenario="atk_circular")
+    GRAPH.version += 1                      # e.g. an ambient posting elsewhere: cache miss, same picture
+    b = scene.build(scenario="atk_circular")
+    assert not b.cached and b.version == a.version
+    before = scene.build().version
+    scenarios.run_sync("s2")                # the s2 mule ring moves money inside the default scene
+    assert scene.build().version != before
+
+
+def test_scenario_tiers_do_not_depend_on_time_of_day(world, monkeypatch):
+    from datetime import datetime, timezone
+
+    from vigil import clock
+    from vigil.contracts import CreateIntentRequest
+    from vigil.sim import seed
+
+    real_now = clock.now
+    for hour_utc, tier in ((19, 2), (8, 2)):           # 01:00 IST (odd-hour window) and 13:30 IST
+        offset = datetime(2026, 10, 6, hour_utc, 30, tzinfo=timezone.utc) - real_now()
+        monkeypatch.setattr(clock, "now", lambda offset=offset: real_now() + offset)
+        seed.seed()
+        d, _ = _decision("s1")
+        assert d.tier == tier and "BEH_ODD_HOUR" not in d.rules_fired
+        assert d.reasons.audit["evaluation_context"] == {"local_hour_ist": clock.DEMO_LOCAL_HOUR_IST,
+                                                         "local_hour_source": "pinned by scripted scenario"}
+    # a live payment at 01:00 IST still sees the real hour
+    offset = datetime(2026, 10, 6, 19, 30, tzinfo=timezone.utc) - real_now()
+    monkeypatch.setattr(clock, "now", lambda: real_now() + offset)
+    seed.seed()
+    _, live = lifecycle.create(CreateIntentRequest(sender_id="ramesh@vigil", recipient_id="meena.grocer@vigil",
+                                                   amount_paise=50_000))
+    assert "BEH_ODD_HOUR" in live.rules_fired
+
+
+def test_ambient_stream_keeps_every_account_within_its_own_routine(world):
+    import pytest
+
+    from vigil.sim import ambient
+
+    legit = [r["id"] for r in db.q("SELECT id FROM accounts WHERE seed_role = 'legit' AND kind = 'customer'")]
+    for _ in range(400):
+        ambient._tick()
+    assert ambient.STATE["count"] > 20                      # it still produces a visible stream ...
+    for a in legit:                                          # ... but never pushes an account past its own busiest 72 h
+        ambient_rows = db.scalar("SELECT COUNT(*) FROM transactions WHERE source = 'ambient' "
+                                 "AND (sender_id = ? OR recipient_id = ?)", (a, a))
+        if ambient_rows:
+            assert not _over_routine(a), a
+    pytest.importorskip("numpy")
+    from vigil.intel import service
+
+    scores = service.scores()["scores"]
+    flagged = [a for a in legit if a in scores and (scores[a]["drift_level"] == "HIGH" or scores[a]["early_warning"]
+                                                    or (scores[a]["rf"] or 0) >= 0.5 or (scores[a]["gnn"] or 0) >= 0.5)]
+    assert flagged == []                                     # ordinary customers do not look like mules
+
+
+def _over_routine(account_id: str) -> bool:
+    from datetime import timedelta
+
+    from vigil import clock
+    from vigil.sim import ambient
+
+    window_start = clock.now() - timedelta(hours=ambient.WINDOW_H)
+    rows = db.q("SELECT ts FROM transactions WHERE (sender_id = ? OR recipient_id = ?) AND ts >= ?",
+                (account_id, account_id, clock.iso(window_start - timedelta(days=ambient.BASELINE_DAYS))))
+    current, blocks = 0, {}
+    for r in rows:
+        t = clock.parse(r["ts"])
+        if t >= window_start:
+            current += 1
+        else:
+            k = int((window_start - t).total_seconds() // (ambient.WINDOW_H * 3600))
+            blocks[k] = blocks.get(k, 0) + 1
+    return current > max(blocks.values(), default=0)
+
+
 def test_attack_scenarios_are_deterministic_and_balanced(world):
     first = {sid: scenarios.touched_accounts(sid) for sid in scenarios.SCENARIOS if sid.startswith("atk_")}
     assert len(first) == 10

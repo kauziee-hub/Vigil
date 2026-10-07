@@ -1,0 +1,552 @@
+{
+  "trained_at": "2026-10-06T20:11:11Z",
+  "seed": 20261006,
+  "data": "SYNTHETIC",
+  "split": "split-by-world: 90 train / 30 validation / 30 test worlds (disjoint, seed 20261006); leave-one-attack-family-out on test worlds",
+  "label": "SYNTHETIC VALIDATION \u2014 computer-generated worlds; not real-bank accuracy.",
+  "features": [
+    "in_degree",
+    "out_degree",
+    "total_in_amount",
+    "total_out_amount",
+    "retention_ratio",
+    "unique_neighbors",
+    "unique_channels",
+    "device_cluster_size",
+    "transaction_count",
+    "account_age_days",
+    "forwarded_fraction",
+    "new_counterparty_ratio",
+    "near_threshold_outflows",
+    "dormancy_days",
+    "baseline_tx_rate"
+  ],
+  "dataset": {
+    "worlds": 150,
+    "seed": 20261006,
+    "generator": "backend/ml/datagen.py v2.1 (world-level payday calendar)",
+    "accounts": {
+      "train": 26304,
+      "val": 8665,
+      "test": 8846
+    },
+    "mules": {
+      "train": 1014,
+      "val": 326,
+      "test": 310
+    },
+    "attack_instances": {
+      "fan_in": 48,
+      "fan_out": 59,
+      "circular": 45,
+      "velocity_chain": 36,
+      "cross_channel": 34,
+      "shared_device": 57,
+      "behavioural_drift": 41,
+      "volume_spike": 39,
+      "smurfing": 50,
+      "dormant": 47
+    },
+    "evaluation_offset_hours": "attack start drawn uniformly 0.25-72 h before the evaluation time"
+  },
+  "model_id": "gnn-gat-v2",
+  "family": "gnn",
+  "version": "gnn-gat-v2.1",
+  "architecture": "2-layer relational GAT (sender->recipient and recipient->sender attention, 4 heads, hidden 32), plain torch for training, numpy for serving; 72 h window graph",
+  "params": {
+    "hidden": 32,
+    "heads": 4,
+    "dropout": 0.1,
+    "lr": 0.005,
+    "weight_decay": 0.0005,
+    "max_epochs": 120,
+    "patience": 15,
+    "batch_worlds": 10,
+    "pos_weight_cap": 20.0
+  },
+  "training": {
+    "best_epoch": 58,
+    "epochs_run": 73,
+    "val_pr_auc": 0.9679,
+    "pos_weight": 20.0
+  },
+  "threshold": 0.4737,
+  "threshold_rule": "max F1 on validation worlds",
+  "metrics": {
+    "precision": 0.9826,
+    "recall": 0.9097,
+    "f1": 0.9447,
+    "confusion": {
+      "tp": 282,
+      "fp": 5,
+      "fn": 28,
+      "tn": 8531
+    },
+    "n": 8846,
+    "positives": 310,
+    "prevalence": 0.035,
+    "flag_rate": 0.0324,
+    "roc_auc": 0.9828,
+    "pr_auc": 0.9541,
+    "pr_auc_active_accounts": 0.9598,
+    "per_attack": {
+      "behavioural_drift": {
+        "mules": 7,
+        "detected": 7,
+        "recall": 1.0,
+        "pr_auc_vs_negatives": 0.9571
+      },
+      "circular": {
+        "mules": 46,
+        "detected": 45,
+        "recall": 0.9783,
+        "pr_auc_vs_negatives": 0.9796
+      },
+      "cross_channel": {
+        "mules": 29,
+        "detected": 26,
+        "recall": 0.8966,
+        "pr_auc_vs_negatives": 0.9449
+      },
+      "dormant": {
+        "mules": 10,
+        "detected": 9,
+        "recall": 0.9,
+        "pr_auc_vs_negatives": 0.8251
+      },
+      "fan_in": {
+        "mules": 10,
+        "detected": 7,
+        "recall": 0.7,
+        "pr_auc_vs_negatives": 0.6775
+      },
+      "fan_out": {
+        "mules": 84,
+        "detected": 75,
+        "recall": 0.8929,
+        "pr_auc_vs_negatives": 0.9241
+      },
+      "shared_device": {
+        "mules": 52,
+        "detected": 52,
+        "recall": 1.0,
+        "pr_auc_vs_negatives": 0.999
+      },
+      "smurfing": {
+        "mules": 29,
+        "detected": 20,
+        "recall": 0.6897,
+        "pr_auc_vs_negatives": 0.7187
+      },
+      "velocity_chain": {
+        "mules": 36,
+        "detected": 35,
+        "recall": 0.9722,
+        "pr_auc_vs_negatives": 0.9909
+      },
+      "volume_spike": {
+        "mules": 7,
+        "detected": 6,
+        "recall": 0.8571,
+        "pr_auc_vs_negatives": 0.6192
+      }
+    },
+    "false_positives_by_persona": {
+      "customer": {
+        "flagged": 4,
+        "of": 7485
+      },
+      "landlord": {
+        "flagged": 1,
+        "of": 147
+      },
+      "merchant": {
+        "flagged": 0,
+        "of": 331
+      },
+      "organiser": {
+        "flagged": 0,
+        "of": 19
+      },
+      "payroll": {
+        "flagged": 0,
+        "of": 84
+      },
+      "trader": {
+        "flagged": 0,
+        "of": 470
+      }
+    }
+  },
+  "per_attack": {
+    "behavioural_drift": {
+      "mules": 7,
+      "detected": 7,
+      "recall": 1.0,
+      "pr_auc_vs_negatives": 0.9571
+    },
+    "circular": {
+      "mules": 46,
+      "detected": 45,
+      "recall": 0.9783,
+      "pr_auc_vs_negatives": 0.9796
+    },
+    "cross_channel": {
+      "mules": 29,
+      "detected": 26,
+      "recall": 0.8966,
+      "pr_auc_vs_negatives": 0.9449
+    },
+    "dormant": {
+      "mules": 10,
+      "detected": 9,
+      "recall": 0.9,
+      "pr_auc_vs_negatives": 0.8251
+    },
+    "fan_in": {
+      "mules": 10,
+      "detected": 7,
+      "recall": 0.7,
+      "pr_auc_vs_negatives": 0.6775
+    },
+    "fan_out": {
+      "mules": 84,
+      "detected": 75,
+      "recall": 0.8929,
+      "pr_auc_vs_negatives": 0.9241
+    },
+    "shared_device": {
+      "mules": 52,
+      "detected": 52,
+      "recall": 1.0,
+      "pr_auc_vs_negatives": 0.999
+    },
+    "smurfing": {
+      "mules": 29,
+      "detected": 20,
+      "recall": 0.6897,
+      "pr_auc_vs_negatives": 0.7187
+    },
+    "velocity_chain": {
+      "mules": 36,
+      "detected": 35,
+      "recall": 0.9722,
+      "pr_auc_vs_negatives": 0.9909
+    },
+    "volume_spike": {
+      "mules": 7,
+      "detected": 6,
+      "recall": 0.8571,
+      "pr_auc_vs_negatives": 0.6192
+    }
+  },
+  "calibration_map": {
+    "x": [
+      3e-06,
+      0.000149,
+      0.000149,
+      0.032153,
+      0.032155,
+      0.397535,
+      0.398311,
+      0.559112,
+      0.565133,
+      0.65813,
+      0.660139,
+      0.775766,
+      0.776278,
+      0.90096,
+      0.903476,
+      0.964324,
+      0.964455,
+      0.971417,
+      0.976189,
+      0.980585,
+      0.980852,
+      0.999057,
+      0.999231,
+      0.999748,
+      0.999754,
+      1.0
+    ],
+    "y": [
+      0.0,
+      0.0,
+      0.000841,
+      0.000841,
+      0.005245,
+      0.005245,
+      0.066667,
+      0.066667,
+      0.125,
+      0.125,
+      0.148148,
+      0.148148,
+      0.2,
+      0.2,
+      0.473684,
+      0.473684,
+      0.5,
+      0.5,
+      0.8,
+      0.8,
+      0.926829,
+      0.926829,
+      0.954545,
+      0.954545,
+      1.0,
+      1.0
+    ]
+  },
+  "calibration_method": "isotonic regression fitted on validation worlds (calibrated on synthetic worlds)",
+  "calibration": {
+    "calibrated": {
+      "bins": [
+        {
+          "lo": 0.0,
+          "hi": 0.1,
+          "n": 8488,
+          "mean_predicted": 0.0014,
+          "observed_rate": 0.0019
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 38,
+          "mean_predicted": 0.1366,
+          "observed_rate": 0.0789
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 20,
+          "mean_predicted": 0.2,
+          "observed_rate": 0.15
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 0,
+          "mean_predicted": null,
+          "observed_rate": null
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 13,
+          "mean_predicted": 0.4737,
+          "observed_rate": 0.4615
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 2,
+          "mean_predicted": 0.5,
+          "observed_rate": 1.0
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1,
+          "mean_predicted": 0.6949,
+          "observed_rate": 0.0
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 2,
+          "mean_predicted": 0.7407,
+          "observed_rate": 0.5
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 1,
+          "mean_predicted": 0.8,
+          "observed_rate": 1.0
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0,
+          "n": 281,
+          "mean_predicted": 0.9898,
+          "observed_rate": 0.9893
+        }
+      ],
+      "brier": 0.0033,
+      "ece": 0.0012
+    },
+    "raw": {
+      "bins": [
+        {
+          "lo": 0.0,
+          "hi": 0.1,
+          "n": 8267,
+          "mean_predicted": 0.0092,
+          "observed_rate": 0.0016
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 116,
+          "mean_predicted": 0.1411,
+          "observed_rate": 0.0
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 45,
+          "mean_predicted": 0.2371,
+          "observed_rate": 0.0
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 28,
+          "mean_predicted": 0.3402,
+          "observed_rate": 0.0357
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 24,
+          "mean_predicted": 0.4366,
+          "observed_rate": 0.0417
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 14,
+          "mean_predicted": 0.5496,
+          "observed_rate": 0.0714
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 18,
+          "mean_predicted": 0.6469,
+          "observed_rate": 0.0556
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 18,
+          "mean_predicted": 0.7458,
+          "observed_rate": 0.1667
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 16,
+          "mean_predicted": 0.8516,
+          "observed_rate": 0.125
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0,
+          "n": 300,
+          "mean_predicted": 0.996,
+          "observed_rate": 0.96
+        }
+      ],
+      "brier": 0.0078,
+      "ece": 0.0179
+    }
+  },
+  "loao": {
+    "fan_in": {
+      "recall_unseen": 0.3,
+      "pr_auc_unseen": 0.3312,
+      "recall_seen": 0.7,
+      "pr_auc_seen": 0.6775,
+      "best_epoch": 19,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "fan_out": {
+      "recall_unseen": 0.5714,
+      "pr_auc_unseen": 0.6748,
+      "recall_seen": 0.8929,
+      "pr_auc_seen": 0.9241,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "circular": {
+      "recall_unseen": 0.9565,
+      "pr_auc_unseen": 0.9674,
+      "recall_seen": 0.9783,
+      "pr_auc_seen": 0.9796,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "velocity_chain": {
+      "recall_unseen": 0.9444,
+      "pr_auc_unseen": 0.979,
+      "recall_seen": 0.9722,
+      "pr_auc_seen": 0.9909,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "cross_channel": {
+      "recall_unseen": 0.7586,
+      "pr_auc_unseen": 0.8196,
+      "recall_seen": 0.8966,
+      "pr_auc_seen": 0.9449,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "shared_device": {
+      "recall_unseen": 0.1731,
+      "pr_auc_unseen": 0.251,
+      "recall_seen": 1.0,
+      "pr_auc_seen": 0.999,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "behavioural_drift": {
+      "recall_unseen": 0.4286,
+      "pr_auc_unseen": 0.2715,
+      "recall_seen": 1.0,
+      "pr_auc_seen": 0.9571,
+      "best_epoch": 19,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "volume_spike": {
+      "recall_unseen": 0.0,
+      "pr_auc_unseen": 0.014,
+      "recall_seen": 0.8571,
+      "pr_auc_seen": 0.6192,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "smurfing": {
+      "recall_unseen": 0.3448,
+      "pr_auc_unseen": 0.3411,
+      "recall_seen": 0.6897,
+      "pr_auc_seen": 0.7187,
+      "best_epoch": 19,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    },
+    "dormant": {
+      "recall_unseen": 0.3,
+      "pr_auc_unseen": 0.1154,
+      "recall_seen": 0.9,
+      "pr_auc_seen": 0.8251,
+      "best_epoch": 17,
+      "epochs_run": 20,
+      "budget": "max 20 epochs, patience 6"
+    }
+  },
+  "artefacts": {
+    "gnn_v2.npz": "3cd088b6abdac52e"
+  },
+  "port_check_max_abs_diff": 1.0915194156857488e-07
+}
