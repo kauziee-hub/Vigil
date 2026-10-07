@@ -20,6 +20,8 @@ export interface UniverseInfo {
   windowMinutes: number;
   accounts: Map<string, UniverseAccount>;
   totals: Record<string, number>;
+  /** Newest postings inside the live window at load (real ledger rows) — seeds streams. */
+  recent: LiveUniverse["edges"];
 }
 
 type Sub<T> = { set: ((v: T) => void) | null };
@@ -133,7 +135,8 @@ export function LiveUniverse3D(p: LiveUniverse3DProps) {
     u.edges.forEach((x) => e.addEdge(x, false));
     if (props.current.taint) e.setTaint(props.current.taint);
     e.setSelected(props.current.selected ?? null);
-    const i: UniverseInfo = { source, version: u.version, windowMinutes: u.window_minutes || 10, accounts: accounts.current, totals: u.totals ?? {} };
+    const recent = [...u.edges].sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 40);
+    const i: UniverseInfo = { source, version: u.version, windowMinutes: u.window_minutes || 10, accounts: accounts.current, totals: u.totals ?? {}, recent };
     setInfo(i);
     props.current.onInfo?.(i);
     statsSub.set?.(e.stats());

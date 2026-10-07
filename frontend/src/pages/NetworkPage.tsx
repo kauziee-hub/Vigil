@@ -608,7 +608,7 @@ export function NetworkPage() {
     : params.get("focus") || params.get("scenario") || v === "2d" || v === "3d" || v === "scene" ? "scene" : "live";
   return (
     <>
-      <PageHead crumb="03 · Intelligence" title="Network Intelligence"
+      <PageHead compact crumb="03 · Intelligence" title="Network Intelligence"
         lede={tab === "live"
           ? "Every account and every live posting. Lenses: LIVE STATUS (detection intelligence), RISK (RingWatch network score — on the authorisation path), MODEL SCORE (corroborating), ROLES and TAINT (value traced from confirmed scams)."
           : "Scoped evidence scene with replay, role shapes and an investigation drawer — the suspicious subgraph, an account's neighbourhood or one attack."}

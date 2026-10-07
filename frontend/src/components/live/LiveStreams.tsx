@@ -1,9 +1,13 @@
 // LIVE STREAMS — Live transactions (intel.tx_scored: statuses, risks, scoring latency), Risky transactions (either
 // party in early warning or worse right after scoring) and the Alert stream (status changes, decisions tier ≥ 1,
 // CircuitBreaker). Push-only; lists flush to React at most every 600 ms.
-import { useRef } from "react";
+// Until intel.tx_scored is served, raw ledger postings carry each party's CURRENT live status from the universe
+// (RingWatch + Vigil state), the transaction list is seeded with the newest postings of the live window, and the alert
+// stream with the newest PRIMA decisions tier ≥ 1 — all real rows, labelled as such.
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import type { AccountStatus, AccountStatusChange, DecisionSummary, LedgerTx, TxScored } from "../../api/types";
+import { api } from "../../api/client";
+import type { AccountStatus, AccountStatusChange, DecisionSummary, LedgerTx, TxScored, UniverseEdge } from "../../api/types";
 import { formatINR, formatTime, handle } from "../../lib/format";
 import { useBufferedList } from "../../lib/live";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK, TIER_SHORT, isRisky } from "../../lib/status";
@@ -22,20 +26,54 @@ function TxRow({ x }: { x: Row }) {
   return (
     <div className={`feed-row ${alarm ? "attack" : risky ? "risky" : ""}`}>
       <div className="h">{acct(x.s)}<span className="arr">→</span>{acct(x.r)}
-        {x.ss && x.ss !== "normal" && x.ss !== "idle" && <span className={`pill as-${x.ss}`}>{ACCOUNT_STATUS_LABEL[x.ss].toLowerCase()}</span>}
-        {x.rs && x.rs !== "normal" && x.rs !== "idle" && x.rs !== x.ss && <span className={`pill as-${x.rs}`}>{ACCOUNT_STATUS_LABEL[x.rs].toLowerCase()}</span>}
+        {x.ss && x.ss !== "normal" && x.ss !== "idle" && x.ss !== "external" && <span className={`pill as-${x.ss}`}>{ACCOUNT_STATUS_LABEL[x.ss].toLowerCase()}</span>}
+        {x.rs && x.rs !== "normal" && x.rs !== "idle" && x.rs !== "external" && x.rs !== x.ss && <span className={`pill as-${x.rs}`}>{ACCOUNT_STATUS_LABEL[x.rs].toLowerCase()}</span>}
       </div>
       <div className="s">{formatINR(x.amount)} · {x.channel.toUpperCase()} · {formatTime(x.ts)} · {x.origin}{x.origin === "scenario" && <> <Sim text="SIM" /></>}</div>
-      <div className="d">{x.id}{x.scored ? ` · risk ${x.sr != null ? x.sr.toFixed(2) : "—"} / ${x.rr != null ? x.rr.toFixed(2) : "—"} · ${x.ms != null ? `${x.ms.toFixed(1)} ms` : ""}` : " · not yet scored"}</div>
+      <div className="d">{x.id}{x.scored ? ` · risk ${x.sr != null ? x.sr.toFixed(2) : "—"} / ${x.rr != null ? x.rr.toFixed(2) : "—"} · ${x.ms != null ? `${x.ms.toFixed(1)} ms` : ""}` : ""}</div>
     </div>
   );
 }
 
-export function LiveStreams() {
+function decisionAlert(d: DecisionSummary): Alert {
+  return {
+    key: d.decision_id, ts: d.created_at, sev: d.tier >= 3 ? "held" : d.tier === 2 ? "medium" : "low", kind: `PRIMA ${TIER_SHORT[d.tier]}`,
+    who: d.sender_id, text: `${handle(d.sender_id)} → ${handle(d.recipient_id)} ${formatINR(d.amount_paise)} · ${d.headline}${d.source === "ambient" ? " · background stream" : ""}`,
+    link: `/investigations/decision/${d.decision_id}`,
+  };
+}
+
+export function LiveStreams({ statusOf, recent }: { statusOf?: (id: string) => AccountStatus | null; recent?: UniverseEdge[] | null }) {
   const live = useBufferedList<Row>(40);
   const risky = useBufferedList<Row>(40);
   const alerts = useBufferedList<Alert>(50);
   const scoredSeen = useRef(false);
+  const seeded = useRef(false);
+  const alertsSeeded = useRef(false);
+
+  const rawRow = (id: string, ts: string, s: string, r: string, amount: number, channel: string, origin: string, scenario: string | null): Row => ({
+    id, ts, s, r, amount, channel, origin, scored: false, ss: statusOf?.(s) ?? undefined, rs: statusOf?.(r) ?? undefined, scenario,
+  });
+
+  // seed with the newest postings of the live window (oldest first, so the newest ends on top)
+  useEffect(() => {
+    if (seeded.current || !recent || !recent.length || scoredSeen.current) return;
+    seeded.current = true;
+    [...recent].reverse().forEach((x) => {
+      const row = rawRow(x.id, x.ts, x.source, x.target, x.amount_paise, x.channel || "upi", x.origin, x.scenario);
+      live.push(row);
+      if (isRisky(row.ss) || isRisky(row.rs)) risky.push(row);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recent]);
+  useEffect(() => {
+    if (alertsSeeded.current) return;
+    alertsSeeded.current = true;
+    api.decisions(1).then((ds) => {
+      ds.filter((d) => d.tier >= 1).slice(0, 12).reverse().forEach((d) => alerts.push(decisionAlert(d)));
+    }).catch(() => undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useConsoleEvents((e) => {
     switch (e.type) {
@@ -51,9 +89,11 @@ export function LiveStreams() {
       }
       case "ledger.posted": {
         if (scoredSeen.current) return;          // once scored events flow, the scored row replaces the raw posting
-        const t = e.data as LedgerTx & { channel?: string };
+        const t = e.data as LedgerTx & { channel?: string; seed_attack?: string | null };
         if (!t?.id) return;
-        live.push({ id: t.id, ts: t.ts, s: t.sender_id, r: t.recipient_id, amount: t.amount_paise, channel: t.channel ?? "upi", origin: t.source, scored: false });
+        const row = rawRow(t.id, t.ts, t.sender_id, t.recipient_id, t.amount_paise, t.channel ?? "upi", t.source, t.seed_attack ?? null);
+        live.push(row);
+        if (isRisky(row.ss) || isRisky(row.rs)) risky.push(row);
         break;
       }
       case "intel.account_status": {
@@ -69,9 +109,7 @@ export function LiveStreams() {
       case "decision.created": {
         const d = e.data as DecisionSummary;
         if (!d?.decision_id || d.tier < 1) return;
-        alerts.push({ key: d.decision_id, ts: d.created_at, sev: d.tier >= 3 ? "held" : d.tier === 2 ? "medium" : "low", kind: `PRIMA ${TIER_SHORT[d.tier]}`,
-          who: d.sender_id, text: `${handle(d.sender_id)} → ${handle(d.recipient_id)} ${formatINR(d.amount_paise)} · ${d.headline}${d.source === "ambient" ? " · background stream" : ""}`,
-          link: `/investigations/decision/${d.decision_id}` });
+        alerts.push(decisionAlert(d));
         break;
       }
       case "breaker.fired": {
@@ -86,29 +124,32 @@ export function LiveStreams() {
         break;
       }
       case "demo.reset":
-        live.clear(); risky.clear(); alerts.clear(); scoredSeen.current = false;
+        live.clear(); risky.clear(); alerts.clear(); scoredSeen.current = false; seeded.current = false;
         break;
     }
   });
 
+  const scored = scoredSeen.current;
   return (
     <div className="grid cols-3 align-start">
       <Panel kicker="Stream" title="Live Transactions" flush actions={<span className="chip mute">last {live.items.length} of {live.count}</span>}
-             footer={scoredSeen.current ? "Each posting after live scoring: sender / recipient status and network risk, scoring latency." : "Raw ledger postings (intel.tx_scored not received yet — statuses appear once live scoring is served)."}>
+             footer={scored ? "Each posting after live scoring: sender / recipient status and network risk, scoring latency."
+               : "Ledger postings — the newest of the live window, then each one as it posts. Pills = each party's current live status (RingWatch + Vigil state); per-posting scores appear once intel.tx_scored is served."}>
         <div className="feed feed-scroll">
           {live.items.length === 0 ? <div className="empty">Waiting for the next posting…</div> : live.items.map((x) => <TxRow key={x.id} x={x} />)}
         </div>
       </Panel>
       <Panel kicker="Detector" title="Risky Transactions" flush actions={<span className={`chip ${risky.count ? "danger" : "mute"}`}>{risky.count} in last {live.count}</span>}
-             footer="Postings where the sender or recipient was in early warning or worse right after scoring.">
+             footer={scored ? "Postings where the sender or recipient was in early warning or worse right after scoring."
+               : "Postings where the sender or recipient is in early warning or worse (live status at the time it was shown)."}>
         <div className="feed feed-scroll">
-          {risky.items.length === 0 ? <div className="empty">{scoredSeen.current ? "No risky posting since this page opened." : "Needs live scoring (intel.tx_scored)."}</div> : risky.items.map((x) => <TxRow key={x.id} x={x} />)}
+          {risky.items.length === 0 ? <div className="empty">No risky posting in the live window or since this page opened.</div> : risky.items.map((x) => <TxRow key={x.id} x={x} />)}
         </div>
       </Panel>
       <Panel kicker="Alerts" title="Alert Stream" flush actions={<span className="chip mute">{alerts.count} total</span>}
-             footer="Account status changes · PRIMA decisions tier ≥ 1 · CircuitBreaker.">
+             footer="Account status changes · PRIMA decisions tier ≥ 1 (newest at load, then pushed) · CircuitBreaker.">
         <div className="feed-scroll">
-          {alerts.items.length === 0 ? <div className="empty">No alert since this page opened.</div> : alerts.items.map((a) => (
+          {alerts.items.length === 0 ? <div className="empty">No PRIMA alert and no status change yet.</div> : alerts.items.map((a) => (
             <div key={a.key} className="alert-row">
               <div className="h"><span className={`sev ${a.sev}`}>{a.sev}</span>{a.link ? <Link to={a.link}>{a.kind}</Link> : <b>{a.kind}</b>}</div>
               <div className="ink2">{a.text}</div>

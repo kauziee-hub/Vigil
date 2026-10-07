@@ -89,7 +89,8 @@ const KpiGrid = memo(function KpiGrid({ statsSub, runs, liveCounts, tps }: {
   useEffect(() => { const i = window.setInterval(flush, 2000); return () => window.clearInterval(i); }, [flush]);
 
   const c = liveCounts ?? {};
-  const by = u?.byStatus ?? {};
+  // once the universe has loaded, a status with no accounts is 0, not unknown
+  const by = new Proxy((u?.byStatus ?? {}) as Record<string, number | undefined>, { get: (t, k: string) => t[k] ?? (u ? 0 : undefined) });
   const list = runs.data ?? [];
   const done = list.filter((r) => r.status === "completed");
   const running = list.filter((r) => r.status === "running" || r.status === "evaluating").length;
@@ -221,7 +222,8 @@ export function OverviewPage() {
   // universe state shared with tables (status lookup) — a ref, so live status changes never re-render the page
   const accounts = useRef(new Map<string, UniverseAccount>());
   const [uniVersion, setUniVersion] = useState(0);
-  const onInfo = useCallback((i: UniverseInfo) => { accounts.current = i.accounts; setUniVersion((n) => n + 1); }, []);
+  const [recent, setRecent] = useState<UniverseInfo["recent"] | null>(null);
+  const onInfo = useCallback((i: UniverseInfo) => { accounts.current = i.accounts; setRecent((r) => r ?? i.recent); setUniVersion((n) => n + 1); }, []);
   const statusOf = useCallback((id: string): AccountStatus | null => accounts.current.get(id)?.status ?? null, []);
   const statsSub = useMemo<Sub<UStats>>(() => ({ set: null }), []);
   const onStats = useCallback((s: UStats) => statsSub.set?.(s), [statsSub]);
@@ -277,7 +279,7 @@ export function OverviewPage() {
         <AttackSubgraph scenario={attackScenario} statusOf={statusOf} />
       </div>
 
-      <div className="section-gap"><LiveStreams /></div>
+      <div className="section-gap"><LiveStreams statusOf={statusOf} recent={recent} /></div>
       <div className="section-gap"><ScoreTables key={uniVersion > 0 ? "u" : "n"} statusOf={statusOf} /></div>
 
       <div className="grid cols-2 align-start section-gap">

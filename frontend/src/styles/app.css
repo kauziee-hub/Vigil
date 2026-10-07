@@ -135,6 +135,12 @@ hr { border: 0; border-top: 1px solid var(--line); margin: var(--s5) 0; }
 .page-head h1 { font-size: clamp(28px, 2.7vw, 42px); letter-spacing: -0.03em; line-height: 1.08; }
 .page-head .lede { color: var(--ink-3); font-size: 14.5px; margin-top: 10px; max-width: 980px; line-height: 1.6; }
 .page-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.page-head.compact { padding: 16px 24px 16px; margin-bottom: 14px; align-items: center; border-radius: var(--r4); flex-wrap: nowrap; }
+.page-head.compact > div:first-child { flex: 1; }
+@media (max-width: 1100px) { .page-head.compact { flex-wrap: wrap; } }
+.page-head.compact .crumb { margin-bottom: 6px; }
+.page-head.compact h1 { font-size: clamp(22px, 2vw, 28px); }
+.page-head.compact .lede { font-size: 13px; margin-top: 6px; max-width: 1080px; line-height: 1.5; }
 
 /* ── panels ────────────────────────────────────────────── */
 .panel {
@@ -513,7 +519,7 @@ table.cm td.bad { background: var(--st-high-bg); }
 .stage-h .t { font-size: 21px; font-weight: 700; color: #edf7f1; letter-spacing: -0.02em; margin-top: 4px; }
 .uni { position: relative; height: clamp(520px, 74vh, 860px); color: #edf7f1; }
 .uni.compact { height: clamp(380px, 52vh, 560px); }
-.uni.full { height: calc(100vh - var(--strip-h) - 210px); min-height: 560px; }
+.uni.full { height: calc(100vh - var(--strip-h) - 290px); min-height: 520px; }
 .uni canvas { display: block; outline: none; position: absolute; inset: 0; }
 .uni-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-sm); color: #b9cfc3; }
 .uni-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

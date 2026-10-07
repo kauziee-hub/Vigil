@@ -558,7 +558,8 @@ export class UniverseEngine {
       if (this.nodes[p.i].taint > 0 && this.nodes[p.j].taint > 0) return out.copy(TAINT).multiplyScalar(0.9);
     }
     const age = Math.max(0, now - p.last) / this.windowMs;          // 0 = just now, 1 = leaving the window
-    const k = Math.min(0.62, 0.2 + p.count * 0.07) * (1 - 0.65 * Math.min(1, age));
+    // ordinary flows stay quiet (additive blending piles up at busy merchants) so alarm edges read first
+    const k = Math.min(0.4, 0.12 + p.count * 0.05) * (1 - 0.7 * Math.min(1, age));
     return out.copy(EDGE).multiplyScalar(this.mode === "live" ? k : k * 0.55);
   }
 
@@ -590,7 +591,7 @@ export class UniverseEngine {
       const a = h.i * 3, b = h.j * 3, o = m * 6;
       hp[o] = this.cur[a]; hp[o + 1] = this.cur[a + 1]; hp[o + 2] = this.cur[a + 2];
       hp[o + 3] = this.cur[b]; hp[o + 4] = this.cur[b + 1]; hp[o + 5] = this.cur[b + 2];
-      if (this.histDirty) { hc[o] = hc[o + 3] = 0.008; hc[o + 1] = hc[o + 4] = 0.045; hc[o + 2] = hc[o + 5] = 0.036; }
+      if (this.histDirty) { hc[o] = hc[o + 3] = 0.005; hc[o + 1] = hc[o + 4] = 0.028; hc[o + 2] = hc[o + 5] = 0.024; }   // faint: live postings must read first
       m++;
     }
     this.hist.geometry.setDrawRange(0, m * 2);
