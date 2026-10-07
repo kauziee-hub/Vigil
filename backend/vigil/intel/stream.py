@@ -41,7 +41,7 @@ import logging
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from vigil import clock, db
 from vigil.contracts import AccountStatusChange, TxScored
@@ -128,14 +128,35 @@ def _flagging(snap: live.Snapshot, account_id: str) -> list[str]:
     return [f for f in live.INTEL_FAMILIES if fl.get(f)]
 
 
+def classify(risk: float | None, fam: str | None, flagging: Iterable[str], threshold: float) -> str | None:
+    """The live detector-status rule (pure; shared with ml/eval_live_status.py).
+
+    flagged:       strongest model evidence >= threshold AND another family flags;
+    early_warning: the early-warning detector flags, OR >= 2 families flag, OR model evidence >= threshold without
+                   corroboration. A single drift / rules / pattern-memory flag alone is NOT an early warning: drift
+                   alone is what a scam victim or a salaried customer shows (ML_VALIDATION_REPORT §7), rules alone
+                   is what a busy merchant shows; both stay visible on the account page.
+    """
+    flagging = list(flagging)
+    above = risk is not None and risk >= threshold
+    if above and any(f != fam for f in flagging):
+        return "flagged"
+    if above or "early_warning" in flagging or len(flagging) >= 2:
+        return "early_warning"
+    return None
+
+
 def detector_status(snap: live.Snapshot, account_id: str, threshold: float) -> tuple[str | None, str]:
     """flagged / early_warning / None from the detector snapshot alone (no Vigil state)."""
     risk, fam = model_evidence(snap, account_id)
     flagging = _flagging(snap, account_id)
     others = [f for f in flagging if f != fam]
-    if risk is not None and risk >= threshold and others:
+    status = classify(risk, fam, flagging, threshold)
+    if status == "flagged":
         return "flagged", (f"Model evidence {risk:.2f} ({SHORT[fam]}) >= live threshold {threshold:.2f}, "
                            f"corroborated by {', '.join(SHORT[f] for f in others)}")
+    if status is None:
+        return None, ""
     if risk is not None and risk >= threshold:
         return "early_warning", (f"Model evidence {risk:.2f} ({SHORT[fam]}) >= live threshold {threshold:.2f}, "
                                  "but no other detector family agrees")
@@ -414,6 +435,42 @@ def _field(run: Any, name: str) -> Any:
     return run.get(name) if isinstance(run, dict) else getattr(run, name, None)
 
 
+def threshold_step(T: float, fp_evidence: list[float], missed: list[tuple[float, bool]], n_injected: int,
+                   collateral: Callable[[float], int]) -> tuple[float, str]:
+    """One adaptive-threshold update (pure; shared with ml/eval_live_status.py's offline replay).
+
+    fp_evidence: model evidence of each false positive; missed: (model evidence, corroborated by another family)
+    of each missed injected mule; collateral(lowered_T): accounts outside the attack that lowering would newly
+    flag. Returns (new threshold, reason).
+    """
+    fp_model = [e for e in fp_evidence if e >= T]
+    if fp_model:
+        new_t = _clamp(T + T_STEP)
+        reason = (f"{len(fp_model)} false positive(s) let through by model evidence (max {max(fp_model):.2f} >= "
+                  f"{T:.2f}) — raise one step")
+        return new_t, reason + (f"; already at the upper bound {T_MAX:.2f}" if new_t == T else "")
+    if fp_evidence:
+        return T, f"{len(fp_evidence)} false positive(s), none let through by model evidence — unchanged"
+    if missed:
+        lowered = _clamp(T - T_STEP)
+        near = [e for e, corr in missed if lowered <= e < T and corr]
+        if near and lowered < T:
+            n = collateral(lowered)
+            if n:
+                return T, (f"{len(near)} missed mule(s) just below the threshold, but lowering one step would also "
+                           f"flag {n} account(s) outside this attack — unchanged")
+            return lowered, (f"{len(near)} missed mule(s) with corroborated model evidence just below the threshold "
+                             f"(max {max(near):.2f}) — lower one step")
+        if near:
+            return T, f"{len(near)} missed mule(s) just below the threshold; already at the lower bound {T_MIN:.2f}"
+        best = max(e for e, _ in missed)
+        return T, (f"{len(missed)} missed mule(s), none a corroborated near miss (strongest model evidence "
+                   f"{best:.2f}); one step would not catch them — unchanged")
+    if n_injected:
+        return T, "all injected mules detected, no false positives — unchanged"
+    return T, "run had no injected mule accounts — unchanged"
+
+
 def on_run_evaluated(run: Any) -> None:
     """Adapt the live model-evidence threshold after one evaluated attack run. Never raises; idempotent per run.
 
@@ -441,43 +498,21 @@ def on_run_evaluated(run: Any) -> None:
         recall = _field(run, "recall")
         T = STATE.threshold
 
-        def ev(a: str) -> float:
-            return (model_evidence(snap, a)[0] or 0.0) if a in snap.feats else 0.0
+        def ev(a: str) -> tuple[float, bool]:
+            if a not in snap.feats:
+                return 0.0, False
+            risk, fam = model_evidence(snap, a)
+            return (risk or 0.0), any(f != fam for f in _flagging(snap, a))
 
-        def corroborated(a: str) -> bool:
-            return a in snap.feats and len([f for f in _flagging(snap, a) if f != model_evidence(snap, a)[1]]) >= 1
+        def collateral(lowered: float) -> int:
+            n = 0
+            for a in snap.ids:
+                if a not in injected:
+                    e, corr = ev(a)
+                    n += int(lowered <= e < T and corr)
+            return n
 
-        new_t, reason = T, ""
-        fp_model = [a for a in fps if ev(a) >= T]
-        if fp_model:
-            new_t = _clamp(T + T_STEP)
-            reason = (f"{len(fp_model)} false positive(s) let through by model evidence (max {max(ev(a) for a in fp_model):.2f}"
-                      f" >= {T:.2f}) — raise one step")
-            if new_t == T:
-                reason += f"; already at the upper bound {T_MAX:.2f}"
-        elif fps:
-            reason = (f"{len(fps)} false positive(s), none driven by model evidence above the threshold — unchanged")
-        elif missed:
-            near = [a for a in missed if T - T_STEP <= ev(a) < T and corroborated(a)]
-            if near:
-                collateral = [a for a in snap.ids if a not in injected and T - T_STEP <= ev(a) < T and corroborated(a)]
-                if collateral:
-                    reason = (f"{len(near)} missed mule(s) just below the threshold, but lowering one step would also "
-                              f"flag {len(collateral)} account(s) outside this attack — unchanged")
-                else:
-                    new_t = _clamp(T - T_STEP)
-                    reason = (f"{len(near)} missed mule(s) with corroborated model evidence just below the threshold "
-                              f"(max {max(ev(a) for a in near):.2f}) — lower one step")
-                    if new_t == T:
-                        reason += f"; already at the lower bound {T_MIN:.2f}"
-            else:
-                best = max((ev(a) for a in missed), default=0.0)
-                reason = (f"{len(missed)} missed mule(s) with model evidence far below the threshold (max {best:.2f}); "
-                          "one step would not catch them — unchanged")
-        elif injected:
-            reason = "all injected mules detected, no false positives — unchanged"
-        else:
-            reason = "run had no injected mule accounts — unchanged"
+        new_t, reason = threshold_step(T, [ev(a)[0] for a in fps], [ev(a) for a in missed], len(injected), collateral)
         name = _field(run, "scenario_id") or ""
         STATE.history.append({
             "t": clock.now_iso(), "value": new_t, "previous": T, "changed": new_t != T, "run_id": run_id or None,
