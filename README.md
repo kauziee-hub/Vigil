@@ -50,8 +50,10 @@ Full script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ```
 backend/vigil/      FastAPI service: contracts, sqlite3 (WAL) db, intent lifecycle, risk engine, payments, scenarios
+backend/vigil/intel/  detection intelligence: rules, early warning, drift, pattern memory, roles, RF + GNN inference, SHAP, consensus, /api/intel/*
+backend/ml/         synthetic-world generator + training/evaluation (train_all.py); artefacts in backend/models/
 backend/prima/      vendored PRIMA lineage engine (LIBR / pro-rata tracing with exact conservation)
-backend/tests/      211 tests (190 lineage + Vigil lifecycle, scenarios, API, invariants)
+backend/tests/      269 tests (190 lineage + Vigil lifecycle, scenarios, API, invariants, v2, intel)
 frontend/           Vite + React + TypeScript + Cytoscape (dagre) — built and served by the backend
 config/risk_policy.yaml   the only place weights, thresholds and windows live (versioned)
 scripts/benchmark_demo.py latency benchmark
@@ -66,11 +68,21 @@ cd backend; .venv\Scripts\python.exe -m pytest
 backend\.venv\Scripts\python.exe scripts\benchmark_demo.py
 ```
 
+Detection models (optional; the platform runs without them and shows "unavailable"):
+
+```powershell
+backend\.venv\Scripts\python.exe -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu   # training only
+backend\.venv\Scripts\python.exe -m pip install -r backend\requirements-ml.txt   # numpy, scikit-learn, shap (serving + SHAP)
+cd backend; .venv\Scripts\python.exe ml\train_all.py                             # ~3 min CPU, deterministic; rewrites backend\models\
+```
+
+Results are **SYNTHETIC VALIDATION** on computer-generated worlds (split by world, leave-one-attack-family-out), not real-bank accuracy: [docs/ML_VALIDATION_REPORT.md](docs/ML_VALIDATION_REPORT.md).
+
 On the build laptop: risk evaluation p95 ≈ 1 ms (target < 150 ms), graph queries < 1 ms, TaintTrace ≈ 80 ms over ~2,000 journals. See [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md).
 
 ## What is real, simulated, synthetic
 
-See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). In short: the decision engine, ledger, graph, tracing, interventions and realtime are real; external intelligence, call context, scam confirmations and bank review are **simulated** and labelled; all data is **synthetic**; no ML model is on the decision path ([docs/MODEL_CARD.md](docs/MODEL_CARD.md)).
+See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). In short: the decision engine, ledger, graph, tracing, interventions and realtime are real; external intelligence, call context, scam confirmations and bank review are **simulated** and labelled; all data is **synthetic**; no ML model decides a payment's tier — the retrained Random Forest, graph neural network, drift and pattern-memory detectors are shown beside each decision as corroborating evidence only ([docs/MODEL_CARD.md](docs/MODEL_CARD.md)).
 
 ## Conventions
 
