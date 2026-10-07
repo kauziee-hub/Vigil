@@ -88,3 +88,76 @@ def test_reset_clears_runs(client):
     assert runs.all_runs()
     client.post("/api/demo/reset")
     assert runs.all_runs() == []
+
+
+def _full_trace() -> dict:
+    """Reference: trace_multi over EVERY journal with real account kinds (the pre-v3 implementation)."""
+    from datetime import timezone
+
+    from prima.attribution.trace import Incident, ProvenanceGrade, trace_multi
+    from prima.ledger.models import Account, AccountKind, Journal, JournalKind, simple_transfer_entries
+
+    from vigil import clock
+    from vigil.risk import taint
+
+    accounts = {r["id"]: Account(id=r["id"], kind=AccountKind.CUSTOMER if r["kind"] == "customer" else AccountKind.EXTERNAL)
+                for r in db.q("SELECT id, kind FROM accounts")}
+    journals = [Journal(id=r["id"], kind=taint._KIND.get(r["kind"], JournalKind.TRANSFER),
+                        entries=simple_transfer_entries(r["sender_id"], r["recipient_id"], int(r["amount_paise"])),
+                        occurred_at=clock.parse(r["ts"]).astimezone(timezone.utc), seq=int(r["seq"]), prev_hash=taint.GENESIS)
+                for r in db.q("SELECT * FROM transactions ORDER BY seq")]
+    incidents = [Incident(id=l["id"], origin_journal_ids=frozenset({l["transaction_id"]}), reported_at=clock.parse(l["ts"]),
+                          grade=ProvenanceGrade.BANK_CONFIRMED) for l in taint._labels()]
+    out = {}
+    for rule in taint.RULES:
+        for inc_id, d in trace_multi(journals, incidents, rule, accounts, de_minimis_floor=taint.DE_MINIMIS_PAISE).items():
+            p = d.payload()
+            out[(inc_id, rule.value)] = (sorted((c["account_id"], c["amount_paise"]) for c in p["claims"] if c["amount_paise"] > 0),
+                                         p["left_perimeter_paise"], p["spent_paise"], p["attributable_total_paise"])
+    return out
+
+
+def test_restricted_taint_trace_equals_full_trace(world):
+    from vigil.risk import taint
+
+    scenarios.run_sync("s2")
+    scenarios.run_sync("atk_fan_in")
+    for _ in range(30):
+        ambient._tick()
+    for sender, recipient in (("anita.s@vigil", "kiran.traders@vigil"),):
+        tx = db.q1("SELECT id FROM transactions WHERE sender_id = ? AND recipient_id = ?", (sender, recipient))
+        with db.tx():
+            db.insert("fraud_labels", {"id": "LBL-EQ1", "transaction_id": tx["id"], "grade": "bank_confirmed",
+                                       "label": "scam", "labelled_by": "test", "ts": "2026-10-07T00:00:00.000Z"})
+    fan = db.q("SELECT id FROM transactions WHERE recipient_id = 'swift.collect@vigil' ORDER BY seq")[0]
+    with db.tx():
+        db.insert("fraud_labels", {"id": "LBL-EQ2", "transaction_id": fan["id"], "grade": "bank_confirmed",
+                                   "label": "scam", "labelled_by": "test", "ts": "2026-10-07T00:00:01.000Z"})
+    fast = taint.run(force=True)
+    full = _full_trace()
+    got = {}
+    for inc in fast["incidents"]:
+        for rule, r in inc["rules"].items():
+            got[(inc["label_id"], rule)] = (sorted((c["account_id"], c["amount_paise"]) for c in r["claims"]),
+                                            r["left_perimeter_paise"], r["spent_paise"], r["attributable_total_paise"])
+    assert got == full
+    assert fast["journals_considered"] < db.scalar("SELECT COUNT(*) FROM transactions") / 5   # it really is restricted
+
+
+def test_taint_cache_survives_unrelated_postings(world):
+    import time
+
+    from vigil.risk import taint
+
+    scenarios.run_sync("s2")
+    tx = db.q1("SELECT id FROM transactions WHERE sender_id = 'anita.s@vigil' AND recipient_id = 'kiran.traders@vigil'")
+    with db.tx():
+        db.insert("fraud_labels", {"id": "LBL-C1", "transaction_id": tx["id"], "grade": "bank_confirmed",
+                                   "label": "scam", "labelled_by": "test", "ts": "2026-10-07T00:00:00.000Z"})
+    first = taint.run(force=True)
+    for _ in range(10):
+        ambient._tick()                       # person-to-merchant postings outside the closure
+    t = time.perf_counter()
+    again = taint.run()
+    assert (time.perf_counter() - t) < 0.05
+    assert again is first

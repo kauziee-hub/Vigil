@@ -55,31 +55,69 @@ def _cache_key() -> str:
 
 
 def invalidate() -> None:
-    _cache["key"] = None
-    _cache["result"] = None
+    _cache.clear()
+    _cache.update(key=None, result=None)
+
+
+def _labels_key() -> str:
+    return str(db.scalar("SELECT COUNT(*) || ':' || COALESCE(MAX(id), '') FROM fraud_labels"))
+
+
+def _closure(origin_ids: set[str]) -> tuple[set[str], int]:
+    """Accounts that can hold value from the incidents: forward closure from the origin postings in seq order.
+
+    Exact for attribution: traced value only ever moves along postings whose sender already holds it, so an
+    account outside this closure never receives traced value and can be treated as outside the perimeter.
+    """
+    rows = db.q("SELECT id, seq, sender_id, recipient_id FROM transactions WHERE seq >= "
+                "(SELECT MIN(seq) FROM transactions WHERE id IN (%s)) ORDER BY seq"
+                % ",".join("?" * len(origin_ids)), tuple(origin_ids))
+    reach: set[str] = set()
+    for r in rows:
+        if r["id"] in origin_ids or r["sender_id"] in reach:
+            reach.add(r["recipient_id"])
+    max_seq = int(db.scalar("SELECT COALESCE(MAX(seq), -1) FROM transactions"))
+    return reach, max_seq
 
 
 def run(force: bool = False) -> dict[str, Any]:
     key = _cache_key()
     if not force and _cache["key"] == key and _cache["result"] is not None:
         return _cache["result"]
+    labels_key = _labels_key()
+    cached = _cache.get("result")
+    if not force and cached is not None and _cache.get("labels_key") == labels_key and _cache.get("reach") is not None:
+        # incremental: new postings that touch no account in the closure cannot change any attribution
+        reach = _cache["reach"]
+        new_rows = db.q("SELECT sender_id, recipient_id FROM transactions WHERE seq > ?", (_cache["through_seq"],))
+        if not any(r["sender_id"] in reach or r["recipient_id"] in reach for r in new_rows):
+            _cache.update(key=key, through_seq=int(db.scalar("SELECT COALESCE(MAX(seq), -1) FROM transactions")))
+            return cached
     started = time.perf_counter()
     labels = _labels()
     if not labels:
         result = {"incidents": [], "exposure": {}, "hops": {}, "computed_ms": 0.0, "through_seq": None}
-        _cache.update(key=key, result=result)
+        _cache.update(key=key, result=result, labels_key=labels_key, reach=None)
         return result
 
+    origin_ids = {label["transaction_id"] for label in labels}
+    reach, max_seq = _closure(origin_ids)
+    # perimeter = the closure; everyone else is "external" (never holds traced value; see _closure)
     accounts = {
         row["id"]: Account(
             id=row["id"],
-            kind=AccountKind.CUSTOMER if row["kind"] == "customer" else AccountKind.EXTERNAL,
+            kind=AccountKind.CUSTOMER if row["kind"] == "customer" and row["id"] in reach else AccountKind.EXTERNAL,
             display_name=row["display_name"],
         )
         for row in db.q("SELECT id, kind, display_name FROM accounts")
     }
+    marks = ",".join("?" * len(reach))
+    journal_rows = db.q(
+        "SELECT id, seq, kind, sender_id, recipient_id, amount_paise, ts FROM transactions "
+        f"WHERE sender_id IN ({marks}) OR recipient_id IN ({marks}) OR id IN ({','.join('?' * len(origin_ids))}) "
+        "ORDER BY seq", (*reach, *reach, *origin_ids))
     journals: list[Journal] = []
-    for row in db.q("SELECT id, seq, kind, sender_id, recipient_id, amount_paise, ts FROM transactions ORDER BY seq"):
+    for row in journal_rows:
         journals.append(
             Journal(
                 id=row["id"],
@@ -156,10 +194,11 @@ def run(force: bool = False) -> dict[str, Any]:
         "exposure": exposure,
         "hops": hops,
         "computed_ms": round((time.perf_counter() - started) * 1000, 2),
-        "through_seq": journals[-1].seq if journals else None,
+        "through_seq": max_seq,
         "journals_considered": len(journals),
+        "perimeter_accounts": len(reach),
     }
-    _cache.update(key=key, result=result)
+    _cache.update(key=key, result=result, labels_key=labels_key, reach=reach, through_seq=max_seq)
     return result
 
 
