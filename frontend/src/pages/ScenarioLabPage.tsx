@@ -4,13 +4,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { ScenarioCompare, ScenarioEvent, ScenarioExplain, ScenarioReplay, ScenarioStatus } from "../api/types";
-import { ConsensusStrip, DetectorTable } from "../components/intel";
+import type { DetectorFamily, ScenarioCompare, ScenarioEvent, ScenarioExplain, ScenarioReplay, ScenarioStatus } from "../api/types";
+import { ConsensusStrip, DetectorTable, detectorStatus } from "../components/intel";
+import { Synthetic } from "../components/ModelCard";
 import { usePlatform, useConsoleEvents } from "../components/Shell";
-import { Async, PageHead, Panel, Pill, Sim, Tabs, TierPill } from "../components/ui";
+import { Async, Glyph, PageHead, Panel, Pill, Sim, Tabs, TierPill } from "../components/ui";
 import { formatINR, formatTime, handle } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
-import type { Status } from "../lib/status";
+import { FAMILY, KIND_LABEL, type Status } from "../lib/status";
 
 type Cat = "payment" | "attack" | "control";
 const CAT_LABEL: Record<Cat, string> = { payment: "Payment journeys", attack: "Attack patterns (network)", control: "Controls" };
@@ -250,26 +251,71 @@ function ReplayView({ s, network }: { s: ScenarioStatus; network: boolean }) {
   );
 }
 
+const AGREE_ST: Record<string, Status> = { strong: "critical", moderate: "high", weak: "watch", none: "normal" };
+
+/** COMPARE DETECTORS: every account the scenario touched × every detector family, one dense matrix. */
 function CompareView({ id }: { id: string }) {
   const cmp = useLoad<ScenarioCompare>(() => api.intelCompare(id), [id]);
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <div className="panel-b">
       <Async load={cmp} what="Detector comparison" endpoint="/api/intel/scenarios/{id}/compare">
-        {(c) => c.accounts.length === 0 ? <div className="empty">No accounts touched by this scenario yet. Start it first.</div> : (
-          <div className="stack">
-            <div className="xs muted">Every detector family on each account this scenario touched. Model families are corroborating evidence (SYNTHETIC VALIDATION) — they never set a tier.</div>
-            {c.accounts.map((a) => (
-              <div key={a.account_id} className="trace-col">
-                <div className="spread" style={{ marginBottom: 6 }}>
-                  <Link className="b" to={`/investigations/account/${encodeURIComponent(a.account_id)}`}>{handle(a.account_id)}</Link>
-                  {a.seed_role && <span className="tag">scripted role: {a.seed_role}</span>}
-                </div>
-                <ConsensusStrip consensus={a.consensus} detectors={a.detectors} />
-                <div style={{ marginTop: 6 }}><DetectorTable detectors={a.detectors} compact /></div>
+        {(c) => {
+          if (c.accounts.length === 0) return <div className="empty">No accounts touched by this scenario yet. Start it first.</div>;
+          const fams: DetectorFamily[] = [];
+          c.accounts.forEach((a) => a.detectors.forEach((d) => { if (!fams.includes(d.family)) fams.push(d.family); }));
+          const sel = c.accounts.find((a) => a.account_id === open) ?? null;
+          return (
+            <div className="stack">
+              <div className="row wrap tight xs muted">
+                <Synthetic />
+                <span>Each account this scenario touched, every detector family side by side. Coloured = flagged by that family; grey = evaluated, not flagged. Scripted role is the scenario's ground truth, shown for evaluation only. Model families are corroborating evidence — they never set a tier.</span>
               </div>
-            ))}
-          </div>
-        )}
+              <div className="tscroll">
+                <table className="dt compact matrix">
+                  <thead>
+                    <tr>
+                      <th>Account</th><th>Scripted role</th>
+                      {fams.map((f) => <th key={f} className="center" title={FAMILY[f]?.label}><Glyph family={f} /></th>)}
+                      <th>Consensus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.accounts.map((a) => (
+                      <tr key={a.account_id} className={`click ${open === a.account_id ? "sel" : ""}`} onClick={() => setOpen(open === a.account_id ? null : a.account_id)}>
+                        <td className="xs"><b>{handle(a.account_id)}</b></td>
+                        <td className="xs muted nowrap" title={a.seed_role ?? undefined}>{a.seed_role ? a.seed_role.split(" · ")[0].replace(/_/g, " ") : "—"}</td>
+                        {fams.map((f) => {
+                          const d = a.detectors.find((x) => x.family === f);
+                          if (!d) return <td key={f} className="center dim xs">—</td>;
+                          const st = detectorStatus(d);
+                          const short = d.display.split(" · ")[0];
+                          return (
+                            <td key={f} className="center" title={`${d.label}: ${d.display} (${KIND_LABEL[d.kind] ?? d.kind})`}>
+                              {d.status !== "ok" ? <span className="xs dim">n/a</span>
+                                : <span className={`cell ${d.flagged ? "on" : ""}`} style={d.flagged ? { color: `var(--st-${st})`, borderColor: `var(--st-${st})` } : undefined}>{short}</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="xs nowrap"><Pill status={AGREE_ST[a.consensus.agreement] ?? "unknown"}>{a.consensus.families_flagging}/{a.consensus.families_evaluated} {a.consensus.agreement}</Pill></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {sel && (
+                <div className="trace-col">
+                  <div className="spread" style={{ marginBottom: 6 }}>
+                    <Link className="b" to={`/investigations/account/${encodeURIComponent(sel.account_id)}`}>{handle(sel.account_id)} · open account investigation →</Link>
+                    {sel.seed_role && <span className="tag">scripted role: {sel.seed_role}</span>}
+                  </div>
+                  <ConsensusStrip consensus={sel.consensus} detectors={sel.detectors} />
+                  <div style={{ marginTop: 6 }}><DetectorTable detectors={sel.detectors} compact /></div>
+                </div>
+              )}
+            </div>
+          );
+        }}
       </Async>
     </div>
   );

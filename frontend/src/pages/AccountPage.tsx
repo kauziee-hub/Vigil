@@ -89,119 +89,115 @@ export function AccountPage() {
         <Metric k="Opened" v={<span style={{ fontSize: 13 }}>{new Date(a.opened_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>} d={`daily limit ${formatINR(a.daily_limit_paise)}`} />
       </div>
 
-      <div className="stack loose">
-        <div className="grid cols-2 align-start">
-          <Panel kicker="Risk evolution" title="Risk over time" q="each marker says why the score moved">
-            <Async load={rt} what="Risk evolution" endpoint="/api/accounts/{id}/risk-timeline">
-              {(pts) => pts.length === 0
-                ? <div className="empty">This account has not initiated an evaluated payment. Its risk as a recipient is the network evidence below.</div>
-                : <RiskEvolution points={pts} ladder={policy.data?.ladder} onPickDecision={(id) => nav(`/investigations/decision/${id}`)}
-                                 decisionId={pts[pts.length - 1].decision_id ?? undefined} />}
-            </Async>
-          </Panel>
-          <Panel kicker="Neighbourhood" title={`${hops}-hop money network`} flush
-                 q={scene.data ? `${scene.data.nodes.length} accounts · ${scene.data.edges.length} flows` : undefined}
-                 actions={<>
-                   <Seg options={[["1", "1-hop"], ["2", "2-hop"]]} value={hops} onChange={setHops} />
-                   <Link className="btn xs" to={`/network?focus=${encodeURIComponent(a.id)}&hops=${hops}`}>Open in 3D ↗</Link>
-                 </>}
-                 footer="Frozen server layout (/api/graph/scene?focus=), projected flat. Click an account to open it.">
-            <Async load={scene} what="Graph scene" endpoint="/api/graph/scene">
-              {(s) => <SceneThumb scene={s} height={290} focus={a.id} onPick={(id) => id !== a.id && nav(`/investigations/account/${encodeURIComponent(id)}`)} />}
-            </Async>
-          </Panel>
-        </div>
-
-        <div className="grid cols-2 align-start">
-          <Panel kicker="Rule engine · RingWatch" title="Network evidence" q="operational — feeds the recipient-network dimension of every payment to this account" flush>
-            <div className="sect">
-              {net.loading && !net.data && <Loading />}
-              {net.data && signals.length === 0 && <div className="xs muted">No network rule fires for this account in the 72-hour window.</div>}
-              {signals.map((s) => <SignalRow key={s.rule_id} s={s} />)}
-            </div>
-            {features.length > 0 && (
+      {/* two independent columns: operational evidence + activity (left), network + model evidence (right) */}
+      <div className="grid cols-2 align-start">
+        <div className="stack">
+            <Panel kicker="Risk evolution" title="Risk over time" q="each marker says why the score moved">
+              <Async load={rt} what="Risk evolution" endpoint="/api/accounts/{id}/risk-timeline">
+                {(pts) => pts.length === 0
+                  ? <div className="empty">This account has not initiated an evaluated payment. Its risk as a recipient is the network evidence below.</div>
+                  : <RiskEvolution points={pts} ladder={policy.data?.ladder} onPickDecision={(id) => nav(`/investigations/decision/${id}`)}
+                                   decisionId={pts[pts.length - 1].decision_id ?? undefined} />}
+              </Async>
+            </Panel>
+            <Panel kicker="Rule engine · RingWatch" title="Network evidence" q="operational — feeds the recipient-network dimension of every payment to this account" flush>
               <div className="sect">
-                <div className="sect-t">Network features</div>
-                <div className="ev">{features.map(([k, v]) => <span key={k} className="ev-kv">{humanKey(k)} <b>{evValue(k, v)}</b></span>)}</div>
+                {net.loading && !net.data && <Loading />}
+                {net.data && signals.length === 0 && <div className="xs muted">No network rule fires for this account in the 72-hour window.</div>}
+                {signals.map((s) => <SignalRow key={s.rule_id} s={s} />)}
               </div>
-            )}
-            <div className="sect">
-              <div className="sect-t">External intelligence <Sim /></div>
-              {ext && ext.status ? (
-                <div className="row wrap">
-                  <Pill status={ext.status === "confirmed_mule" ? "fraud" : ext.status === "reported" ? "high" : ext.status === "watchlist" ? "watch" : "normal"}>{ext.status.replace("_", " ")}</Pill>
-                  {typeof ext.risk_score === "number" && <span className="mono xs">risk {ext.risk_score.toFixed(2)}</span>}
-                  {(ext.reason_codes ?? []).map((c) => <span key={c} className="tag mono">{c}</span>)}
-                  {ext.source && <span className="xs muted">{ext.source}</span>}
+              {features.length > 0 && (
+                <div className="sect">
+                  <div className="sect-t">Network features</div>
+                  <div className="ev">{features.map(([k, v]) => <span key={k} className="ev-kv">{humanKey(k)} <b>{evValue(k, v)}</b></span>)}</div>
                 </div>
-              ) : <div className="xs muted">No registry entry for this account (simulated local registry).</div>}
-            </div>
-            {node && node.flags.length > 0 && (
-              <div className="sect"><div className="sect-t">Scene flags</div><div className="row wrap tight">{node.flags.map((f) => <span key={f} className="tag">{f}</span>)}</div></div>
-            )}
-          </Panel>
-          <Panel kicker="Model evidence" title="Explains the MODEL" q="detector consensus · SHAP · drift · pattern memory · role — corroborating only" flush>
-            <AccountIntelBlock accountId={a.id} />
-          </Panel>
-        </div>
-
-        <div className="grid cols-2 align-start">
-          <Panel kicker="As sender" title="Payment intents" flush q="customer / scenario intents (background stream excluded)">
-            <Async load={intents} what="Intents" endpoint="/api/intents">
-              {(list) => list.length === 0 ? <div className="empty">No customer or scenario payment intents from this account.</div> : (
-                <table className="dt compact">
-                  <thead><tr><th>Time</th><th>Recipient</th><th className="num">Amount</th><th>Tier</th><th>State</th><th>Decision</th></tr></thead>
-                  <tbody>
-                    {list.slice(0, 15).map((it) => (
-                      <tr key={it.intent_id} className={it.decision_id ? "click" : ""} onClick={() => it.decision_id && nav(`/investigations/decision/${it.decision_id}`)}>
-                        <td className="mono xs">{formatTime(it.created_at)}</td>
-                        <td className="xs">{handle(it.recipient_id)}</td>
-                        <td className="num">{formatINR(it.amount_paise)}</td>
-                        <td><TierPill tier={it.tier} /></td>
-                        <td><StatePill state={it.state} /></td>
-                        <td className="mono xs">{it.decision_id ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               )}
-            </Async>
-          </Panel>
-          <Panel kicker="Ledger" title="Recent postings" flush q="double-entry, newest first">
-            <Async load={txs} what="Ledger postings" endpoint="/api/accounts/{id}/transactions">
-              {(list) => list.length === 0 ? <div className="empty">No ledger postings.</div> : (
-                <div className="tscroll" style={{ maxHeight: 360 }}>
+              <div className="sect">
+                <div className="sect-t">External intelligence <Sim /></div>
+                {ext && ext.status ? (
+                  <div className="row wrap">
+                    <Pill status={ext.status === "confirmed_mule" ? "fraud" : ext.status === "reported" ? "high" : ext.status === "watchlist" ? "watch" : "normal"}>{ext.status.replace("_", " ")}</Pill>
+                    {typeof ext.risk_score === "number" && <span className="mono xs">risk {ext.risk_score.toFixed(2)}</span>}
+                    {(ext.reason_codes ?? []).map((c) => <span key={c} className="tag mono">{c}</span>)}
+                    {ext.source && <span className="xs muted">{ext.source}</span>}
+                  </div>
+                ) : <div className="xs muted">No registry entry for this account (simulated local registry).</div>}
+              </div>
+              {node && node.flags.length > 0 && (
+                <div className="sect"><div className="sect-t">Scene flags</div><div className="row wrap tight">{node.flags.map((f) => <span key={f} className="tag">{f}</span>)}</div></div>
+              )}
+            </Panel>
+            <Panel kicker="As sender" title="Payment intents" flush q="customer / scenario intents (background stream excluded)">
+              <Async load={intents} what="Intents" endpoint="/api/intents">
+                {(list) => list.length === 0 ? <div className="empty">No customer or scenario payment intents from this account.</div> : (
                   <table className="dt compact">
-                    <thead><tr><th>Time</th><th>Tx</th><th>Counterparty</th><th className="num">Amount</th><th>Source</th></tr></thead>
+                    <thead><tr><th>Time</th><th>Recipient</th><th className="num">Amount</th><th>Tier</th><th>State</th><th>Decision</th></tr></thead>
                     <tbody>
-                      {list.slice(0, 40).map((t) => {
-                        const inbound = t.recipient_id === accountId;
-                        return (
-                          <tr key={t.id}>
-                            <td className="mono xs">{formatTime(t.ts)}</td>
-                            <td className="mono xs dim">{t.id}</td>
-                            <td className="xs"><Link to={`/investigations/account/${encodeURIComponent(inbound ? t.sender_id : t.recipient_id)}`}>{inbound ? "← " : "→ "}{handle(inbound ? t.sender_id : t.recipient_id)}</Link></td>
-                            <td className="num" style={{ color: inbound ? undefined : "var(--ink-2)" }}>{inbound ? "+" : "−"}{formatINR(t.amount_paise)}</td>
-                            <td className="xs muted">{t.source}{t.source === "scenario" && <> <Sim text="SIM" /></>}</td>
-                          </tr>
-                        );
-                      })}
+                      {list.slice(0, 15).map((it) => (
+                        <tr key={it.intent_id} className={it.decision_id ? "click" : ""} onClick={() => it.decision_id && nav(`/investigations/decision/${it.decision_id}`)}>
+                          <td className="mono xs">{formatTime(it.created_at)}</td>
+                          <td className="xs">{handle(it.recipient_id)}</td>
+                          <td className="num">{formatINR(it.amount_paise)}</td>
+                          <td><TierPill tier={it.tier} /></td>
+                          <td><StatePill state={it.state} /></td>
+                          <td className="mono xs">{it.decision_id ?? "—"}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
-                </div>
-              )}
-            </Async>
+                )}
+              </Async>
+            </Panel>
+            <Panel kicker="Ledger" title="Recent postings" flush q="double-entry, newest first">
+              <Async load={txs} what="Ledger postings" endpoint="/api/accounts/{id}/transactions">
+                {(list) => list.length === 0 ? <div className="empty">No ledger postings.</div> : (
+                  <div className="tscroll" style={{ maxHeight: 360 }}>
+                    <table className="dt compact">
+                      <thead><tr><th>Time</th><th>Tx</th><th>Counterparty</th><th className="num">Amount</th><th>Source</th></tr></thead>
+                      <tbody>
+                        {list.slice(0, 40).map((t) => {
+                          const inbound = t.recipient_id === accountId;
+                          return (
+                            <tr key={t.id}>
+                              <td className="mono xs">{formatTime(t.ts)}</td>
+                              <td className="mono xs dim">{t.id}</td>
+                              <td className="xs"><Link to={`/investigations/account/${encodeURIComponent(inbound ? t.sender_id : t.recipient_id)}`}>{inbound ? "← " : "→ "}{handle(inbound ? t.sender_id : t.recipient_id)}</Link></td>
+                              <td className="num" style={{ color: inbound ? undefined : "var(--ink-2)" }}>{inbound ? "+" : "−"}{formatINR(t.amount_paise)}</td>
+                              <td className="xs muted">{t.source}{t.source === "scenario" && <> <Sim text="SIM" /></>}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Async>
+            </Panel>
+          <Panel kicker="Profile" title="Account record">
+            <KV c4 rows={[
+              ["Kind", a.kind], ["Persona", a.persona ?? "—"],
+              ["Primary device", <span className="mono xs">{a.primary_device ?? "—"}</span>], ["All devices", <span className="mono xs">{a.devices.join(", ") || "—"}</span>],
+              ["Trusted contact", a.trusted_contact ? `${a.trusted_contact.name} (${a.trusted_contact.relation}) ${a.trusted_contact.phone_masked}` : "none nominated"],
+              ["Payees", a.payees.length ? a.payees.slice(0, 6).map((p) => `${p.display_name} (${p.payments})`).join(" · ") + (a.payees.length > 6 ? ` +${a.payees.length - 6}` : "") : "none"],
+            ]} />
           </Panel>
         </div>
-
-        <Panel kicker="Profile" title="Account record">
-          <KV c4 rows={[
-            ["Kind", a.kind], ["Persona", a.persona ?? "—"],
-            ["Primary device", <span className="mono xs">{a.primary_device ?? "—"}</span>], ["All devices", <span className="mono xs">{a.devices.join(", ") || "—"}</span>],
-            ["Trusted contact", a.trusted_contact ? `${a.trusted_contact.name} (${a.trusted_contact.relation}) ${a.trusted_contact.phone_masked}` : "none nominated"],
-            ["Payees", a.payees.length ? a.payees.slice(0, 6).map((p) => `${p.display_name} (${p.payments})`).join(" · ") + (a.payees.length > 6 ? ` +${a.payees.length - 6}` : "") : "none"],
-          ]} />
-        </Panel>
+        <div className="stack">
+            <Panel kicker="Neighbourhood" title={`${hops}-hop money network`} flush
+                   q={scene.data ? `${scene.data.nodes.length} accounts · ${scene.data.edges.length} flows` : undefined}
+                   actions={<>
+                     <Seg options={[["1", "1-hop"], ["2", "2-hop"]]} value={hops} onChange={setHops} />
+                     <Link className="btn xs" to={`/network?focus=${encodeURIComponent(a.id)}&hops=${hops}`}>Open in 3D ↗</Link>
+                   </>}
+                   footer="Frozen server layout (/api/graph/scene?focus=), projected flat. Click an account to open it.">
+              <Async load={scene} what="Graph scene" endpoint="/api/graph/scene">
+                {(s) => <SceneThumb scene={s} height={290} focus={a.id} onPick={(id) => id !== a.id && nav(`/investigations/account/${encodeURIComponent(id)}`)} />}
+              </Async>
+            </Panel>
+            <Panel kicker="Model evidence" title="Explains the MODEL" q="detector consensus · SHAP · drift · pattern memory · role — corroborating only" flush>
+              <AccountIntelBlock accountId={a.id} />
+            </Panel>
+        </div>
       </div>
     </>
   );

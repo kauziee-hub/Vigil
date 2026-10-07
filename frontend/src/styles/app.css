@@ -342,6 +342,11 @@ table.sigt .s-c { width: 56px; text-align: right; font-size: var(--fs-sm); }
 .fam.on { background: var(--surface-hi); font-weight: 700; }
 .fam.na { border-style: dashed; color: var(--ink-4); background: transparent; }
 
+/* detector comparison matrix */
+table.matrix td.center, table.matrix th.center { text-align: center; }
+table.matrix .cell { display: inline-block; min-width: 44px; padding: 1px 5px; border: 1px solid transparent; border-radius: var(--r1); font: 500 var(--fs-xs)/1.5 var(--font-data); color: var(--ink-4); white-space: nowrap; }
+table.matrix .cell.on { font-weight: 600; background: var(--surface-2); }
+
 /* SHAP (diverging bars) */
 .shap { display: flex; flex-direction: column; gap: 3px; }
 .shap-r { display: grid; grid-template-columns: minmax(120px, 1.3fr) minmax(50px, 1fr) minmax(50px, 1fr) 54px minmax(70px, 0.7fr); gap: 0 8px; align-items: center; font-size: var(--fs-md); }

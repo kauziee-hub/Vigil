@@ -34,7 +34,12 @@ export function DetectorTable({ detectors, compact }: { detectors: DetectorResul
             <tr key={`${d.family}-${d.label}`}>
               <td><span className="row tight"><Glyph family={d.family} /><span>{d.label || FAMILY[d.family]?.label}</span></span></td>
               <td>
-                {d.status !== "ok" ? <span className="dim">{d.status.replace("_", " ")}</span> : (
+                {d.status !== "ok" ? <span className="dim">{d.status.replace("_", " ")}</span> : d.display.length > 9 ? (
+                  <span className="stack tight" style={{ gap: 2 }}>
+                    {d.value !== null && UNIT_KINDS.has(d.kind) && <Bar value={d.value} status={st} />}
+                    <span className="mono xs" style={{ color: `var(--st-${st})` }}>{d.display}</span>
+                  </span>
+                ) : (
                   <span className="row tight">
                     {d.value !== null && UNIT_KINDS.has(d.kind) && <span className="grow"><Bar value={d.value} status={st} /></span>}
                     <span className="mono sm" style={{ color: `var(--st-${st})` }}>{d.display}</span>
