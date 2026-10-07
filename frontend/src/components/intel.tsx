@@ -63,7 +63,7 @@ export function ConsensusStrip({ consensus, detectors }: { consensus: DetectorCo
   return (
     <div className="consensus">
       <div className="spread">
-        <div><span className="big mono">{consensus.families_flagging}</span><span className="muted"> of {consensus.families_evaluated} independent signal families flag this account</span></div>
+        <div><span className="big mono">{consensus.families_flagging}</span><span className="muted"> of {consensus.families_evaluated} signal families flag this account</span></div>
         <Pill status={st}>{consensus.agreement} agreement</Pill>
       </div>
       <div className="fam-row">

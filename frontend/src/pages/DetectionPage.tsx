@@ -89,7 +89,7 @@ export function DetectionPage() {
           </div>
         </Panel>
 
-        <Panel kicker="Early warning" title="Accounts trending towards mule behaviour" flush>
+        <Panel kicker="Early warning" title="Behaviour change — not mule evidence on its own" flush>
           <Async load={overview} what="Early warnings" endpoint="/api/intel/overview">
             {(o) => o.early_warnings.length === 0 ? <div className="empty">No early warning raised.</div> : (
               <table className="dt compact">
