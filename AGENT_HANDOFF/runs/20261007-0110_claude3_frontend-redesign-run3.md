@@ -7,7 +7,7 @@
 | Objective | Finish the redesign from `claude3/run2-wip`: Investigations (wire Replay.tsx; account view), Interventions, Governance & Audit, Scenario Lab, Overview, Detection & Models, System Health, contact alignment, screenshots |
 | Exact Prompt | Full message sent: `AGENT_HANDOFF/prompts/v2_claude3_run3_resume.md` (verbatim; it points to the binding `AGENT_HANDOFF/prompts/v2_claude3_frontend_redesign.md`). |
 | Previous run | `runs/20261006-2303_claude3_frontend-redesign-run2.md` — INTERRUPTED |
-| Status | RETURNED ~07:50 IST (after one stop by API usage limit at ~01:53, WIP `24f14cf`, resumed 07:40 via `prompts/v2_claude3_run3_continue_after_limit.md`) — report saved verbatim below; lead review/merge recorded after it |
+| Status | DONE — merged into main `88823fb` (report saved first, `86da0b8`); one stop by API usage limit at ~01:53 (WIP `24f14cf`), resumed 07:40 via `prompts/v2_claude3_run3_continue_after_limit.md` |
 
 ## Agent Output / Summary (verbatim final report)
 
@@ -85,25 +85,38 @@ _(end of verbatim report)_
 Agent's last message before the stop: "Now re-capturing the case pages after the ladder/chart fixes, then reviewing the rest." Commits on `worktree-agent-ae4558870dbce67de` before the stop: f94eba3 (untrack tsbuildinfo), 77e7ab3 Investigations, 9a24105 Interventions, dd66b91 Governance & Audit, 908df2f Scenario Lab, a82d373 Overview, 2e05421 Detection & Models, 8c81794 System Health, 496e7bf trusted-contact alignment, be5e495 Network lazy Cytoscape + label declutter. Uncommitted: Replay.tsx, OverviewPage.tsx, app.css (+27/−11) and 17 screenshots in docs/ui_v2/ — `tsc -b --noEmit` exit 0 — committed verbatim by Claude 1 as `24f14cf`. Its Vite dev server (:5183) left running for the resumed agent.
 
 ## Files Changed
-_(pending)_
+Lead ownership check: 63 files, +6912/−1520. All inside Claude 3's ownership except `.claude/launch.json` (dev-server entry from run 2, harmless) and one appended entry in `AGENT_HANDOFF/REQUESTS.md` (allowed by its prompt). `frontend/src/api/**` untouched. New dependency: `three` (+ `@types/three`) only. Worktree clean at return; no node processes left.
 
 ## Tests Run / Test Results
-_(pending)_
+Lead, on main after merge (07:51–08:10 IST): `npm install` + `npm run build` green (main 395 kB, NetworkPage 537 kB lazy, EvidenceGraph 543 kB lazy); `pytest` 269 → 271 after lead fixes; smoke 8/8.
+**Browser walkthrough (lead, built-in browser, demo reset 07:54):**
+- Act 1 s0 → T0 monitored 0.000; live step log over the realtime bus ✔
+- Act 2 s1 → T2 0.3425; record `evaluation_context` = 14 IST pinned; 6 model families beside the decision, never in the tier ✔. Case page: replay (5 frames), risk evolution with WHY per point, policy counterfactual ladder (→ T0 with clean recipient), ReasonLine "explains the OPERATIONAL DECISION" separate from consensus/SHAP "explains the MODEL", honest kinds, provenance with SIMULATED markers ✔
+- Act 3 s2 (17 steps) ✔; COMPARE DETECTORS matrix (kiran 8/8, zenith 5/8, pooja 6/8 strong; rahul.m weak = honest miss; victims drift HIGH 1/8 weak) ✔; 3D scoped scene renders (22 nodes, layered layout, role shapes, legend) ✔; Confirm scam on anita.s ₹48,000 → TaintTrace conserved (₹21,500 kiran + ₹26,500 zenith = ₹48,000) ✔; feedback loop s1 again → T3 scoped hold 0.58 with NET_LABELLED_ACCOUNT + NET_TAINT_EXPOSURE ✔
+- Act 4 s3 → T4 0.6425, ₹5,61,600 held, ESCALATED; `/contact/arjun` (375 px) shows facts, no accusations; "I'm calling them now" → POST 200 → bank queue shows "Arjun Rao · calling user"; bank reject → REJECTED, hold outcome rejected, provider not called ✔ (the UI Reject uses `window.confirm`, which the embedded test browser auto-dismisses; the same endpoint was exercised directly)
+- Act 5 governance record DEC-000031: evaluation context, ladder at decision time, all component/model versions, provenance, operator trail incl. bank reject, payment result "provider not called · no posting" ✔
+- Control s4 → T0 0.0675 ✔; Detection & Models and System Health render live data, no console errors ✔
 
 ## Screenshots / Artifacts
-_(pending)_
+`docs/ui_v2/` — 20 files (18 desktop 1440×900, 2 mobile 390×844), re-captured by the agent on the reset world with live intel.
 
 ## Problems Found
-_(pending)_
+Fixed by the lead on main during the walkthrough:
+1. Browsers kept showing the cached v1 shell after the v2 build (index.html had no cache header) → `Cache-Control: no-cache` on index.html (`d6e83ae`, test).
+2. Decision Replay spark path started with `M x V y` (invalid SVG; chart not drawn) → `Replay.tsx` (`4c5b750`).
+3. Scenario Lab "Decisions produced" stale after re-running a 1-step scenario → refetch on run id (`a3b9ac9`).
+4. Claude 3's `min_tier` request implemented (`00f3920`).
+Open (polish, for Cursor / later): the Interventions queue table shows ~1 row with nested scrollbars at a ~800 px viewport; drift table "CHANGE +4.00" is a capped z-score and is not labelled as such.
+Open (modelling, Claude 2 run 4): an ordinary customer (ramesh) gets role "Distributor" + moderate agreement from early warning + drift alone after the s4 rent payment.
 
 ## Decisions Made
-_(pending)_
+Merge as-is; fix the three walkthrough defects on main rather than re-launching Claude 3. Keep `window.confirm` on Reject (a destructive bank action deserves a confirmation).
 
 ## Remaining Work
-_(pending)_
+Cursor polish pass (now unblocked). DEMO_SCRIPT v2 / README frontend section (lead).
 
 ## Git Commit / Diff Reference
-Base: main @ (commit adding this record). Starts by merging the run-2 WIP branch. Branch: _(pending)_
+Base: main @ `9351a91`; merged `claude3/run2-wip`, then master twice. Branch `worktree-agent-ae4558870dbce67de` @ `3aaa7ae` → renamed `claude3/run3`; worktree removed. Merge commit on main: `88823fb`.
 
 ## Mid-run messages from Claude 1 (verbatim)
 1. (~01:25 IST) "Lead update (backend on :8000 restarted at ~01:24 IST — a brief proxy error around then was expected; database kept, nothing reseeded). Now live from main 23dcbbf: (1) `GraphScene.version` is a content hash (`scene-<16 hex>`) instead of the graph-counter cache key, so a re-fetch that returns the same picture returns the same version — your NetworkPage "identical version -> keep the same object" path now actually fires; do not parse the version string. (2) Scripted scenarios are now time-of-day independent: s1 is Tier 2 at any hour (it was Tier 3 between 00:00 and 05:00 IST). Each decision's raw audit payload (`reasons.audit`) has a new `evaluation_context: {local_hour_ist, local_hour_source}` where source is "wall clock" or "pinned by scripted scenario" — show it in the raw record / governance view if convenient; no type change, do not edit frontend/src/api. Also: I opened and closed one Browser-pane tab at localhost:8000 during the restart; your tab "seed" (localhost:5183) is untouched and active — pass its tabId explicitly in browser calls."
