@@ -120,6 +120,49 @@ def test_scenario_tiers_do_not_depend_on_time_of_day(world, monkeypatch):
     assert "BEH_ODD_HOUR" in live.rules_fired
 
 
+def test_ambient_stream_keeps_every_account_within_its_own_routine(world):
+    import pytest
+
+    from vigil.sim import ambient
+
+    legit = [r["id"] for r in db.q("SELECT id FROM accounts WHERE seed_role = 'legit' AND kind = 'customer'")]
+    for _ in range(400):
+        ambient._tick()
+    assert ambient.STATE["count"] > 20                      # it still produces a visible stream ...
+    for a in legit:                                          # ... but never pushes an account past its own busiest 72 h
+        ambient_rows = db.scalar("SELECT COUNT(*) FROM transactions WHERE source = 'ambient' "
+                                 "AND (sender_id = ? OR recipient_id = ?)", (a, a))
+        if ambient_rows:
+            assert not _over_routine(a), a
+    pytest.importorskip("numpy")
+    from vigil.intel import service
+
+    scores = service.scores()["scores"]
+    flagged = [a for a in legit if a in scores and (scores[a]["drift_level"] == "HIGH" or scores[a]["early_warning"]
+                                                    or (scores[a]["rf"] or 0) >= 0.5 or (scores[a]["gnn"] or 0) >= 0.5)]
+    assert flagged == []                                     # ordinary customers do not look like mules
+
+
+def _over_routine(account_id: str) -> bool:
+    from datetime import timedelta
+
+    from vigil import clock
+    from vigil.sim import ambient
+
+    window_start = clock.now() - timedelta(hours=ambient.WINDOW_H)
+    rows = db.q("SELECT ts FROM transactions WHERE (sender_id = ? OR recipient_id = ?) AND ts >= ?",
+                (account_id, account_id, clock.iso(window_start - timedelta(days=ambient.BASELINE_DAYS))))
+    current, blocks = 0, {}
+    for r in rows:
+        t = clock.parse(r["ts"])
+        if t >= window_start:
+            current += 1
+        else:
+            k = int((window_start - t).total_seconds() // (ambient.WINDOW_H * 3600))
+            blocks[k] = blocks.get(k, 0) + 1
+    return current > max(blocks.values(), default=0)
+
+
 def test_attack_scenarios_are_deterministic_and_balanced(world):
     first = {sid: scenarios.touched_accounts(sid) for sid in scenarios.SCENARIOS if sid.startswith("atk_")}
     assert len(first) == 10

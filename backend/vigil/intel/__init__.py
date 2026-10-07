@@ -13,7 +13,8 @@ INTEL_VERSION = "intel-v2.1"
 def warm() -> None:
     """Load model artefacts and build the live feature snapshot once (called by app startup).
 
-    Idempotent, never raises, never imports shap / scikit-learn / torch.
+    Idempotent, never raises. Does not import shap / scikit-learn / torch on the calling thread; the
+    SHAP explainer is prepared on a short daemon thread with no database access (consensus.warm).
     """
     try:
         from vigil.intel.consensus import warm as _warm
