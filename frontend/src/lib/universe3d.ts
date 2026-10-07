@@ -254,7 +254,7 @@ export class UniverseEngine {
   private initHistory(capacity: number) {
     if (this.hist) { this.root.remove(this.hist); this.hist.geometry.dispose(); }
     this.histCap = capacity;
-    this.hist = this.lineSeg(capacity, 0.5);
+    this.hist = this.lineSeg(capacity, 0.6);
     this.root.add(this.hist);
     this.histDirty = true;
   }
@@ -332,8 +332,8 @@ export class UniverseEngine {
     let r: number;
     let ySquash = 0.78;
     switch (group) {
-      case "merchant": r = 70 + 80 * u; break;                     // core shell: merchants are where everyday money converges
-      case "demo": r = 230 + 30 * u; break;                        // demo customers: their own thin shell
+      case "merchant": r = 180 + 200 * u; break;                   // inner shell: merchants are where everyday money converges
+      case "demo": r = 420 + 30 * u; break;                        // demo customers: their own thin shell
       case "external": {                                           // outside the bank's view: an outer equatorial ring
         const a = hashUnit(`${id}|a`) * Math.PI * 2;
         return [Math.cos(a) * 1180, (u - 0.5) * 80, Math.sin(a) * 1180];
@@ -590,7 +590,7 @@ export class UniverseEngine {
       const a = h.i * 3, b = h.j * 3, o = m * 6;
       hp[o] = this.cur[a]; hp[o + 1] = this.cur[a + 1]; hp[o + 2] = this.cur[a + 2];
       hp[o + 3] = this.cur[b]; hp[o + 4] = this.cur[b + 1]; hp[o + 5] = this.cur[b + 2];
-      if (this.histDirty) { hc[o] = hc[o + 3] = 0.03; hc[o + 1] = hc[o + 4] = 0.13; hc[o + 2] = hc[o + 5] = 0.1; }
+      if (this.histDirty) { hc[o] = hc[o + 3] = 0.008; hc[o + 1] = hc[o + 4] = 0.045; hc[o + 2] = hc[o + 5] = 0.036; }
       m++;
     }
     this.hist.geometry.setDrawRange(0, m * 2);
