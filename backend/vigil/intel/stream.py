@@ -89,6 +89,9 @@ class _State:
         self.evaluated_runs: set[str] = set()
         self.view_key: Any = None
         self.view: dict[str, dict[str, Any]] = {}
+        self.view_ctx: Any = None                   # (snapshot, held, confirmed) the view was computed from
+        self.view_out: Any = None                   # (view, status_map() output) — public map cached per view
+        self.role_cache: dict[str, tuple[Any, str | None]] = {}
         self.latencies: deque[float] = deque(maxlen=5000)
         self.counters = {"postings": 0, "published_tx": 0, "published_status": 0, "errors": 0, "resets": 0}
         self._log_initial(rule)
@@ -104,7 +107,8 @@ class _State:
         self.threshold, rule = _initial_threshold()
         self.initial = self.threshold
         self.evaluated_runs = set()
-        self.view_key, self.view = None, {}
+        self.view_key, self.view, self.view_ctx, self.view_out = None, {}, None, None
+        self.role_cache = {}
         self.counters["resets"] += 1
         self._log_initial(rule)
 
@@ -148,47 +152,61 @@ def classify(risk: float | None, fam: str | None, flagging: Iterable[str], thres
 
 
 def detector_status(snap: live.Snapshot, account_id: str, threshold: float) -> tuple[str | None, str]:
-    """flagged / early_warning / None from the detector snapshot alone (no Vigil state)."""
+    """flagged / early_warning / None from the detector snapshot alone (no Vigil state), with its reason."""
     risk, fam = model_evidence(snap, account_id)
     flagging = _flagging(snap, account_id)
-    others = [f for f in flagging if f != fam]
     status = classify(risk, fam, flagging, threshold)
+    return status, detector_reason(snap, account_id, threshold, status, risk, fam, flagging)
+
+
+def detector_reason(snap: live.Snapshot, account_id: str, threshold: float, status: str | None,
+                    risk: float | None, fam: str | None, flagging: list[str]) -> str:
+    """One-line reason for a detector status (built only when needed: status changes and status_map())."""
+    others = [f for f in flagging if f != fam]
     if status == "flagged":
-        return "flagged", (f"Model evidence {risk:.2f} ({SHORT[fam]}) >= live threshold {threshold:.2f}, "
-                           f"corroborated by {', '.join(SHORT[f] for f in others)}")
-    if status is None:
-        return None, ""
-    if flagging:
-        detail = []
-        for f in flagging:
-            if f == "early_warning":
-                sig = (snap.ew.get(account_id) or {}).get("signals") or []
-                detail.append("early warning" + (f" ({', '.join(sig)})" if sig else ""))
-            elif f == "drift":
-                detail.append("drift HIGH")
-            elif f in MODEL_FAMILIES:
-                v = (snap.rf if f == "random_forest" else snap.gnn).get(account_id)
-                detail.append(SHORT[f] + (f" {v[1]:.2f}" if v else ""))
-            else:
-                detail.append(SHORT[f])
-        if set(flagging) <= {"early_warning", "drift"}:
-            return "early_warning", f"Behaviour change: {', '.join(detail)} — not mule evidence on its own"
-        if risk is not None and risk >= threshold:
-            tail = f"model evidence {risk:.2f} has no other family's corroboration"
-        elif risk is not None:
-            tail = f"model evidence {risk:.2f} is below the live threshold {threshold:.2f}"
+        return (f"Model evidence {risk:.2f} ({SHORT[fam]}) >= live threshold {threshold:.2f}, "
+                f"corroborated by {', '.join(SHORT[f] for f in others)}")
+    if status is None or not flagging:
+        return ""
+    detail = []
+    for f in flagging:
+        if f == "early_warning":
+            sig = (snap.ew.get(account_id) or {}).get("signals") or []
+            detail.append("early warning" + (f" ({', '.join(sig)})" if sig else ""))
+        elif f == "drift":
+            detail.append("drift HIGH")
+        elif f in MODEL_FAMILIES:
+            v = (snap.rf if f == "random_forest" else snap.gnn).get(account_id)
+            detail.append(SHORT[f] + (f" {v[1]:.2f}" if v else ""))
         else:
-            tail = "no model evidence"
-        return "early_warning", f"Detector signals: {', '.join(detail)}; {tail}"
-    return None, ""
+            detail.append(SHORT[f])
+    if set(flagging) <= {"early_warning", "drift"}:
+        return f"Behaviour change: {', '.join(detail)} — not mule evidence on its own"
+    if risk is not None and risk >= threshold:
+        tail = f"model evidence {risk:.2f} has no other family's corroboration"
+    elif risk is not None:
+        tail = f"model evidence {risk:.2f} is below the live threshold {threshold:.2f}"
+    else:
+        tail = "no model evidence"
+    return f"Detector signals: {', '.join(detail)}; {tail}"
 
 
 # ── Vigil state (read-only) ───────────────────────────────────────────────
+_VIGIL: dict[str, Any] = {"key": None, "held": {}, "confirmed": {}}
+
+
 def _vigil_state() -> tuple[dict[str, str], dict[str, str], str]:
-    """(held account -> reason, confirmed recipient -> reason, cache key). Read-only queries."""
-    held: dict[str, str] = {}
-    confirmed: dict[str, str] = {}
+    """(held account -> reason, confirmed recipient -> reason, cache key). Read-only queries; the holds / labels
+    are re-read only when a cheap change key (row counts, latest ids, releases) moves."""
     try:
+        key = (db.scalar("SELECT COUNT(*) || ':' || COALESCE(MAX(id), '') || ':' || COUNT(released_at) "
+                         "FROM scoped_holds") or "") + "|" + \
+              (db.scalar("SELECT COUNT(*) || ':' || COALESCE(MAX(id), '') || ':' || "
+                         "SUM(CASE WHEN grade = 'bank_confirmed' THEN 1 ELSE 0 END) FROM fraud_labels") or "")
+        if key == _VIGIL["key"]:
+            return _VIGIL["held"], _VIGIL["confirmed"], key
+        held: dict[str, str] = {}
+        confirmed: dict[str, str] = {}
         for r in db.q("SELECT account_id, COUNT(*) AS n, SUM(held_paise) AS p, MAX(id) AS last FROM scoped_holds "
                       "WHERE released_at IS NULL GROUP BY account_id"):
             held[r["account_id"]] = (f"Active scoped hold on {int(r['n'])} outgoing payment(s), "
@@ -197,13 +215,11 @@ def _vigil_state() -> tuple[dict[str, str], dict[str, str], str]:
                       "JOIN transactions t ON t.id = l.transaction_id WHERE l.grade = 'bank_confirmed' "
                       "GROUP BY t.recipient_id"):
             confirmed[r["a"]] = f"Recipient of {int(r['n'])} bank-confirmed fraud label(s)"
-        key = (db.scalar("SELECT COUNT(*) || ':' || COALESCE(MAX(id), '') || ':' || COUNT(released_at) "
-                         "FROM scoped_holds") or "") + "|" + \
-              (db.scalar("SELECT COUNT(*) || ':' || COALESCE(MAX(id), '') FROM fraud_labels") or "")
+        _VIGIL.update(key=key, held=held, confirmed=confirmed)
+        return held, confirmed, key
     except Exception as exc:  # pragma: no cover - defensive (tables always exist in Vigil)
         log.warning("live status: Vigil state unavailable: %s", exc)
-        key = "unavailable"
-    return held, confirmed, key
+        return {}, {}, "unavailable"
 
 
 def _last_posting(snap: live.Snapshot, account_id: str) -> float | None:
@@ -223,38 +239,77 @@ def _opened_days(account_id: str, now_t: float) -> float | None:
 
 
 # ── the status map ────────────────────────────────────────────────────────
+_EXTERNAL_REASON = "External counterparty outside the bank's perimeter"
+
+
 def _compute(snap: live.Snapshot, now_t: float, held: dict[str, str], confirmed: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """Every account's live status. Reasons are NOT built here (most statuses never change between postings);
+    `_reason` builds one on demand — for status changes and for status_map() — from the same inputs."""
     T = STATE.threshold
     window_start = now_t - LIVE_WINDOW_MINUTES * 60
+    feats, rf, gnn, flags = snap.feats, snap.rf, snap.gnn, snap.flags
     out: dict[str, dict[str, Any]] = {}
     for a in live.GRAPH.accounts:
         if live.SRC.is_external(a):
             out[a] = {"status": "external", "risk": None, "model_risk": None, "role": None, "families_flagging": 0,
-                      "reason": "External counterparty outside the bank's perimeter"}
+                      "reason": _EXTERNAL_REASON, "detector_status": None}
             continue
-        scored = a in snap.feats
-        risk, _ = model_evidence(snap, a) if scored else (None, None)
-        flagging = _flagging(snap, a) if scored else []
-        det, det_reason = detector_status(snap, a, T) if scored else (None, "")
+        risk = fam = None
+        flagging: list[str] = []
+        det = None
+        if a in feats:
+            r1, g1 = rf.get(a), gnn.get(a)
+            if r1 is not None and (g1 is None or r1[1] >= g1[1]):
+                risk, fam = float(r1[1]), "random_forest"
+            elif g1 is not None:
+                risk, fam = float(g1[1]), "gnn"
+            fl = flags.get(a)
+            if fl:
+                flagging = [f for f in live.INTEL_FAMILIES if fl.get(f)]
+            if flagging:
+                det = classify(risk, fam, flagging, T)
+        age = None
         if a in confirmed:
-            status, reason = "confirmed_fraud", confirmed[a]
+            status = "confirmed_fraud"
         elif a in held:
-            status, reason = "held", held[a]
+            status = "held"
         elif det:
-            status, reason = det, det_reason
+            status = det
         else:
             age = _opened_days(a, now_t)
             last = _last_posting(snap, a)
             if age is not None and age < NEW_ACCOUNT_DAYS:
-                status, reason = "new", f"Account opened {age:.1f} days ago"
+                status = "new"
             elif last is not None and last >= window_start:
-                status, reason = "normal", f"Active in the last {LIVE_WINDOW_MINUTES} min; no detector flags"
+                status = "normal"
             else:
-                status, reason = "idle", f"No posting in the last {LIVE_WINDOW_MINUTES} min"
-        out[a] = {"status": status, "risk": None if risk is None else round(risk, 4),
-                  "model_risk": None if risk is None else round(risk, 4), "role": None,
-                  "families_flagging": len(flagging), "reason": reason, "detector_status": det}
+                status = "idle"
+        r4 = None if risk is None else round(risk, 4)
+        out[a] = {"status": status, "risk": r4, "model_risk": r4, "role": None, "families_flagging": len(flagging),
+                  "reason": None, "detector_status": det, "_fam": fam, "_flagging": flagging, "_age": age}
     return out
+
+
+def _reason(snap: live.Snapshot, a: str, v: dict[str, Any], held: dict[str, str], confirmed: dict[str, str]) -> str:
+    """The one-line reason of a computed status (filled in place, once per view)."""
+    if v.get("reason") is not None:
+        return v["reason"]
+    st = v["status"]
+    if st == "confirmed_fraud":
+        r = confirmed.get(a, "Recipient of a bank-confirmed fraud label")
+    elif st == "held":
+        r = held.get(a, "Active scoped hold on an outgoing payment")
+    elif st in ("flagged", "early_warning"):
+        r = detector_reason(snap, a, STATE.threshold, st, v["model_risk"], v.get("_fam"), v.get("_flagging") or [])
+    elif st == "new":
+        age = v.get("_age")
+        r = f"Account opened {age:.1f} days ago" if age is not None else "Account opened recently"
+    elif st == "normal":
+        r = f"Active in the last {LIVE_WINDOW_MINUTES} min; no detector flags"
+    else:
+        r = f"No posting in the last {LIVE_WINDOW_MINUTES} min"
+    v["reason"] = r
+    return r
 
 
 def _live_flags(snap: live.Snapshot, account_id: str) -> dict[str, bool]:
@@ -281,18 +336,27 @@ def _assign_roles(snap: live.Snapshot, view: dict[str, dict[str, Any]]) -> None:
     cases where only RingWatch would have passed the gate; the AccountIntel page remains the reference.
     """
     from vigil.intel import roles as RO
-    network = {a for a, v in view.items()
-               if v.get("detector_status") == "flagged" or v["status"] == "confirmed_fraud"}
+    network = frozenset(a for a, v in view.items()
+                        if v.get("detector_status") == "flagged" or v["status"] == "confirmed_fraud")
+    cache = STATE.role_cache
     for a in sorted(network):
         if a not in snap.feats:
             continue
         try:
-            flags = _live_flags(snap, a)
-            if not RO.gate(flags)[0]:
+            # same inputs -> same role: features object, network, live flags, threshold, cycle context
+            ck = (id(snap.feats[a]), network, tuple(sorted((snap.flags.get(a) or {}).items())), STATE.threshold,
+                  bool((snap.ctx.get(a) or {}).get("in_cycle")), view[a].get("model_risk"))
+            hit = cache.get(a)
+            if hit is not None and hit[0] == ck:
+                view[a]["role"] = hit[1]
                 continue
-            r = RO.assess(live.SRC, a, snap.now_t, snap.feats[a], network, flags,
-                          bool((snap.ctx.get(a) or {}).get("in_cycle")))
-            view[a]["role"] = r["role"]
+            flags = _live_flags(snap, a)
+            role = None
+            if RO.gate(flags)[0]:
+                role = RO.assess(live.SRC, a, snap.now_t, snap.feats[a], set(network), flags,
+                                 bool((snap.ctx.get(a) or {}).get("in_cycle")))["role"]
+            cache[a] = (ck, role)
+            view[a]["role"] = role
         except Exception as exc:  # pragma: no cover - defensive
             log.warning("live status: role unavailable for %s: %s", a, exc)
 
@@ -323,9 +387,10 @@ def _sync(snap: live.Snapshot, publish: bool) -> tuple[dict[str, dict[str, Any]]
             if prev is not None and prev != v["status"]:
                 changes.append(AccountStatusChange(account_id=a, status=v["status"], previous=prev, risk=v["model_risk"],
                                                    role=v["role"], families_flagging=v["families_flagging"],
-                                                   reason=v["reason"], ts=ts))
+                                                   reason=_reason(snap, a, v, held, confirmed), ts=ts))
     STATE.statuses = {a: v["status"] for a, v in view.items()}
     STATE.view_key, STATE.view = key, view
+    STATE.view_ctx = (snap, held, confirmed)
     if publish:
         _publish_changes(changes)
     return view, changes
@@ -395,8 +460,14 @@ def status_map() -> dict[str, dict[str, Any]]:
         if snap is None:
             return {}
         view, _ = _sync(snap, publish=True)
-        return {a: {k: v[k] for k in ("status", "risk", "model_risk", "role", "families_flagging", "reason")}
-                for a, v in view.items()}
+        cached = STATE.view_out
+        if cached is None or cached[0] is not view:
+            vsnap, held, confirmed = STATE.view_ctx
+            out = {a: {"status": v["status"], "risk": v["risk"], "model_risk": v["model_risk"], "role": v["role"],
+                       "families_flagging": v["families_flagging"], "reason": _reason(vsnap, a, v, held, confirmed)}
+                   for a, v in view.items()}
+            STATE.view_out = cached = (view, out)
+        return dict(cached[1])
     except Exception as exc:
         STATE.counters["errors"] += 1
         log.warning("status_map failed: %s", exc)

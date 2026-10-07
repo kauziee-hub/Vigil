@@ -116,11 +116,18 @@ def scored_ids() -> list[str]:
     return sorted(a for a in GRAPH.accounts if not SRC.is_external(a))
 
 
+_EXT_CACHE: dict[str, Any] = {"key": None, "ids": []}
+
+
 def external_ids() -> list[str]:
-    ext = {a for a in GRAPH.accounts if SRC.is_external(a)}
-    for edges in (GRAPH.out_edges, GRAPH.in_edges):
-        ext |= {a for a in edges if a.startswith("ext:")}
-    return sorted(ext)
+    """External counterparties (cached per graph shape: accounts / edge-list owners only grow within an epoch)."""
+    key = (id(GRAPH.in_edges), len(GRAPH.accounts), len(GRAPH.out_edges), len(GRAPH.in_edges))
+    if _EXT_CACHE["key"] != key:
+        ext = {a for a in GRAPH.accounts if SRC.is_external(a)}
+        for edges in (GRAPH.out_edges, GRAPH.in_edges):
+            ext |= {a for a in edges if a.startswith("ext:")}
+        _EXT_CACHE.update(key=key, ids=sorted(ext))
+    return list(_EXT_CACHE["ids"])
 
 
 # ── snapshot ──────────────────────────────────────────────────────────────
@@ -149,6 +156,12 @@ class Snapshot:
     status: dict[str, str] = field(default_factory=dict)                   # family -> ok | unavailable
     errors: dict[str, str] = field(default_factory=dict)
     views: dict[str, Any] = field(default_factory=dict)                    # derived read models cached per snapshot
+    pairs_t: dict[tuple[str, str], float] = field(default_factory=dict)    # window graph: (src, dst) -> latest posting t
+    pairs_version: int = 0                                                 # bumps when the window pair SET changes
+    gnn_graph: Any = None                                                  # (pairs_version, n_nodes, edge index) cache
+    ew_cache: dict[str, Any] = field(default_factory=dict)                 # early warning: per-account static parts
+    recomputed: list[str] = field(default_factory=list)                    # incremental: accounts fully re-measured
+    ctx_refreshed: list[str] = field(default_factory=list)                 # incremental: neighbourhood context only
 
 
 def thresholds() -> dict[str, float]:
@@ -199,19 +212,44 @@ def _rf(snap: Snapshot, ids: list[str]) -> None:
         snap.rf[a] = (p, STORE.calibrate(p, "random_forest"))
 
 
+def _window_pairs_t(nodes: list[str], now_t: float) -> dict[tuple[str, str], float]:
+    """(sender, recipient) -> latest posting time inside the window, among `nodes`. Same pair SET as
+    features.window_pairs (the training-time function); the latest time lets refresh() expire pairs exactly."""
+    keep = set(nodes)
+    start = now_t - F.WINDOW_S
+    out: dict[tuple[str, str], float] = {}
+    for a in keep:
+        for e in SRC.outflows(a):
+            if start < e.t <= now_t and e.dst in keep and e.dst != a:
+                k = (a, e.dst)
+                if e.t > out.get(k, -1.0):
+                    out[k] = e.t
+    return out
+
+
 def _gnn(snap: Snapshot) -> None:
-    """Whole-graph forward pass on the 72 h window graph (externals as indicator nodes, as in training)."""
+    """Whole-graph forward pass on the 72 h window graph (externals as indicator nodes, as in training).
+
+    The window pair set is maintained incrementally (`snap.pairs_t`); the edge index (with its per-destination
+    segments) is rebuilt only when the pair SET or the node list changes, which a habitual payment does not do.
+    """
     try:
         ext = external_ids()
         nodes = ext + snap.ids
-        index = {a: i for i, a in enumerate(nodes)}
-        pairs = sorted((index[s], index[d]) for s, d in F.window_pairs(SRC, nodes, snap.now_t))
+        if not snap.pairs_t:
+            snap.pairs_t = _window_pairs_t(nodes, snap.now_t)
+            snap.pairs_version += 1
         for a in snap.ids:
             if a not in snap.gnn_rows:
                 snap.gnn_rows[a] = gnn_input_row(snap.feats[a], False)
         ext_row = gnn_input_row(None, True)
         rows = [ext_row for _ in ext] + [snap.gnn_rows[a] for a in snap.ids]
-        out = STORE.gnn_scores(rows, pairs)
+        gkey = (snap.pairs_version, tuple(ext), len(snap.ids))
+        if snap.gnn_graph is None or snap.gnn_graph[0] != gkey:
+            index = {a: i for i, a in enumerate(nodes)}
+            pairs = sorted((index[s], index[d]) for s, d in snap.pairs_t if s in index and d in index)
+            snap.gnn_graph = (gkey, STORE.gnn_graph(len(nodes), pairs))
+        out = STORE.gnn_scores(rows, None, prepared=snap.gnn_graph[1])
     except Exception as exc:
         out, snap.errors["gnn"] = None, f"{type(exc).__name__}: {exc}"
     if out is None:
@@ -224,22 +262,28 @@ def _gnn(snap: Snapshot) -> None:
 
 
 def _population(snap: Snapshot) -> None:
-    snap.ew, snap.ew_stats = EW.evaluate_population(snap.feats)
+    snap.ew, snap.ew_stats, snap.ew_cache = EW.evaluate_population_cached(snap.feats, snap.ew_cache)
     thr = thresholds()
+    t_pm, t_rf, t_gnn = thr["pattern_memory"], thr["random_forest"], thr["gnn"]
     snap.roles = {}
+    rules, ew, drift, patterns, rf, gnn = snap.rules, snap.ew, snap.drift, snap.patterns, snap.rf, snap.gnn
+    flags = {}
     for a in snap.ids:
-        top = snap.patterns[a][0]["similarity"] if snap.patterns.get(a) else 0.0
+        pats = patterns.get(a)
         fl = {
-            "rules": bool(snap.rules[a]["flagged"]),
-            "early_warning": bool(snap.ew[a]["flagged"]),
-            "drift": bool(snap.drift[a]["flagged"]),
-            "pattern_memory": top >= thr["pattern_memory"],
+            "rules": bool(rules[a]["flagged"]),
+            "early_warning": bool(ew[a]["flagged"]),
+            "drift": bool(drift[a]["flagged"]),
+            "pattern_memory": (pats[0]["similarity"] if pats else 0.0) >= t_pm,
         }
-        if a in snap.rf:
-            fl["random_forest"] = snap.rf[a][1] >= thr["random_forest"]
-        if a in snap.gnn:
-            fl["gnn"] = snap.gnn[a][1] >= thr["gnn"]
-        snap.flags[a] = fl
+        v = rf.get(a)
+        if v is not None:
+            fl["random_forest"] = v[1] >= t_rf
+        v = gnn.get(a)
+        if v is not None:
+            fl["gnn"] = v[1] >= t_gnn
+        flags[a] = fl
+    snap.flags = flags
 
 
 # ── roles (API path only; the payment path never needs them) ──────────────
@@ -309,48 +353,147 @@ def build(now_t: float | None = None) -> Snapshot:
     return snap
 
 
+def _fast(f: dict[str, float]) -> bool:
+    """The neighbour property pattern_memory.context counts (fast_neighbor_share)."""
+    return f["forwarded_fraction"] >= 0.7 and f["total_in_amount"] > 0
+
+
+def _window_cps(a: str, start: float, now_t: float) -> set[str]:
+    return {e.src for e in SRC.inflows(a) if start < e.t <= now_t} | {e.dst for e in SRC.outflows(a) if start < e.t <= now_t}
+
+
+def _new_edges(dirty: set[str], after_seq: int) -> list[Any]:
+    """Edges appended to the graph after ledger seq `after_seq`, found from the tails of the dirty accounts' lists."""
+    seen: dict[str, Any] = {}
+    for a in dirty:
+        for lst in (GRAPH.out_edges.get(a, ()), GRAPH.in_edges.get(a, ())):
+            for e in reversed(lst):
+                if e.seq <= after_seq:
+                    break
+                seen[e.tx_id] = e
+    return sorted(seen.values(), key=lambda e: e.seq)
+
+
+def _reach(start_node: str, forward: bool, start: float, now_t: float, max_hops: int, budget: int = 600) -> set[str]:
+    """Internal accounts reachable from start_node along window edges (forward = outflows) within max_hops."""
+    seen = {start_node: 0}
+    queue = [start_node]
+    steps = 0
+    while queue and steps < budget:
+        node = queue.pop(0)
+        steps += 1
+        depth = seen[node]
+        if depth >= max_hops:
+            continue
+        for e in (SRC.outflows(node) if forward else SRC.inflows(node)):
+            nxt = e.dst if forward else e.src
+            if not (start < e.t <= now_t) or SRC.is_external(nxt) or nxt in seen:
+                continue
+            seen[nxt] = depth + 1
+            queue.append(nxt)
+    return set(seen)
+
+
+def _cycle_candidates(edges: list[Any], start: float, now_t: float) -> set[str]:
+    """Accounts whose in_cycle can change because of the new edges: a new cycle through s -> d passes through
+    accounts reachable from d that also reach s (bounded like features.in_cycle: <= 6 hops)."""
+    out: set[str] = set()
+    for e in edges:
+        if SRC.is_external(e.src) or SRC.is_external(e.dst) or e.src == e.dst:
+            continue
+        fwd = _reach(e.dst, True, start, now_t, 5)
+        if len(fwd) <= 1:
+            continue                       # d moves no money to another internal account: no new cycle
+        out |= fwd & _reach(e.src, False, start, now_t, 5)
+    return out
+
+
 def refresh(prev: Snapshot, now_t: float | None = None) -> Snapshot:
     """Incremental update after new postings / devices / accounts (same evaluation-time semantics).
 
-    Recomputed: accounts touched by edges newer than the previous snapshot, new accounts, accounts whose
-    device cluster changed, and the window counterparties of all of those (their pass-through / cycle
-    context can change). Population statistics (early warning) and the GNN pass are recomputed for
-    everyone; roles are re-assessed lazily. Accounts far from any change keep features measured at the
-    previous evaluation time; a full rebuild (API path, after FULL_TTL_S) re-anchors them.
+    Fully re-measured (features, rules, drift, pattern memory, RF): accounts touched by edges newer than the
+    previous snapshot, new accounts, accounts whose device cluster changed. Neighbourhood context only
+    (pattern_memory.context: fast-forwarding neighbours, in_cycle): the window counterparties of a re-measured
+    account whose fast-forwarding property changed, and accounts a new edge may have put on a cycle — the only
+    parts of an untouched account that a new edge elsewhere can change. Population statistics (early warning),
+    family flags and the GNN pass are recomputed for everyone (the GNN's window pair set incrementally); roles
+    are re-assessed lazily. Accounts untouched by any change keep features measured at the previous evaluation
+    time; a full rebuild (API path, after FULL_TTL_S) re-anchors them. v3: counterparties used to be fully
+    re-measured, ~75 accounts per posting to a busy shop on world v3 (the hook's latency budget).
     """
     started = time.perf_counter()
     key = graph_key()
     CHANNELS.sync(key[2:])
     now_t = clock.now().timestamp() if now_t is None else now_t
+    start = now_t - F.WINDOW_S
     snap = Snapshot(key=key, now_t=now_t, as_of=clock.iso(_dt(now_t)), mode="incremental", full_t=prev.full_t)
-    snap.ids = scored_ids()
+    snap.ids = prev.ids if len(prev.ids) == _n_scored() else scored_ids()
     snap.n_edges = {a: _edge_count(a) for a in snap.ids}
+    # device / account changes bump GRAPH.version without a ledger posting: only then re-check device clusters
+    devices_changed = (key[0] - prev.key[0]) != (key[1] - prev.key[1])
     dirty: set[str] = set()
     for a in snap.ids:
-        if a not in prev.feats or snap.n_edges[a] != prev.n_edges.get(a) \
-                or SRC.device_cluster_size(a) != int(prev.feats[a]["device_cluster_size"]):
+        if a not in prev.feats or snap.n_edges[a] != prev.n_edges.get(a) or (
+                devices_changed and SRC.device_cluster_size(a) != int(prev.feats[a]["device_cluster_size"])):
             dirty.add(a)
-    # counterparties of changed accounts (window), so their context is re-measured too
-    start = now_t - F.WINDOW_S
-    ring: set[str] = set()
-    for a in dirty:
-        ring |= {e.src for e in SRC.inflows(a) if e.t > start} | {e.dst for e in SRC.outflows(a) if e.t > start}
-    redo = (dirty | ring) & set(snap.ids)
-    recompute = sorted(redo)
-    keep = [a for a in snap.ids if a not in redo]
-    snap.feats = {a: prev.feats[a] for a in keep}
+    new_edges = _new_edges(dirty | {e for e in external_ids()}, prev.key[1])
+    recompute = sorted(dirty)
+    snap.feats = dict(prev.feats)
     for a in recompute:
         snap.feats[a] = F.extract(SRC, a, now_t)
+    ctx_only: set[str] = set()
+    for a in recompute:
+        if a in prev.feats and _fast(prev.feats[a]) != _fast(snap.feats[a]):
+            ctx_only |= _window_cps(a, start, now_t)
+    ctx_only |= _cycle_candidates(new_edges, start, now_t)
+    ctx_only = {a for a in ctx_only if a in snap.feats and a not in dirty and not SRC.is_external(a)}
     for attr in ("ctx", "rules", "drift", "patterns", "rf", "gnn_rows"):
-        src_map = getattr(prev, attr)
-        setattr(snap, attr, {a: src_map[a] for a in keep if a in src_map})
+        m = dict(getattr(prev, attr))
+        for a in recompute:
+            m.pop(a, None)
+        setattr(snap, attr, m)
     snap.status = dict(prev.status)
     _per_account(snap, recompute)
+    fo = lambda a: snap.feats.get(a) or F.zero_features()  # noqa: E731
+    for a in sorted(ctx_only):
+        snap.ctx[a] = PM.context(SRC, a, now_t, fo)
+        snap.patterns[a] = PM.match(PM.signature(snap.feats[a], snap.ctx[a]), top=3)
+    snap.recomputed, snap.ctx_refreshed = recompute, sorted(ctx_only)
     _rf(snap, recompute if prev.status.get("random_forest") == "ok" else snap.ids)
+    # window graph for the GNN: add the new pairs, expire pairs whose latest posting left the window
+    pairs = dict(prev.pairs_t)
+    changed = False
+    nodes = set(snap.ids) | set(external_ids())
+    for e in new_edges:
+        if e.src in nodes and e.dst in nodes and e.src != e.dst and start < e.t <= now_t:
+            k = (e.src, e.dst)
+            if k not in pairs:
+                changed = True
+            if e.t > pairs.get(k, -1.0):
+                pairs[k] = e.t
+    if pairs and min(pairs.values()) <= start:
+        pairs = {k: t for k, t in pairs.items() if t > start}
+        changed = True
+    snap.pairs_t, snap.pairs_version = pairs, prev.pairs_version + (1 if changed else 0)
+    snap.gnn_graph = prev.gnn_graph
+    snap.ew_cache = prev.ew_cache
+    if not pairs and prev.pairs_t:
+        snap.pairs_version += 1
     _gnn(snap)
     _population(snap)
     snap.built_ms = round((time.perf_counter() - started) * 1000, 2)
     return snap
+
+
+_SCORED_N: dict[str, Any] = {"key": None, "n": 0}
+
+
+def _n_scored() -> int:
+    """Number of scored (non-external) accounts, cached per graph account count."""
+    n_all = len(GRAPH.accounts)
+    if _SCORED_N["key"] != n_all:
+        _SCORED_N.update(key=n_all, n=sum(1 for a in GRAPH.accounts if not SRC.is_external(a)))
+    return _SCORED_N["n"]
 
 
 def _edge_count(account_id: str) -> int:

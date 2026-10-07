@@ -101,8 +101,58 @@ def evaluate(f: dict[str, float], stats: dict[str, float]) -> dict[str, Any]:
 
 
 def evaluate_population(features: dict[str, dict[str, float]]) -> tuple[dict[str, dict[str, Any]], dict[str, float]]:
-    """Population statistics + every account's result. raw() is computed once per account (the cutoff needs all
-    scores first; the per-account results reuse them)."""
+    """Population statistics + every account's result (raw() semantics; scores computed once per account)."""
+    out, stats, _ = evaluate_population_cached(features, None)
+    return out, stats
+
+
+def _parts(f: dict[str, float], age_ref: float) -> tuple[Any, ...]:
+    """The population-independent part of raw(): every signal except High Velocity's z-score test, with the score
+    contributions kept in raw()'s order so the recombined float sum is bit-identical."""
+    pre = 0.0
+    pre_sig: list[str] = []
+    if f["account_age_days"] < age_ref and f["transaction_count"] > 0:
+        pre += 0.25 * (1.0 - f["account_age_days"] / max(age_ref, 1.0))
+        pre_sig.append("New Account")
+    if f["device_cluster_size"] >= 3:
+        pre += 0.20 * min(f["device_cluster_size"] / 10.0, 1.0)
+        pre_sig.append("Shared Device")
+    if f["retention_ratio"] < 0.20 and f["total_in_amount"] >= 5_000:
+        pre += 0.20 * (1.0 - f["retention_ratio"] / 0.20)
+        pre_sig.append("Pass-Through")
+    own = f["transaction_count"] >= VELOCITY_OWN_MULT * f["baseline_tx_rate"] + VELOCITY_OWN_SLACK
+    post: list[float] = []
+    post_sig: list[str] = []
+    new_out = new_recipients_estimate(f)
+    if new_out >= FANOUT_MIN_NEW:
+        post.append(0.15 * min(new_out / 5.0, 1.0))
+        post_sig.append("High Fan-Out")
+    if f["unique_channels"] >= 3:
+        post.append(0.15)
+        post_sig.append("Multi-Channel")
+    return (f, age_ref, pre, pre_sig, own, post, post_sig)
+
+
+def _combine(p: tuple[Any, ...], stats: dict[str, float]) -> tuple[float, list[str]]:
+    f, _age_ref, score, pre_sig, own, post, post_sig = p
+    signals = list(pre_sig)
+    if own:
+        z = (f["transaction_count"] - stats["mean_tx"]) / stats["std_tx"]
+        if z > 1.5:
+            score += min(z * 0.08, 0.25)
+            signals.append("High Velocity")
+    for v in post:
+        score += v
+    signals += post_sig
+    if len(signals) < MIN_SIGNALS:
+        score *= 0.2
+    return round(score, 4), signals
+
+
+def evaluate_population_cached(features: dict[str, dict[str, float]], cache: dict[str, tuple[Any, ...]] | None
+                               ) -> tuple[dict[str, dict[str, Any]], dict[str, float], dict[str, tuple[Any, ...]]]:
+    """evaluate_population with a per-account cache of the population-independent parts (live stream: only the
+    re-measured accounts' parts are recomputed per posting). Returns (results, stats, new cache)."""
     rows = features
     ages = [r["account_age_days"] for r in rows.values()]
     tx = [r["transaction_count"] for r in rows.values()]
@@ -111,10 +161,18 @@ def evaluate_population(features: dict[str, dict[str, float]]) -> tuple[dict[str
     std_tx = math.sqrt(sum((x - mean_tx) ** 2 for x in tx) / (n - 1)) if n > 1 else 1.0
     stats = {"age_p30": _quantile(ages, 0.30), "mean_tx": mean_tx, "std_tx": std_tx if std_tx > 0 else 1.0,
              "n": float(n)}
-    raws = {a: raw(f, stats) for a, f in rows.items()}
+    age_ref = min(stats["age_p30"], NEW_ACCOUNT_CAP_DAYS)
+    new_cache: dict[str, tuple[Any, ...]] = {}
+    raws: dict[str, tuple[float, list[str]]] = {}
+    for a, f in rows.items():
+        p = cache.get(a) if cache else None
+        if p is None or p[0] is not f or p[1] != age_ref:
+            p = _parts(f, age_ref)
+        new_cache[a] = p
+        raws[a] = _combine(p, stats)
     scores = sorted((r[0] for r in raws.values()), reverse=True)
     k = max(1, int(len(scores) * EARLY_TOP_PCT))
     stats["cutoff_score"] = scores[k - 1] if scores else 0.0
     cut = max(MIN_SCORE, stats["cutoff_score"])
     out = {a: {"score": s, "signals": sig, "flagged": len(sig) >= MIN_SIGNALS and s >= cut} for a, (s, sig) in raws.items()}
-    return out, stats
+    return out, stats, new_cache

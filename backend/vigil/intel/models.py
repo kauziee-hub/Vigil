@@ -86,21 +86,29 @@ def _segments(j: Any, i: Any, n: int) -> tuple[Any, Any, Any] | None:
     return j_s, i_s, starts
 
 
-def gat_forward(W: dict[str, Any], x: Any, edges_in: tuple[Any, Any], edges_out: tuple[Any, Any]) -> Any:
+def prepare_edges(n: int, edges_in: tuple[Any, Any], edges_out: tuple[Any, Any]) -> list[tuple[str, Any, Any, Any]]:
+    """Index arrays + per-destination segments for both relations (reusable while the graph is unchanged)."""
+    import numpy as np
+    rels = []
+    for r, (j, i) in (("in", edges_in), ("out", edges_out)):
+        j, i = np.asarray(j, dtype=np.int64), np.asarray(i, dtype=np.int64)
+        rels.append((r, j, i, _segments(j, i, n)))
+    return rels
+
+
+def gat_forward(W: dict[str, Any], x: Any, edges_in: tuple[Any, Any] | None, edges_out: tuple[Any, Any] | None,
+                prepared: list[tuple[str, Any, Any, Any]] | None = None) -> Any:
     """2-layer relational GAT, numpy. edges_*: (j_src_idx, i_dst_idx) message j -> i, self-loops included.
 
     Per-destination softmax and aggregation use sorted segment reductions (`reduceat`), the same arithmetic as
     the scatter (`ufunc.at`) form up to floating-point summation order, ~5x faster on the live graph (v3: the
-    live stream runs this once per posting).
+    live stream runs this once per posting). `prepared` (from prepare_edges) skips re-indexing an unchanged graph.
     """
     import numpy as np
     h = np.asarray(x, dtype=np.float64)
     heads = int(W["heads"])
     n = h.shape[0]
-    rels = []
-    for r, (j, i) in (("in", edges_in), ("out", edges_out)):
-        j, i = np.asarray(j, dtype=np.int64), np.asarray(i, dtype=np.int64)
-        rels.append((r, j, i, _segments(j, i, n)))
+    rels = prepared if prepared is not None else prepare_edges(n, edges_in, edges_out)
     for k in (1, 2):
         out = h @ W[f"l{k}_self_w"] + W[f"l{k}_self_b"]
         for r, j, i, seg in rels:
@@ -211,14 +219,25 @@ class ModelStore:
         return float(y0 + (y1 - y0) * (p - x0) / (x1 - x0)) if x1 > x0 else float(y1)
 
     # GNN
-    def gnn_scores(self, raw_rows: list[list[float]], pairs: list[tuple[int, int]]) -> list[float] | None:
+    def gnn_graph(self, n: int, pairs: list[tuple[int, int]]) -> list[tuple[str, Any, Any, Any]] | None:
+        """Prepared edge structure for gnn_scores(prepared=...); None when the GNN is unavailable."""
+        self.load()
+        if self.gnn is None:
+            return None
+        e_in, e_out = build_edge_index(n, pairs)
+        return prepare_edges(n, e_in, e_out)
+
+    def gnn_scores(self, raw_rows: list[list[float]], pairs: list[tuple[int, int]] | None,
+                   prepared: list[tuple[str, Any, Any, Any]] | None = None) -> list[float] | None:
         self.load()
         if self.gnn is None or not raw_rows:
             return None if self.gnn is None else []
         import numpy as np
         x = (np.asarray(raw_rows, dtype=np.float64) - self.gnn["mean"]) / self.gnn["std"]
-        e_in, e_out = build_edge_index(len(raw_rows), pairs)
-        return [float(v) for v in gat_forward(self.gnn, x, e_in, e_out)]
+        if prepared is None:
+            e_in, e_out = build_edge_index(len(raw_rows), pairs or [])
+            prepared = prepare_edges(len(raw_rows), e_in, e_out)
+        return gat_forward(self.gnn, x, None, None, prepared=prepared).tolist()
 
     # SHAP
     def explainer(self) -> Any:
