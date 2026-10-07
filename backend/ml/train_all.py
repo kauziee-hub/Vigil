@@ -45,6 +45,7 @@ from sklearn.model_selection import train_test_split  # noqa: E402
 
 from ml import datagen, metrics as M  # noqa: E402
 from ml.gnn_torch import FraudGAT, export  # noqa: E402
+from vigil.intel import consensus as C  # noqa: E402
 from vigil.intel import drift as D  # noqa: E402
 from vigil.intel import early_warning as EW  # noqa: E402
 from vigil.intel import features as F  # noqa: E402
@@ -301,25 +302,180 @@ def summarise(s: dict[str, Any]) -> dict[str, Any]:
     return res
 
 
-def role_accuracy(tables: list[dict[str, Any]], s: dict[str, Any]) -> dict[str, Any]:
-    flags = np.stack([s[d][1] for d in DETECTORS], axis=1)
+# ── roles + consensus agreement (roles-v2.1 / consensus-v2.1; before/after) ──
+TRUE_ROLES = ("coordinator", "collector", "distributor", "entry", "exit")
+
+
+def legacy_role_gate(flags: dict[str, bool]) -> tuple[bool, str]:
+    """roles-v2.0 (run 3): any 2 of the six families -> a role. Kept for the before/after comparison."""
+    return sum(bool(flags.get(d)) for d in DETECTORS) >= 2, RO.NO_FLAG_REASON
+
+
+def _group_change(fams: set[str]) -> set[str]:
+    return {("behaviour_change" if f in C.CHANGE_FAMILIES else f) for f in fams}
+
+
+ROLE_GATES: dict[str, Any] = {
+    "v2.0_any_2_families": legacy_role_gate,
+    "v2.1_mule_evidence_gate": RO.gate,
+    # alternatives considered (ML_VALIDATION_REPORT §7)
+    "alt_one_mule_evidence_family_alone": lambda fl: (any(fl.get(f) for f in C.MULE_EVIDENCE_FAMILIES), ""),
+    "alt_rules_count_as_mule_evidence": lambda fl: (
+        sum(bool(fl.get(d)) for d in DETECTORS) >= 2 and any(fl.get(f) for f in C.MULE_EVIDENCE_FAMILIES | {"rules"}), ""),
+}
+CONSENSUS_RULES: dict[str, Any] = {
+    "v2.0_count_only": lambda fams: C.agreement_level(len(fams)),
+    "v2.1_mule_evidence_cap": C.agreement,
+    # alternatives considered (ML_VALIDATION_REPORT §7)
+    "alt_drift_and_ew_as_one_family": lambda fams: C.agreement_level(len(_group_change(fams))),
+    "alt_one_change_family_and_cap": lambda fams: C.agreement_level(len(_group_change(fams)),
+                                                                    bool(fams & C.MULE_EVIDENCE_FAMILIES)),
+    "alt_cap_with_rules_as_mule_evidence": lambda fams: C.agreement_level(
+        len(fams), bool(fams & (C.MULE_EVIDENCE_FAMILIES | {"rules"}))),
+}
+LEVELS = ("none", "weak", "moderate", "strong")
+
+
+def negative_groups(t: dict[str, Any]) -> dict[str, np.ndarray]:
+    """Evaluation-only sub-groups of NON-mules (reads generator ground truth; never used by a detector).
+
+    victim: sent money on an attack's (tagged) edge; salary_in_window: a salary credit (payroll company or
+    external employer) inside the 72 h window; salary_and_large_payment: that, plus one outgoing payment of at
+    least half the salary inside the same window (the 'salary in, rent out' shape of a salaried customer).
+    """
+    w = t["world"]
+    start = w.now_t - F.WINDOW_S
+    out: dict[str, list[bool]] = {"victim": [], "salary_in_window": [], "salary_and_large_payment": []}
+    for a, y in zip(t["ids"], t["y"]):
+        neg = y == 0
+        win_in = [e for e in w.inflows(a) if start < e.t <= w.now_t]
+        win_out = [e for e in w.outflows(a) if start < e.t <= w.now_t]
+        sal = sum(e.amount_paise for e in win_in if e.src == "ext:employer" or w.kind_hint.get(e.src) == "payroll")
+        big = max((e.amount_paise for e in win_out), default=0)
+        out["victim"].append(neg and any(e.tag for e in w.outflows(a)))
+        out["salary_in_window"].append(neg and sal > 0)
+        out["salary_and_large_payment"].append(neg and sal > 0 and big >= 0.5 * sal)
+    return {k: np.array(v, dtype=bool) for k, v in out.items()}
+
+
+def _flag_rows(s: dict[str, Any]) -> list[dict[str, bool]]:
+    mat = np.stack([s[d][1] for d in DETECTORS], axis=1)
+    return [{d: bool(v) for d, v in zip(DETECTORS, row)} for row in mat]
+
+
+def _negatives_flagged(flag: np.ndarray, y: np.ndarray, kind: np.ndarray, groups: dict[str, np.ndarray]) -> dict[str, Any]:
+    neg = y == 0
+    return {"total": int((flag & neg).sum()),
+            "by_persona": {k: {"flagged": int((flag & neg & (kind == k)).sum()), "of": int((neg & (kind == k)).sum())}
+                           for k in sorted(set(kind[neg]))},
+            "by_subgroup": {g: {"flagged": int((flag & m).sum()), "of": int(m.sum())} for g, m in groups.items()}}
+
+
+def role_evaluation(tables: list[dict[str, Any]], s: dict[str, Any], gate_fn: Any = RO.gate) -> dict[str, Any]:
+    rows = _flag_rows(s)
     k = 0
     conf: dict[str, dict[str, int]] = {}
+    assigned: list[bool] = []
     for t in tables:
         w = t["world"]
         n = len(t["ids"])
-        fl = flags[k:k + n]
-        flagged = {a for a, row in zip(t["ids"], fl) if row.sum() >= 2}
-        for a, row, truth, y in zip(t["ids"], fl, t["role"], t["y"]):
-            if y != 1 or truth not in {"collector", "distributor", "entry", "exit", "coordinator"}:
-                continue
-            got = RO.assess(w, a, w.now_t, t["feats"][a], flagged, row.sum() >= 2, t["ctx"][a]["in_cycle"])["role"]
-            conf.setdefault(truth, {}).setdefault(got, 0)
-            conf[truth][got] += 1
+        fl = rows[k:k + n]
+        network = {a for a, f in zip(t["ids"], fl) if gate_fn(f)[0]}
+        for a, f, truth, y in zip(t["ids"], fl, t["role"], t["y"]):
+            got = RO.assess(w, a, w.now_t, t["feats"][a], network, f, t["ctx"][a]["in_cycle"], gate_fn=gate_fn)["role"]
+            assigned.append(got != "unclassified")
+            if y == 1 and truth in TRUE_ROLES:
+                conf.setdefault(truth, {}).setdefault(got, 0)
+                conf[truth][got] += 1
         k += n
-    acc = {r: round(c.get(r, 0) / sum(c.values()), 3) for r, c in conf.items()}
-    return {"confusion": conf, "accuracy_by_true_role": acc,
-            "note": "Ground-truth roles exist only where the generator assigns one; roles are only assigned to accounts flagged by >= 2 families."}
+    y, kind = s["y"], np.array(s["kind"])
+    got_role = np.array(assigned, dtype=bool)
+    groups = s["negative_groups"]
+    with_truth = sum(sum(c.values()) for c in conf.values())
+    return {
+        "accuracy_by_true_role": {r: round(conf.get(r, {}).get(r, 0) / max(1, sum(conf.get(r, {}).values())), 3)
+                                  for r in TRUE_ROLES},
+        "correct_of_mules_with_true_role": {"correct": sum(conf.get(r, {}).get(r, 0) for r in TRUE_ROLES),
+                                            "of": with_truth},
+        "mules_with_any_role": {"assigned": int((got_role & (y == 1)).sum()), "of": int((y == 1).sum())},
+        "false_role_assignments": _negatives_flagged(got_role, y, kind, groups),
+        "confusion": conf,
+    }
+
+
+def consensus_evaluation(s: dict[str, Any], rule: Any) -> dict[str, Any]:
+    rows = _flag_rows(s)
+    levels = np.array([LEVELS.index(rule({d for d, v in r.items() if v})) for r in rows])
+    y, kind, groups = s["y"], np.array(s["kind"]), s["negative_groups"]
+    out: dict[str, Any] = {"level_distribution": {
+        "mules": {lv: int(((levels == i) & (y == 1)).sum()) for i, lv in enumerate(LEVELS)},
+        "non_mules": {lv: int(((levels == i) & (y == 0)).sum()) for i, lv in enumerate(LEVELS)}}}
+    for at in ("moderate", "strong"):
+        flag = levels >= LEVELS.index(at)
+        r = M.binary(y, levels.astype(float), flag)
+        r.pop("roc_auc", None)
+        r.pop("pr_auc", None)
+        r["false_positives"] = _negatives_flagged(flag, y, kind, groups)
+        r["per_attack"] = {f: v["recall"] for f, v in M.per_attack(y, flag, s["fam"]).items()}
+        out[f"at_least_{at}"] = r
+    return out
+
+
+def family_correlation(s: dict[str, Any]) -> dict[str, Any]:
+    """Pairwise phi coefficient between family flags (all accounts / non-mules / mules)."""
+    y = s["y"]
+    out: dict[str, Any] = {}
+    for name, m in (("all", np.ones(len(y), dtype=bool)), ("non_mules", y == 0), ("mules", y == 1)):
+        mat: dict[str, dict[str, float | None]] = {}
+        for a in DETECTORS:
+            mat[a] = {}
+            for b in DETECTORS:
+                fa, fb = s[a][1][m].astype(float), s[b][1][m].astype(float)
+                mat[a][b] = None if fa.std() == 0 or fb.std() == 0 else round(float(np.corrcoef(fa, fb)[0, 1]), 3)
+        out[name] = mat
+    return out
+
+
+def flag_combinations_without_evidence(s: dict[str, Any]) -> dict[str, Any]:
+    """Accounts flagged by >= 2 families but by no mule-evidence family, by exact flag combination."""
+    out: dict[str, dict[str, int]] = {}
+    for row, y in zip(_flag_rows(s), s["y"]):
+        on = [d for d in DETECTORS if row[d]]
+        if len(on) < 2 or set(on) & C.MULE_EVIDENCE_FAMILIES:
+            continue
+        key = " + ".join(on)
+        out.setdefault(key, {"mules": 0, "non_mules": 0})
+        out[key]["mules" if y == 1 else "non_mules"] += 1
+    return dict(sorted(out.items(), key=lambda kv: -(kv[1]["mules"] + kv[1]["non_mules"])))
+
+
+def write_roles_consensus(rep: dict[str, Any], command: str, evaluated_at: str, artefacts: str,
+                          extra: dict[str, Any] | None = None) -> Path:
+    path = MODELS / "validation_v2_roles_consensus.json"
+    doc = {"label": LABEL, "evaluated_at": evaluated_at, "command": command, "artefacts": artefacts, "seed": SEED,
+           "test_worlds": f"world indices {N_TRAIN + N_VAL}..{N_TRAIN + N_VAL + N_TEST - 1} (split by world)",
+           **(extra or {}), **rep}
+    path.write_text(json.dumps(doc, indent=2, default=float), encoding="utf-8")
+    return path
+
+
+def roles_consensus_report(tables: list[dict[str, Any]], s: dict[str, Any]) -> dict[str, Any]:
+    """Before/after evaluation of the role gate and the consensus agreement rule on TEST worlds."""
+    if "negative_groups" not in s:
+        g = [negative_groups(t) for t in tables]
+        s["negative_groups"] = {k: np.concatenate([x[k] for x in g]) for k in g[0]}
+    return {
+        "label": LABEL,
+        "families": list(DETECTORS),
+        "note": ("Six families exist in the synthetic worlds. RingWatch and the (SIMULATED) external registry are "
+                 "live-only and cannot be validated here; in the live rule they count as mule-evidence families."),
+        "roles": {name: role_evaluation(tables, s, gate) for name, gate in ROLE_GATES.items()},
+        "consensus": {name: consensus_evaluation(s, rule) for name, rule in CONSENSUS_RULES.items()},
+        "family_correlation_phi": family_correlation(s),
+        "combinations_without_mule_evidence": flag_combinations_without_evidence(s),
+        "rules_in_use": {"roles": RO.ROLES_VERSION, "consensus": C.CONSENSUS_VERSION,
+                         "mule_evidence_families": sorted(C.MULE_EVIDENCE_FAMILIES)},
+    }
 
 
 def old_protocol(worlds: list[datagen.World], honest_test: dict[str, Any]) -> dict[str, Any]:
@@ -453,7 +609,11 @@ def main() -> None:
              "random_forest_raw": M.calibration(s_test["y"], s_test["rf_raw"]),
              "gnn_calibrated": M.calibration(s_test["y"], s_test["gnn"][0]),
              "gnn_raw": M.calibration(s_test["y"], s_test["gnn_raw"])}
-    roles_eval = role_accuracy(test, s_test)
+    roles_consensus = roles_consensus_report(test, s_test)
+    roles_eval = {**roles_consensus["roles"]["v2.1_mule_evidence_gate"], "version": RO.ROLES_VERSION,
+                  "note": "Ground-truth roles exist only where the generator assigns one. Roles are only assigned when "
+                          ">= 2 families flag and at least one is a mule-evidence family (roles.gate); before/after and "
+                          "alternatives in models/validation_v2_roles_consensus.json."}
 
     # numpy ports equal the trained models
     Xc = cat(test, "X")[:400]
@@ -585,6 +745,7 @@ def main() -> None:
               "roles": roles_eval, "loao_config": loao_cfg, "loao": loao_res,
               "old_protocol": old, "timings": timings, "gnn_training": gnn_info}
     (MODELS / "validation_v2.json").write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
+    write_roles_consensus(roles_consensus, command, trained_at, "artefacts trained by this run")
     log(f"artefacts written to {MODELS}  (total {timings['total_s']}s)")
 
 

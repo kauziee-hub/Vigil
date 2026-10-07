@@ -33,7 +33,7 @@ from vigil.intel.models import STORE, gnn_input_row
 
 FULL_TTL_S = 120.0          # a full rebuild re-anchors every window at a fresh "now"
 INTEL_FAMILIES: tuple[str, ...] = ("rules", "random_forest", "gnn", "drift", "early_warning", "pattern_memory")
-ROLE_MIN_FAMILIES = 2       # same rule as the validated role experiment (ml/train_all.py::role_accuracy)
+ROLE_MIN_FAMILIES = RO.ROLE_MIN_FAMILIES   # role gate: roles.gate (validated in ml/eval_roles_consensus.py)
 
 
 # ── graph adapter ─────────────────────────────────────────────────────────
@@ -143,7 +143,6 @@ class Snapshot:
     rf: dict[str, tuple[float, float]] = field(default_factory=dict)       # account -> (raw, calibrated)
     gnn: dict[str, tuple[float, float]] = field(default_factory=dict)
     flags: dict[str, dict[str, bool]] = field(default_factory=dict)        # account -> family -> flagged
-    suspicious: set[str] = field(default_factory=set)                      # >= ROLE_MIN_FAMILIES intel flags
     roles: dict[str, dict[str, Any]] = field(default_factory=dict)         # filled lazily by role()
     gnn_rows: dict[str, list[float]] = field(default_factory=dict)         # raw GNN input row per account
     n_edges: dict[str, int] = field(default_factory=dict)                  # account -> in+out postings seen
@@ -227,7 +226,6 @@ def _gnn(snap: Snapshot) -> None:
 def _population(snap: Snapshot) -> None:
     snap.ew, snap.ew_stats = EW.evaluate_population(snap.feats)
     thr = thresholds()
-    snap.suspicious = set()
     snap.roles = {}
     for a in snap.ids:
         top = snap.patterns[a][0]["similarity"] if snap.patterns.get(a) else 0.0
@@ -242,16 +240,53 @@ def _population(snap: Snapshot) -> None:
         if a in snap.gnn:
             fl["gnn"] = snap.gnn[a][1] >= thr["gnn"]
         snap.flags[a] = fl
-        if sum(fl.values()) >= ROLE_MIN_FAMILIES:
-            snap.suspicious.add(a)
+
+
+# ── roles (API path only; the payment path never needs them) ──────────────
+def role_flags(snap: Snapshot) -> dict[str, dict[str, bool]]:
+    """Account-level family flags for the role gate (roles.gate), cached per snapshot.
+
+    The six intel families come from the snapshot. The registry and RingWatch are evaluated with the SAME
+    functions as the AccountIntel detector list (consensus.external_result / ringwatch_result): the registry
+    for every account (one indexed lookup each), RingWatch only where it can change the gate's answer: any
+    account that already has a flag or is in the RingWatch scan (an account with no other flag would have
+    at most one, which never passes the >= 2-family gate).
+    """
+    cached = snap.views.get("role_flags")
+    if cached is not None:
+        return cached
+    from vigil.intel import consensus as C
+    out = {a: dict(snap.flags[a]) for a in snap.ids}
+    for a in snap.ids:
+        out[a]["external"] = bool(C.external_result(a, snap.as_of).flagged)
+    candidates = {a for a in snap.ids if any(out[a].values())}
+    try:
+        from vigil.risk import ringwatch
+        candidates |= {r["account_id"] for r in ringwatch.scan(min_score=C.RINGWATCH_FLAG)} & set(out)
+    except Exception:
+        pass
+    for a in sorted(candidates):
+        rw = C.ringwatch_result(a, snap.as_of)
+        out[a]["ringwatch"] = bool(rw.flagged and rw.status == "ok")
+    snap.views["role_flags"] = out
+    return out
+
+
+def role_network(snap: Snapshot) -> set[str]:
+    """Accounts that pass the role gate: the 'flagged network' that entry / exit positions refer to."""
+    cached = snap.views.get("role_network")
+    if cached is None:
+        cached = {a for a, fl in role_flags(snap).items() if RO.gate(fl)[0]}
+        snap.views["role_network"] = cached
+    return cached
 
 
 def role(snap: Snapshot, account_id: str) -> dict[str, Any]:
-    """Role assessment (lazy: the payment path never needs it)."""
+    """Role assessment (lazy, cached per snapshot)."""
     r = snap.roles.get(account_id)
     if r is None:
-        r = RO.assess(SRC, account_id, snap.now_t, snap.feats[account_id], snap.suspicious,
-                      account_id in snap.suspicious, bool(snap.ctx[account_id]["in_cycle"]))
+        r = RO.assess(SRC, account_id, snap.now_t, snap.feats[account_id], role_network(snap),
+                      role_flags(snap)[account_id], bool(snap.ctx[account_id]["in_cycle"]))
         snap.roles[account_id] = r
     return r
 

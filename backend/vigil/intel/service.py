@@ -125,6 +125,7 @@ def scores() -> dict[str, Any]:
     if cached is not None:
         return cached
     out: dict[str, Any] = {}
+    network = live.role_network(snap)             # roles only inside corroborated mule structure (roles.gate)
     for a in snap.ids:
         rf = snap.rf.get(a)
         g = snap.gnn.get(a)
@@ -133,7 +134,7 @@ def scores() -> dict[str, Any]:
             "rf": round(rf[1], 4) if rf else None,
             "gnn": round(g[1], 4) if g else None,
             "drift_level": snap.drift[a]["level"],
-            "role": live.role(snap, a)["role"] if a in snap.suspicious else None,
+            "role": live.role(snap, a)["role"] if a in network else None,
             "early_warning": bool(snap.ew[a]["flagged"]),
         }
     result = {"graph_version": snap.key[0], "scores": out}
@@ -160,7 +161,7 @@ def overview() -> dict[str, Any]:
     pats = sorted(((a, snap.patterns[a][0]) for a in snap.ids if snap.patterns.get(a)
                    and snap.patterns[a][0]["similarity"] >= thr), key=lambda x: (-x[1]["similarity"], x[0]))
     roles: dict[str, int] = {r: 0 for r in ("coordinator", "collector", "distributor", "entry", "exit", "unclassified")}
-    for a in sorted(snap.suspicious):
+    for a in sorted(live.role_network(snap)):
         r = live.role(snap, a)["role"]
         roles[r] = roles.get(r, 0) + 1
     return {

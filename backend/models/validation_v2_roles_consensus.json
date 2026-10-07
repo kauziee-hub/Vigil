@@ -1,0 +1,1352 @@
+{
+  "label": "SYNTHETIC VALIDATION \u2014 computer-generated worlds; not real-bank accuracy.",
+  "evaluated_at": "2026-10-07T02:55:44Z",
+  "command": "python ml/eval_roles_consensus.py",
+  "artefacts": "committed artefacts in backend/models (no retraining; trained_at 2026-10-06T20:11:11Z)",
+  "seed": 20261006,
+  "test_worlds": "world indices 120..149 (split by world)",
+  "reproduces_validation_v2": {
+    "rules": true,
+    "random_forest": true,
+    "gnn": true,
+    "early_warning": true,
+    "drift": true,
+    "pattern_memory": true
+  },
+  "levels": [
+    "none",
+    "weak",
+    "moderate",
+    "strong"
+  ],
+  "families": [
+    "rules",
+    "random_forest",
+    "gnn",
+    "early_warning",
+    "drift",
+    "pattern_memory"
+  ],
+  "note": "Six families exist in the synthetic worlds. RingWatch and the (SIMULATED) external registry are live-only and cannot be validated here; in the live rule they count as mule-evidence families.",
+  "roles": {
+    "v2.0_any_2_families": {
+      "accuracy_by_true_role": {
+        "coordinator": 1.0,
+        "collector": 0.104,
+        "distributor": 0.656,
+        "entry": 0.857,
+        "exit": 0.507
+      },
+      "correct_of_mules_with_true_role": {
+        "correct": 113,
+        "of": 252
+      },
+      "mules_with_any_role": {
+        "assigned": 238,
+        "of": 310
+      },
+      "false_role_assignments": {
+        "total": 279,
+        "by_persona": {
+          "customer": {
+            "flagged": 68,
+            "of": 7485
+          },
+          "landlord": {
+            "flagged": 0,
+            "of": 147
+          },
+          "merchant": {
+            "flagged": 153,
+            "of": 331
+          },
+          "organiser": {
+            "flagged": 4,
+            "of": 19
+          },
+          "payroll": {
+            "flagged": 9,
+            "of": 84
+          },
+          "trader": {
+            "flagged": 45,
+            "of": 470
+          }
+        },
+        "by_subgroup": {
+          "victim": {
+            "flagged": 13,
+            "of": 187
+          },
+          "salary_in_window": {
+            "flagged": 12,
+            "of": 892
+          },
+          "salary_and_large_payment": {
+            "flagged": 10,
+            "of": 33
+          }
+        }
+      },
+      "confusion": {
+        "exit": {
+          "coordinator": 9,
+          "collector": 8,
+          "unclassified": 42,
+          "exit": 69,
+          "distributor": 8
+        },
+        "collector": {
+          "unclassified": 10,
+          "entry": 35,
+          "collector": 7,
+          "exit": 1,
+          "coordinator": 13,
+          "distributor": 1
+        },
+        "entry": {
+          "entry": 6,
+          "unclassified": 1
+        },
+        "distributor": {
+          "distributor": 21,
+          "coordinator": 8,
+          "unclassified": 3
+        },
+        "coordinator": {
+          "coordinator": 10
+        }
+      }
+    },
+    "v2.1_mule_evidence_gate": {
+      "accuracy_by_true_role": {
+        "coordinator": 1.0,
+        "collector": 0.104,
+        "distributor": 0.656,
+        "entry": 0.857,
+        "exit": 0.5
+      },
+      "correct_of_mules_with_true_role": {
+        "correct": 112,
+        "of": 252
+      },
+      "mules_with_any_role": {
+        "assigned": 235,
+        "of": 310
+      },
+      "false_role_assignments": {
+        "total": 33,
+        "by_persona": {
+          "customer": {
+            "flagged": 27,
+            "of": 7485
+          },
+          "landlord": {
+            "flagged": 0,
+            "of": 147
+          },
+          "merchant": {
+            "flagged": 0,
+            "of": 331
+          },
+          "organiser": {
+            "flagged": 0,
+            "of": 19
+          },
+          "payroll": {
+            "flagged": 0,
+            "of": 84
+          },
+          "trader": {
+            "flagged": 6,
+            "of": 470
+          }
+        },
+        "by_subgroup": {
+          "victim": {
+            "flagged": 5,
+            "of": 187
+          },
+          "salary_in_window": {
+            "flagged": 2,
+            "of": 892
+          },
+          "salary_and_large_payment": {
+            "flagged": 2,
+            "of": 33
+          }
+        }
+      },
+      "confusion": {
+        "exit": {
+          "coordinator": 8,
+          "collector": 8,
+          "unclassified": 44,
+          "exit": 68,
+          "distributor": 8
+        },
+        "collector": {
+          "unclassified": 10,
+          "entry": 35,
+          "collector": 7,
+          "exit": 1,
+          "coordinator": 13,
+          "distributor": 1
+        },
+        "entry": {
+          "entry": 6,
+          "unclassified": 1
+        },
+        "distributor": {
+          "distributor": 21,
+          "coordinator": 7,
+          "unclassified": 4
+        },
+        "coordinator": {
+          "coordinator": 10
+        }
+      }
+    },
+    "alt_one_mule_evidence_family_alone": {
+      "accuracy_by_true_role": {
+        "coordinator": 1.0,
+        "collector": 0.104,
+        "distributor": 0.656,
+        "entry": 0.857,
+        "exit": 0.61
+      },
+      "correct_of_mules_with_true_role": {
+        "correct": 127,
+        "of": 252
+      },
+      "mules_with_any_role": {
+        "assigned": 251,
+        "of": 310
+      },
+      "false_role_assignments": {
+        "total": 39,
+        "by_persona": {
+          "customer": {
+            "flagged": 31,
+            "of": 7485
+          },
+          "landlord": {
+            "flagged": 0,
+            "of": 147
+          },
+          "merchant": {
+            "flagged": 0,
+            "of": 331
+          },
+          "organiser": {
+            "flagged": 0,
+            "of": 19
+          },
+          "payroll": {
+            "flagged": 0,
+            "of": 84
+          },
+          "trader": {
+            "flagged": 8,
+            "of": 470
+          }
+        },
+        "by_subgroup": {
+          "victim": {
+            "flagged": 5,
+            "of": 187
+          },
+          "salary_in_window": {
+            "flagged": 2,
+            "of": 892
+          },
+          "salary_and_large_payment": {
+            "flagged": 2,
+            "of": 33
+          }
+        }
+      },
+      "confusion": {
+        "exit": {
+          "coordinator": 9,
+          "collector": 8,
+          "unclassified": 28,
+          "exit": 83,
+          "distributor": 8
+        },
+        "collector": {
+          "unclassified": 10,
+          "entry": 35,
+          "collector": 7,
+          "exit": 1,
+          "coordinator": 13,
+          "distributor": 1
+        },
+        "entry": {
+          "entry": 6,
+          "unclassified": 1
+        },
+        "distributor": {
+          "distributor": 21,
+          "coordinator": 7,
+          "unclassified": 4
+        },
+        "coordinator": {
+          "coordinator": 10
+        }
+      }
+    },
+    "alt_rules_count_as_mule_evidence": {
+      "accuracy_by_true_role": {
+        "coordinator": 1.0,
+        "collector": 0.104,
+        "distributor": 0.656,
+        "entry": 0.857,
+        "exit": 0.507
+      },
+      "correct_of_mules_with_true_role": {
+        "correct": 113,
+        "of": 252
+      },
+      "mules_with_any_role": {
+        "assigned": 238,
+        "of": 310
+      },
+      "false_role_assignments": {
+        "total": 242,
+        "by_persona": {
+          "customer": {
+            "flagged": 38,
+            "of": 7485
+          },
+          "landlord": {
+            "flagged": 0,
+            "of": 147
+          },
+          "merchant": {
+            "flagged": 153,
+            "of": 331
+          },
+          "organiser": {
+            "flagged": 4,
+            "of": 19
+          },
+          "payroll": {
+            "flagged": 4,
+            "of": 84
+          },
+          "trader": {
+            "flagged": 43,
+            "of": 470
+          }
+        },
+        "by_subgroup": {
+          "victim": {
+            "flagged": 6,
+            "of": 187
+          },
+          "salary_in_window": {
+            "flagged": 11,
+            "of": 892
+          },
+          "salary_and_large_payment": {
+            "flagged": 9,
+            "of": 33
+          }
+        }
+      },
+      "confusion": {
+        "exit": {
+          "coordinator": 9,
+          "collector": 8,
+          "unclassified": 42,
+          "exit": 69,
+          "distributor": 8
+        },
+        "collector": {
+          "unclassified": 10,
+          "entry": 35,
+          "collector": 7,
+          "exit": 1,
+          "coordinator": 13,
+          "distributor": 1
+        },
+        "entry": {
+          "entry": 6,
+          "unclassified": 1
+        },
+        "distributor": {
+          "distributor": 21,
+          "coordinator": 8,
+          "unclassified": 3
+        },
+        "coordinator": {
+          "coordinator": 10
+        }
+      }
+    }
+  },
+  "consensus": {
+    "v2.0_count_only": {
+      "level_distribution": {
+        "mules": {
+          "none": 19,
+          "weak": 23,
+          "moderate": 61,
+          "strong": 207
+        },
+        "non_mules": {
+          "none": 7911,
+          "weak": 284,
+          "moderate": 335,
+          "strong": 6
+        }
+      },
+      "at_least_moderate": {
+        "precision": 0.4401,
+        "recall": 0.8645,
+        "f1": 0.5832,
+        "confusion": {
+          "tp": 268,
+          "fp": 341,
+          "fn": 42,
+          "tn": 8195
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0688,
+        "false_positives": {
+          "total": 341,
+          "by_persona": {
+            "customer": {
+              "flagged": 82,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 2,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 197,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 4,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 9,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 47,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 15,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 24,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 15,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 1.0,
+          "cross_channel": 0.7931,
+          "dormant": 0.9,
+          "fan_in": 0.9,
+          "fan_out": 0.7738,
+          "shared_device": 1.0,
+          "smurfing": 0.5172,
+          "velocity_chain": 1.0,
+          "volume_spike": 0.8571
+        }
+      },
+      "at_least_strong": {
+        "precision": 0.9718,
+        "recall": 0.6677,
+        "f1": 0.7916,
+        "confusion": {
+          "tp": 207,
+          "fp": 6,
+          "fn": 103,
+          "tn": 8530
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0241,
+        "false_positives": {
+          "total": 6,
+          "by_persona": {
+            "customer": {
+              "flagged": 3,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 0,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 3,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 0,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 0,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 0,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 0.8478,
+          "cross_channel": 0.4138,
+          "dormant": 0.5,
+          "fan_in": 0.8,
+          "fan_out": 0.4524,
+          "shared_device": 0.9808,
+          "smurfing": 0.3793,
+          "velocity_chain": 0.8333,
+          "volume_spike": 0.8571
+        }
+      }
+    },
+    "v2.1_mule_evidence_cap": {
+      "level_distribution": {
+        "mules": {
+          "none": 19,
+          "weak": 25,
+          "moderate": 59,
+          "strong": 207
+        },
+        "non_mules": {
+          "none": 7911,
+          "weak": 587,
+          "moderate": 32,
+          "strong": 6
+        }
+      },
+      "at_least_moderate": {
+        "precision": 0.875,
+        "recall": 0.8581,
+        "f1": 0.8664,
+        "confusion": {
+          "tp": 266,
+          "fp": 38,
+          "fn": 44,
+          "tn": 8498
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0344,
+        "false_positives": {
+          "total": 38,
+          "by_persona": {
+            "customer": {
+              "flagged": 31,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 1,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 6,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 6,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 4,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 3,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 1.0,
+          "cross_channel": 0.7586,
+          "dormant": 0.9,
+          "fan_in": 0.9,
+          "fan_out": 0.7619,
+          "shared_device": 1.0,
+          "smurfing": 0.5172,
+          "velocity_chain": 1.0,
+          "volume_spike": 0.8571
+        }
+      },
+      "at_least_strong": {
+        "precision": 0.9718,
+        "recall": 0.6677,
+        "f1": 0.7916,
+        "confusion": {
+          "tp": 207,
+          "fp": 6,
+          "fn": 103,
+          "tn": 8530
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0241,
+        "false_positives": {
+          "total": 6,
+          "by_persona": {
+            "customer": {
+              "flagged": 3,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 0,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 3,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 0,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 0,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 0,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 0.8478,
+          "cross_channel": 0.4138,
+          "dormant": 0.5,
+          "fan_in": 0.8,
+          "fan_out": 0.4524,
+          "shared_device": 0.9808,
+          "smurfing": 0.3793,
+          "velocity_chain": 0.8333,
+          "volume_spike": 0.8571
+        }
+      }
+    },
+    "alt_drift_and_ew_as_one_family": {
+      "level_distribution": {
+        "mules": {
+          "none": 19,
+          "weak": 23,
+          "moderate": 100,
+          "strong": 168
+        },
+        "non_mules": {
+          "none": 7911,
+          "weak": 328,
+          "moderate": 296,
+          "strong": 1
+        }
+      },
+      "at_least_moderate": {
+        "precision": 0.4743,
+        "recall": 0.8645,
+        "f1": 0.6126,
+        "confusion": {
+          "tp": 268,
+          "fp": 297,
+          "fn": 42,
+          "tn": 8239
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0639,
+        "false_positives": {
+          "total": 297,
+          "by_persona": {
+            "customer": {
+              "flagged": 46,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 1,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 197,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 4,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 4,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 45,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 7,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 22,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 13,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 1.0,
+          "cross_channel": 0.7931,
+          "dormant": 0.9,
+          "fan_in": 0.9,
+          "fan_out": 0.7738,
+          "shared_device": 1.0,
+          "smurfing": 0.5172,
+          "velocity_chain": 1.0,
+          "volume_spike": 0.8571
+        }
+      },
+      "at_least_strong": {
+        "precision": 0.9941,
+        "recall": 0.5419,
+        "f1": 0.7015,
+        "confusion": {
+          "tp": 168,
+          "fp": 1,
+          "fn": 142,
+          "tn": 8535
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0191,
+        "false_positives": {
+          "total": 1,
+          "by_persona": {
+            "customer": {
+              "flagged": 1,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 0,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 0,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 0,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 0,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 0,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 0.8571,
+          "circular": 0.6739,
+          "cross_channel": 0.3103,
+          "dormant": 0.5,
+          "fan_in": 0.6,
+          "fan_out": 0.2619,
+          "shared_device": 0.9231,
+          "smurfing": 0.3103,
+          "velocity_chain": 0.7222,
+          "volume_spike": 0.8571
+        }
+      }
+    },
+    "alt_one_change_family_and_cap": {
+      "level_distribution": {
+        "mules": {
+          "none": 19,
+          "weak": 25,
+          "moderate": 98,
+          "strong": 168
+        },
+        "non_mules": {
+          "none": 7911,
+          "weak": 587,
+          "moderate": 37,
+          "strong": 1
+        }
+      },
+      "at_least_moderate": {
+        "precision": 0.875,
+        "recall": 0.8581,
+        "f1": 0.8664,
+        "confusion": {
+          "tp": 266,
+          "fp": 38,
+          "fn": 44,
+          "tn": 8498
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0344,
+        "false_positives": {
+          "total": 38,
+          "by_persona": {
+            "customer": {
+              "flagged": 31,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 1,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 6,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 6,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 4,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 3,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 1.0,
+          "cross_channel": 0.7586,
+          "dormant": 0.9,
+          "fan_in": 0.9,
+          "fan_out": 0.7619,
+          "shared_device": 1.0,
+          "smurfing": 0.5172,
+          "velocity_chain": 1.0,
+          "volume_spike": 0.8571
+        }
+      },
+      "at_least_strong": {
+        "precision": 0.9941,
+        "recall": 0.5419,
+        "f1": 0.7015,
+        "confusion": {
+          "tp": 168,
+          "fp": 1,
+          "fn": 142,
+          "tn": 8535
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0191,
+        "false_positives": {
+          "total": 1,
+          "by_persona": {
+            "customer": {
+              "flagged": 1,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 0,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 0,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 0,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 0,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 0,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 0.8571,
+          "circular": 0.6739,
+          "cross_channel": 0.3103,
+          "dormant": 0.5,
+          "fan_in": 0.6,
+          "fan_out": 0.2619,
+          "shared_device": 0.9231,
+          "smurfing": 0.3103,
+          "velocity_chain": 0.7222,
+          "volume_spike": 0.8571
+        }
+      }
+    },
+    "alt_cap_with_rules_as_mule_evidence": {
+      "level_distribution": {
+        "mules": {
+          "none": 19,
+          "weak": 23,
+          "moderate": 61,
+          "strong": 207
+        },
+        "non_mules": {
+          "none": 7911,
+          "weak": 328,
+          "moderate": 291,
+          "strong": 6
+        }
+      },
+      "at_least_moderate": {
+        "precision": 0.4743,
+        "recall": 0.8645,
+        "f1": 0.6126,
+        "confusion": {
+          "tp": 268,
+          "fp": 297,
+          "fn": 42,
+          "tn": 8239
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0639,
+        "false_positives": {
+          "total": 297,
+          "by_persona": {
+            "customer": {
+              "flagged": 46,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 1,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 197,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 4,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 4,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 45,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 7,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 22,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 13,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 1.0,
+          "cross_channel": 0.7931,
+          "dormant": 0.9,
+          "fan_in": 0.9,
+          "fan_out": 0.7738,
+          "shared_device": 1.0,
+          "smurfing": 0.5172,
+          "velocity_chain": 1.0,
+          "volume_spike": 0.8571
+        }
+      },
+      "at_least_strong": {
+        "precision": 0.9718,
+        "recall": 0.6677,
+        "f1": 0.7916,
+        "confusion": {
+          "tp": 207,
+          "fp": 6,
+          "fn": 103,
+          "tn": 8530
+        },
+        "n": 8846,
+        "positives": 310,
+        "prevalence": 0.035,
+        "flag_rate": 0.0241,
+        "false_positives": {
+          "total": 6,
+          "by_persona": {
+            "customer": {
+              "flagged": 3,
+              "of": 7485
+            },
+            "landlord": {
+              "flagged": 0,
+              "of": 147
+            },
+            "merchant": {
+              "flagged": 0,
+              "of": 331
+            },
+            "organiser": {
+              "flagged": 0,
+              "of": 19
+            },
+            "payroll": {
+              "flagged": 0,
+              "of": 84
+            },
+            "trader": {
+              "flagged": 3,
+              "of": 470
+            }
+          },
+          "by_subgroup": {
+            "victim": {
+              "flagged": 0,
+              "of": 187
+            },
+            "salary_in_window": {
+              "flagged": 0,
+              "of": 892
+            },
+            "salary_and_large_payment": {
+              "flagged": 0,
+              "of": 33
+            }
+          }
+        },
+        "per_attack": {
+          "behavioural_drift": 1.0,
+          "circular": 0.8478,
+          "cross_channel": 0.4138,
+          "dormant": 0.5,
+          "fan_in": 0.8,
+          "fan_out": 0.4524,
+          "shared_device": 0.9808,
+          "smurfing": 0.3793,
+          "velocity_chain": 0.8333,
+          "volume_spike": 0.8571
+        }
+      }
+    }
+  },
+  "family_correlation_phi": {
+    "all": {
+      "rules": {
+        "rules": 1.0,
+        "random_forest": 0.274,
+        "gnn": 0.277,
+        "early_warning": 0.672,
+        "drift": 0.281,
+        "pattern_memory": 0.268
+      },
+      "random_forest": {
+        "rules": 0.274,
+        "random_forest": 1.0,
+        "gnn": 0.899,
+        "early_warning": 0.413,
+        "drift": 0.693,
+        "pattern_memory": 0.649
+      },
+      "gnn": {
+        "rules": 0.277,
+        "random_forest": 0.899,
+        "gnn": 1.0,
+        "early_warning": 0.41,
+        "drift": 0.666,
+        "pattern_memory": 0.635
+      },
+      "early_warning": {
+        "rules": 0.672,
+        "random_forest": 0.413,
+        "gnn": 0.41,
+        "early_warning": 1.0,
+        "drift": 0.486,
+        "pattern_memory": 0.405
+      },
+      "drift": {
+        "rules": 0.281,
+        "random_forest": 0.693,
+        "gnn": 0.666,
+        "early_warning": 0.486,
+        "drift": 1.0,
+        "pattern_memory": 0.585
+      },
+      "pattern_memory": {
+        "rules": 0.268,
+        "random_forest": 0.649,
+        "gnn": 0.635,
+        "early_warning": 0.405,
+        "drift": 0.585,
+        "pattern_memory": 1.0
+      }
+    },
+    "non_mules": {
+      "rules": {
+        "rules": 1.0,
+        "random_forest": -0.01,
+        "gnn": -0.005,
+        "early_warning": 0.671,
+        "drift": 0.078,
+        "pattern_memory": 0.054
+      },
+      "random_forest": {
+        "rules": -0.01,
+        "random_forest": 1.0,
+        "gnn": 0.194,
+        "early_warning": 0.039,
+        "drift": 0.191,
+        "pattern_memory": 0.119
+      },
+      "gnn": {
+        "rules": -0.005,
+        "random_forest": 0.194,
+        "gnn": 1.0,
+        "early_warning": 0.015,
+        "drift": 0.132,
+        "pattern_memory": 0.082
+      },
+      "early_warning": {
+        "rules": 0.671,
+        "random_forest": 0.039,
+        "gnn": 0.015,
+        "early_warning": 1.0,
+        "drift": 0.26,
+        "pattern_memory": 0.178
+      },
+      "drift": {
+        "rules": 0.078,
+        "random_forest": 0.191,
+        "gnn": 0.132,
+        "early_warning": 0.26,
+        "drift": 1.0,
+        "pattern_memory": 0.287
+      },
+      "pattern_memory": {
+        "rules": 0.054,
+        "random_forest": 0.119,
+        "gnn": 0.082,
+        "early_warning": 0.178,
+        "drift": 0.287,
+        "pattern_memory": 1.0
+      }
+    },
+    "mules": {
+      "rules": {
+        "rules": 1.0,
+        "random_forest": 0.219,
+        "gnn": 0.16,
+        "early_warning": 0.481,
+        "drift": 0.378,
+        "pattern_memory": 0.288
+      },
+      "random_forest": {
+        "rules": 0.219,
+        "random_forest": 1.0,
+        "gnn": 0.518,
+        "early_warning": 0.425,
+        "drift": 0.618,
+        "pattern_memory": 0.378
+      },
+      "gnn": {
+        "rules": 0.16,
+        "random_forest": 0.518,
+        "gnn": 1.0,
+        "early_warning": 0.338,
+        "drift": 0.404,
+        "pattern_memory": 0.269
+      },
+      "early_warning": {
+        "rules": 0.481,
+        "random_forest": 0.425,
+        "gnn": 0.338,
+        "early_warning": 1.0,
+        "drift": 0.646,
+        "pattern_memory": 0.435
+      },
+      "drift": {
+        "rules": 0.378,
+        "random_forest": 0.618,
+        "gnn": 0.404,
+        "early_warning": 0.646,
+        "drift": 1.0,
+        "pattern_memory": 0.442
+      },
+      "pattern_memory": {
+        "rules": 0.288,
+        "random_forest": 0.378,
+        "gnn": 0.269,
+        "early_warning": 0.435,
+        "drift": 0.442,
+        "pattern_memory": 1.0
+      }
+    }
+  },
+  "combinations_without_mule_evidence": {
+    "rules + early_warning": {
+      "mules": 0,
+      "non_mules": 238
+    },
+    "early_warning + drift": {
+      "mules": 0,
+      "non_mules": 44
+    },
+    "rules + early_warning + drift": {
+      "mules": 1,
+      "non_mules": 18
+    },
+    "rules + drift": {
+      "mules": 1,
+      "non_mules": 3
+    }
+  },
+  "rules_in_use": {
+    "roles": "roles-v2.1",
+    "consensus": "consensus-v2.1",
+    "mule_evidence_families": [
+      "external",
+      "gnn",
+      "pattern_memory",
+      "random_forest",
+      "ringwatch"
+    ]
+  }
+}
