@@ -15,13 +15,13 @@ export const STATUS_LABEL: Record<Status, string> = {
 
 /** Hex values used where CSS variables are unavailable (WebGL). Mirror of tokens.css. */
 export const STATUS_HEX: Record<Status, string> = {
-  normal: "#5b9bff",
-  watch: "#ffbc4d",
-  high: "#ff9157",
-  critical: "#ff647f",
-  held: "#a68bff",
-  fraud: "#e8264f",
-  unknown: "#6d8a7b",
+  normal: "#8593a8",
+  watch: "#d6a23f",
+  high: "#dd7a3e",
+  critical: "#e2564e",
+  held: "#9283d6",
+  fraud: "#c8344d",
+  unknown: "#6b7383",
 };
 
 /** Tier → status. T3 is a scoped hold: its *risk* level is HIGH; the HELD state is shown separately. */
@@ -139,14 +139,14 @@ export const ACCOUNT_STATUS_LABEL: Record<AccountStatus, string> = {
 
 /** WebGL / canvas colours for live account status (mirror of --as-* in tokens.css). */
 export const ACCOUNT_STATUS_HEX: Record<AccountStatus, string> = {
-  normal: "#2f7dff",
-  idle: "#1f4a8f",
-  new: "#22ff99",
-  early_warning: "#ffc34d",
-  flagged: "#ff3d63",
-  held: "#9b7bff",
-  confirmed_fraud: "#c8102e",
-  external: "#5d6b67",
+  normal: "#5f86b8",
+  idle: "#34445a",
+  new: "#5fb0d6",
+  early_warning: "#d6a23f",
+  flagged: "#e2564e",
+  held: "#9283d6",
+  confirmed_fraud: "#c8344d",
+  external: "#6f7787",
 };
 
 export const ACCOUNT_STATUS_RANK: Record<AccountStatus, number> = {

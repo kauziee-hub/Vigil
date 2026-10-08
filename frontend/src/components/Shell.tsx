@@ -50,6 +50,26 @@ export const NAV: { to: string; label: string; end?: boolean; group?: string }[]
   { to: "/health", label: "System Health" },
 ];
 
+/** 16px stroke icons for the primary navigation (one per area; no numbering). */
+const NAV_ICON: Record<string, ReactNode> = {
+  "/": <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
+  "/guard": <><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M9 12l2 2 4-4" /></>,
+  "/network": <><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="7" r="2.2" /><circle cx="12" cy="18" r="2.2" /><path d="M8 7l8 0M7 8l4 8M17 9l-4 7" /></>,
+  "/detection": <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
+  "/investigations": <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></>,
+  "/interventions": <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>,
+  "/governance": <><path d="M4 9h16M6 9v9M10 9v9M14 9v9M18 9v9M3 20h18M12 3l9 4H3z" /></>,
+  "/lab": <><path d="M9 3h6M10 3v6L4.5 18.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3" /></>,
+  "/health": <><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M8 20h8M12 16v4" /></>,
+};
+function NavIcon({ to }: { to: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {NAV_ICON[to]}
+    </svg>
+  );
+}
+
 function Clock() {
   const [t, setT] = useState(() => new Date());
   useEffect(() => { const i = window.setInterval(() => setT(new Date()), 1000); return () => window.clearInterval(i); }, []);
@@ -151,15 +171,15 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className="mark">V</span>
             <span className="txt">
               <div className="name">VIGIL</div>
-              <div className="sub">PRIMA live platform · payment risk &amp; mule intelligence</div>
+              <div className="sub">Payment risk &amp; mule intelligence</div>
             </span>
           </NavLink>
           <nav className="side-nav">
-            {NAV.map((n, i) => (
+            {NAV.map((n) => (
               <div key={n.to} style={{ display: "contents" }}>
                 {n.group && <div className="side-group">{n.group}</div>}
                 <NavLink to={n.to} end={n.end} title={n.label}>
-                  <span className="idx">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="idx"><NavIcon to={n.to} /></span>
                   <span className="lbl">{n.label}</span>
                   {n.to === "/interventions" && open > 0 ? <span className="badge hot">{open}</span> : <span />}
                 </NavLink>
@@ -167,8 +187,8 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="side-foot">
-            <span>PRIMA architecture · prototype</span>
-            <span>Synthetic data. Not connected to any regulator, payment network or bank system.</span>
+            <span>PRIMA architecture · prototype on synthetic data.</span>
+            <span>Not connected to any regulator, payment network or bank system.</span>
           </div>
         </aside>
         <div className="main">

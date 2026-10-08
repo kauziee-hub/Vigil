@@ -13,8 +13,8 @@ const ATTACK_LABEL: Record<string, string> = {
   fan_in: "Fan-in", fan_out: "Fan-out", circular: "Circular", velocity_chain: "Velocity chain", cross_channel: "Cross-channel",
   shared_device: "Shared device", behavioural_drift: "Behav. drift", volume_spike: "Volume spike", smurfing: "Smurfing", dormant: "Dormant",
 };
-const AXIS = { color: "#96b1a2" };
-const GRID = { color: "rgba(172,210,191,0.08)" };
+const AXIS = { color: "#8790a0" };
+const GRID = { color: "rgba(160,170,185,0.08)" };
 
 export function FlaggedPerFamilyChart({ overview }: { overview: IntelOverview | null }) {
   const rows = Object.entries(overview?.detector_agreement ?? {}).sort((a, b) => b[1] - a[1]);
@@ -22,7 +22,7 @@ export function FlaggedPerFamilyChart({ overview }: { overview: IntelOverview | 
     <ChartCanvas type="bar" height={300} empty={overview ? "No family flags any account." : "Waiting for /api/intel/overview…"}
       data={{ labels: rows.map(([f]) => FAMILY[f as DetectorFamily]?.label ?? f), datasets: [{ label: "Accounts flagged", data: rows.map(([, n]) => n), backgroundColor: CH.mint, borderRadius: 4 }] }}
       options={baseOptions({ indexAxis: "y", plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, ticks: { ...AXIS, precision: 0 }, grid: GRID }, y: { ticks: { color: "#b9cfc3" }, grid: { display: false } } } }) as never} />
+        scales: { x: { beginAtZero: true, ticks: { ...AXIS, precision: 0 }, grid: GRID }, y: { ticks: { color: "#a7b0bd" }, grid: { display: false } } } }) as never} />
   );
 }
 
@@ -38,7 +38,7 @@ export function ModelMetricsChart({ models }: { models: ModelInfo[] | null }) {
         { label: "PR-AUC", data: m("pr_auc"), backgroundColor: CH.magenta, borderRadius: 3 },
       ] }}
       options={baseOptions({ plugins: { legend: { position: "bottom", labels: { ...AXIS, boxWidth: 10, boxHeight: 10 } } },
-        scales: { x: { ticks: { color: "#b9cfc3", maxRotation: 0, autoSkip: false, font: { size: 10 } }, grid: { display: false } }, y: { min: 0, max: 1, ticks: AXIS, grid: GRID } } }) as never} />
+        scales: { x: { ticks: { color: "#a7b0bd", maxRotation: 0, autoSkip: false, font: { size: 10 } }, grid: { display: false } }, y: { min: 0, max: 1, ticks: AXIS, grid: GRID } } }) as never} />
   );
 }
 
@@ -53,7 +53,7 @@ export function PerAttackRecallChart({ models }: { models: ModelInfo[] | null })
         label: MODEL_LABEL[s.fam], data: keys.map((k) => num(obj(obj(s.m!.per_attack)[k]).recall)), backgroundColor: s.color, borderRadius: 2,
         barPercentage: 0.9, categoryPercentage: 0.8 })) }}
       options={baseOptions({ indexAxis: "y", plugins: { legend: { position: "bottom", labels: { ...AXIS, boxWidth: 10, boxHeight: 10 } } },
-        scales: { y: { ticks: { color: "#b9cfc3", autoSkip: false, font: { size: 10.5 } }, grid: { display: false } }, x: { min: 0, max: 1, ticks: AXIS, grid: GRID } } }) as never} />
+        scales: { y: { ticks: { color: "#a7b0bd", autoSkip: false, font: { size: 10.5 } }, grid: { display: false } }, x: { min: 0, max: 1, ticks: AXIS, grid: GRID } } }) as never} />
   );
 }
 

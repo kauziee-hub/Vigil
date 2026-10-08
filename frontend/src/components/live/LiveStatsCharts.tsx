@@ -78,15 +78,15 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
               data={{ labels: volume.map((v) => formatTime(new Date(v.t).toISOString())), datasets: [
                 { label: "Normal", data: volume.map((v) => v.normal), backgroundColor: CH.teal, stack: "v" },
                 { label: "Injected (simulator ground truth)", data: volume.map((v) => v.attack), backgroundColor: CH.magenta, stack: "v" }] }}
-              options={baseOptions({ scales: { x: { stacked: true, ticks: { color: "#96b1a2", maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { color: "#96b1a2", precision: 0 }, grid: { color: "rgba(172,210,191,0.08)" } } } }) as never} />
+              options={baseOptions({ scales: { x: { stacked: true, ticks: { color: "#8790a0", maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { color: "#8790a0", precision: 0 }, grid: { color: "rgba(160,170,185,0.08)" } } } }) as never} />
           </div>
         </div>
         <div>
           <div className="chart-h">Transactions by channel</div>
           <div className="chart-shell">
             <ChartCanvas type="doughnut" height={240} empty="No postings counted yet."
-              data={{ labels: Object.keys(channels).map((c) => c.toUpperCase()), datasets: [{ data: Object.values(channels), backgroundColor: CHANNEL_COLORS, borderColor: "rgba(4,14,10,0.9)", borderWidth: 2 }] }}
-              options={{ responsive: true, maintainAspectRatio: false, animation: false, cutout: "58%", plugins: { legend: { position: "right", labels: { color: "#96b1a2", boxWidth: 12 } } } } as never} />
+              data={{ labels: Object.keys(channels).map((c) => c.toUpperCase()), datasets: [{ data: Object.values(channels), backgroundColor: CHANNEL_COLORS, borderColor: "rgba(14,18,23,0.9)", borderWidth: 2 }] }}
+              options={{ responsive: true, maintainAspectRatio: false, animation: false, cutout: "58%", plugins: { legend: { position: "right", labels: { color: "#8790a0", boxWidth: 12 } } } } as never} />
           </div>
         </div>
         <div>
@@ -96,7 +96,7 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
               data={{ labels: byType.map((x) => x.name), datasets: [
                 { label: "Runs", data: byType.map((x) => x.runs), backgroundColor: CH.blue },
                 { label: "Detected", data: byType.map((x) => x.detected_runs), backgroundColor: CH.red }] }}
-              options={baseOptions({ scales: { x: { ticks: { color: "#96b1a2", maxRotation: 0, autoSkip: true }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: "#96b1a2", precision: 0 }, grid: { color: "rgba(172,210,191,0.08)" } } } }) as never} />
+              options={baseOptions({ scales: { x: { ticks: { color: "#8790a0", maxRotation: 0, autoSkip: true }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: "#8790a0", precision: 0 }, grid: { color: "rgba(160,170,185,0.08)" } } } }) as never} />
           </div>
         </div>
         <div>
@@ -107,7 +107,7 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
                 { label: "Model-evidence threshold", data: chrono.map((r) => r.model_threshold), borderColor: CH.amber, backgroundColor: CH.amber, tension: 0.25 },
                 { label: "Recall", data: chrono.map((r) => r.recall), borderColor: CH.teal, backgroundColor: CH.teal, tension: 0.25 },
                 { label: "Precision", data: chrono.map((r) => r.precision), borderColor: CH.red, backgroundColor: CH.red, tension: 0.25 }] }}
-              options={baseOptions({ scales: { x: { ticks: { color: "#96b1a2" }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { color: "#96b1a2" }, grid: { color: "rgba(172,210,191,0.08)" } } } }) as never} />
+              options={baseOptions({ scales: { x: { ticks: { color: "#8790a0" }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" } } } }) as never} />
           </div>
         </div>
         <div>
@@ -125,7 +125,7 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
           <div className="chart-shell">
             <ChartCanvas type="bar" height={240} empty={stats ? "No account is flagged with a role." : "Needs /api/live/stats."}
               data={{ labels: roles.map(([r]) => ROLE_LABEL[r] ?? r), datasets: [{ label: "Flagged accounts", data: roles.map(([, n]) => n), backgroundColor: CH.red }] }}
-              options={baseOptions({ indexAxis: "y", plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: "#96b1a2", precision: 0 }, grid: { color: "rgba(172,210,191,0.08)" } }, y: { ticks: { color: "#96b1a2" }, grid: { display: false } } } }) as never} />
+              options={baseOptions({ indexAxis: "y", plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { color: "#8790a0", precision: 0 }, grid: { color: "rgba(160,170,185,0.08)" } }, y: { ticks: { color: "#8790a0" }, grid: { display: false } } } }) as never} />
           </div>
         </div>
         <div className="span-2">
@@ -135,7 +135,7 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
               <ChartCanvas type="bar" height={240}
                 data={{ labels: tiersOT.map((x) => formatTime(x.t)), datasets: (["t0", "t1", "t2", "t3", "t4"] as const).map((k, i) => ({
                   label: `T${i}`, data: tiersOT.map((x) => x[k]), backgroundColor: TIER_COLORS[i], stack: "t" })) }}
-                options={baseOptions({ scales: { x: { stacked: true, ticks: { color: "#96b1a2", maxTicksLimit: 10, maxRotation: 0 }, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { color: "#96b1a2", precision: 0 }, grid: { color: "rgba(172,210,191,0.08)" } } } }) as never} />
+                options={baseOptions({ scales: { x: { stacked: true, ticks: { color: "#8790a0", maxTicksLimit: 10, maxRotation: 0 }, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { color: "#8790a0", precision: 0 }, grid: { color: "rgba(160,170,185,0.08)" } } } }) as never} />
             ) : (
               <ChartCanvas type="bar" height={240} empty="No decisions yet."
                 data={{ labels: Object.keys(tierMix).map((t) => `T${t}`), datasets: [{ label: "Decisions", data: Object.values(tierMix), backgroundColor: Object.keys(tierMix).map((t) => TIER_COLORS[Number(t)] ?? CH.grey) }] }}
@@ -149,7 +149,7 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
             <ChartCanvas type="line" height={240} empty={stats ? "No threshold change yet." : "Needs /api/live/stats."}
               data={{ labels: (stats?.threshold_history ?? []).map((x) => formatTime(x.t)), datasets: [
                 { label: "Threshold", data: (stats?.threshold_history ?? []).map((x) => x.value), borderColor: CH.amber, backgroundColor: CH.amber, stepped: true }] }}
-              options={baseOptions({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#96b1a2", maxTicksLimit: 6 }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { color: "#96b1a2" }, grid: { color: "rgba(172,210,191,0.08)" } } } }) as never} />
+              options={baseOptions({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#8790a0", maxTicksLimit: 6 }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" } } } }) as never} />
           </div>
         </div>
       </div>
@@ -157,10 +157,10 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
   );
 }
 
-const LEGEND_BOTTOM = { position: "bottom", labels: { color: "#96b1a2", boxWidth: 10, boxHeight: 10 } };
+const LEGEND_BOTTOM = { position: "bottom", labels: { color: "#8790a0", boxWidth: 10, boxHeight: 10 } };
 const STACK_SCALES = (ticks = 8) => ({
-  x: { stacked: true, ticks: { color: "#96b1a2", maxTicksLimit: ticks, maxRotation: 0 }, grid: { display: false } },
-  y: { stacked: true, beginAtZero: true, ticks: { color: "#96b1a2", precision: 0 }, grid: { color: "rgba(172,210,191,0.08)" } },
+  x: { stacked: true, ticks: { color: "#8790a0", maxTicksLimit: ticks, maxRotation: 0 }, grid: { display: false } },
+  y: { stacked: true, beginAtZero: true, ticks: { color: "#8790a0", precision: 0 }, grid: { color: "rgba(160,170,185,0.08)" } },
 });
 
 /** PRIMA decisions by tier per minute (live stats), stacked; falls back to the tier mix since reset. */

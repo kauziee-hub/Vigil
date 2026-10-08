@@ -31,8 +31,8 @@ export function Panel({ title, kicker, q, actions, children, flush, footer, clas
     <section className={`panel ${className ?? ""}`} id={id}>
       {(title || kicker || actions) && (
         <header className="panel-h">
-          {kicker && <span className="k">{kicker}</span>}
-          {title && <span className="t">{title}</span>}
+          {/* one heading per panel: the kicker is only shown when there is no title */}
+          {(title || kicker) && <span className="t">{title ?? kicker}</span>}
           {q && <span className="q">{q}</span>}
           {actions && <div className="act">{actions}</div>}
         </header>

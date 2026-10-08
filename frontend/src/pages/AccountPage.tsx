@@ -169,8 +169,8 @@ export function AccountPage() {
                   { label: "Rules (pts ÷ max)", data: series.map((s) => s.rules), borderColor: CH.teal, backgroundColor: CH.teal, tension: 0.25, pointRadius: 2 },
                   { label: "Early warning", data: series.map((s) => s.ew), borderColor: CH.amber, backgroundColor: CH.amber, tension: 0.25, pointRadius: 2 },
                 ] }}
-                options={baseOptions({ plugins: { legend: { position: "bottom", labels: { color: "#96b1a2", boxWidth: 10, boxHeight: 10 } } },
-                  scales: { x: { offset: true, ticks: { color: "#96b1a2", maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { color: "#96b1a2" }, grid: { color: "rgba(172,210,191,0.08)" } } } }) as never} />
+                options={baseOptions({ plugins: { legend: { position: "bottom", labels: { color: "#8790a0", boxWidth: 10, boxHeight: 10 } } },
+                  scales: { x: { offset: true, ticks: { color: "#8790a0", maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" } } } }) as never} />
             </div>
           )}
         </Panel>
@@ -186,7 +186,7 @@ export function AccountPage() {
                   data={{ labels: cats.map(([k]) => k), datasets: [{ label: "SHAP contribution", data: cats.map(([, v]) => v),
                     backgroundColor: cats.map(([, v]) => (v >= 0 ? CH.red : CH.blue)), borderRadius: 4 }] }}
                   options={baseOptions({ indexAxis: "y", plugins: { legend: { display: false } },
-                    scales: { x: { ticks: { color: "#96b1a2" }, grid: { color: "rgba(172,210,191,0.08)" } }, y: { ticks: { color: "#b9cfc3" }, grid: { display: false } } } }) as never} />
+                    scales: { x: { ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" } }, y: { ticks: { color: "#a7b0bd" }, grid: { display: false } } } }) as never} />
               </div>
             );
           })()}

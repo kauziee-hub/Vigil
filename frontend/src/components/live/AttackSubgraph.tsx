@@ -64,12 +64,12 @@ export function AttackSubgraph({ scenario, statusOf }: {
       const st = statusOf(n.id);
       if (st && st !== "normal" && st !== "idle" && st !== "external") return ACCOUNT_STATUS_HEX[st];
       if (n.labelled || n.held) return STATUS_HEX[nodeStatus(n)];
-      return n.kind === "external" ? "#4d5c58" : ACCOUNT_STATUS_HEX.normal;
+      return n.kind === "external" ? "#4a5260" : ACCOUNT_STATUS_HEX.normal;
     };
     return {
       nodeColor: colour,
       nodeDim: () => false,
-      edgeColor: (e: SceneEdge) => (e.tainted_paise > 0 ? STATUS_HEX.fraud : e.txs.some((t) => attackTx.has(t.id)) ? "#ff4d6d" : "#2c6b57"),
+      edgeColor: (e: SceneEdge) => (e.tainted_paise > 0 ? STATUS_HEX.fraud : e.txs.some((t) => attackTx.has(t.id)) ? "#e2564e" : "#3b4f6b"),
       ringColor: (n: SceneNode) => (n.labelled ? STATUS_HEX.fraud : n.held ? STATUS_HEX.held : null),
       label: (n: SceneNode) => { const st = statusOf(n.id); return st === "flagged" || st === "held" || st === "confirmed_fraud" ? n.label : null; },
     };

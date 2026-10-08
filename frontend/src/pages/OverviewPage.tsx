@@ -5,7 +5,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { AccountStatus, DetectorFamily, IntelOverview, ModelInfo, ScenarioStatus, UniverseAccount } from "../api/types";
+import type { AccountStatus, DetectorFamily, IntelOverview, ScenarioStatus, UniverseAccount } from "../api/types";
 import { RoleIcon } from "../components/intel";
 import { AttackHistory, LastAttackResult } from "../components/live/AttackResults";
 import { AttackSubgraph } from "../components/live/AttackSubgraph";
@@ -19,21 +19,16 @@ import { Bar, Glyph, Panel, Sim, StatePill, TierPill } from "../components/ui";
 import { UniverseDrawer } from "../components/UniverseDrawer";
 import { duration, formatINR, formatPaiseShort, handle } from "../lib/format";
 import { useDebounced, useLoad, useNow } from "../lib/hooks";
-import { msLabel, useAttackRuns, useLiveStats, useThrottled } from "../lib/live";
+import { useAttackRuns, useLiveStats, useThrottled } from "../lib/live";
 import { rowAge, useInterventionQueue } from "../lib/queue";
 import { FAMILY, ROLE_LABEL, tierStatus } from "../lib/status";
 
 type Sub<T> = { set: ((v: T) => void) | null };
 
-function Hero() {
-  const { conn, system, health, intelAvailable } = usePlatform();
-  const models = useLoad<ModelInfo[]>(api.intelModels);
+function Header() {
+  const { conn, health } = usePlatform();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const fam = (f: string) => (models.data ?? []).some((m) => m.family === f && m.status === "active");
-  const chip = (label: string, ok: boolean | null, title: string) => (
-    <span className={`chip ${ok ? "" : ok === false ? "off" : "mute"}`} title={title}>{label} {ok ? "✓" : ok === false ? "✕" : "…"}</span>
-  );
   const ambient = health?.ambient ?? null;
   const run = async (what: "ambient" | "reset") => {
     if (what === "reset" && !window.confirm("Reset the demo world? Every posting, decision and attack run since seeding is discarded and the world is re-seeded.")) return;
@@ -43,36 +38,29 @@ function Hero() {
     finally { setBusy(null); }
   };
   return (
-    <section className="hero">
+    <header className="page-head compact">
       <div>
-        <div className="eyebrow">PRIMA · pre-commit payment risk + live mule intelligence</div>
-        <h1>Vigil Live Operations</h1>
-        <p>Every payment intent is assessed before money moves; every posting that does move is scored live against the whole
-          network. Transactions, scores, alerts and attack runs on this page are pushed from the Vigil backend and stored in its ledger.</p>
+        <div className="crumb">Operate</div>
+        <h1>Live operations</h1>
+        <div className="lede">Every payment intent is assessed before money moves; every posting is scored against the whole network.
+          All figures on this page come from the Vigil ledger and are pushed as they change.</div>
       </div>
-      <div className="hero-actions">
-        <span className="chip live"><span className={`dot ${conn === "open" ? "ok pulse" : conn === "connecting" ? "warn" : "bad"}`} />{conn === "open" ? "LIVE" : conn.toUpperCase()}</span>
-        <div className="hero-chips">
-          {chip("RF", models.data ? fam("random_forest") : models.error ? false : null, "Random Forest model (/api/intel/models)")}
-          {chip("GNN", models.data ? fam("gnn") : models.error ? false : null, "Graph neural network (/api/intel/models)")}
-          {chip("SHAP", intelAvailable, "Per-account SHAP explanations (detection intelligence layer)")}
-          {chip("DB", system ? system.db_size_bytes > 0 : health ? true : null, system ? `SQLite ledger · ${(system.db_size_bytes / 1e6).toFixed(1)} MB` : "Ledger database")}
-          {system && <span className={`chip ${system.ml_on_decision_path ? "warn" : "mute"}`} title="Model evidence never sets the operational tier">ML on decision path: {system.ml_on_decision_path ? "yes" : "no"}</span>}
-        </div>
-        <div className="row wrap" style={{ justifyContent: "flex-end" }}>
-          <button className="btn lg" disabled={ambient === null || !!busy} onClick={() => run("ambient")} title="Background (ambient) payment stream">
-            {busy === "ambient" ? "…" : ambient ? "Pause traffic" : "Resume traffic"}</button>
-          <button className="btn lg ghost" disabled={!!busy} onClick={() => run("reset")}>{busy === "reset" ? "Resetting…" : "Reset demo"}</button>
-        </div>
-        {err && <div className="notice err sm">{err}</div>}
+      <div className="page-actions">
+        {err && <span className="notice err sm">{err}</span>}
+        <span className="chip live" title="Realtime push channel">
+          <span className={`dot ${conn === "open" ? "ok pulse" : conn === "connecting" ? "warn" : "bad"}`} />{conn === "open" ? "Live" : conn}
+        </span>
+        <button className="btn" disabled={ambient === null || !!busy} onClick={() => run("ambient")} title="Background (ambient) payment stream">
+          {busy === "ambient" ? "…" : ambient ? "Pause traffic" : "Resume traffic"}</button>
+        <button className="btn ghost" disabled={!!busy} onClick={() => run("reset")}>{busy === "reset" ? "Resetting…" : "Reset demo"}</button>
       </div>
-    </section>
+    </header>
   );
 }
 
 /** KPI grid — re-renders once per second from the universe engine and pushed events, never the whole page. */
-const KpiGrid = memo(function KpiGrid({ statsSub, runs, liveCounts, tps }: {
-  statsSub: Sub<UStats>; runs: ReturnType<typeof useAttackRuns>; liveCounts: Record<string, number> | null; tps: number | null;
+const KpiGrid = memo(function KpiGrid({ statsSub, liveCounts, tps }: {
+  statsSub: Sub<UStats>; liveCounts: Record<string, number> | null; tps: number | null;
 }) {
   const { metrics: m } = usePlatform();
   const [u, setU] = useState<UStats | null>(null);
@@ -91,54 +79,44 @@ const KpiGrid = memo(function KpiGrid({ statsSub, runs, liveCounts, tps }: {
   const c = liveCounts ?? {};
   // once the universe has loaded, a status with no accounts is 0, not unknown
   const by = new Proxy((u?.byStatus ?? {}) as Record<string, number | undefined>, { get: (t, k: string) => t[k] ?? (u ? 0 : undefined) });
-  const list = runs.data ?? [];
-  const done = list.filter((r) => r.status === "completed");
-  const running = list.filter((r) => r.status === "running" || r.status === "evaluating").length;
-  const detectedRuns = done.filter((r) => r.detected.length > 0).length;
-  const avg = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-  const last = done[0] ?? null;
-  const tiers = m?.decisions_by_tier ?? {};
-  const alerts = Object.entries(tiers).filter(([t]) => Number(t) >= 1).reduce((a, [, n]) => a + n, 0);
   const n = (k: string, fb: number | undefined) => (c[k] ?? fb);
   const tile = (k: string, v: React.ReactNode, d: React.ReactNode, cls = "") => (
     <div className={`m ${cls}`}><div className="k">{k}</div><div className="v">{v}</div><div className="d">{d}</div></div>
   );
   const val = (x: number | undefined | null) => (x === undefined || x === null ? "—" : x.toLocaleString("en-IN"));
   const rate = tps ?? localTps;
+  const warn = n("warnings", by.early_warning) ?? 0, flagged = n("flagged", by.flagged) ?? 0, held = n("held", by.held) ?? 0;
   return (
     <div className="mstrip kpi-grid">
-      {tile("Transactions stored", val(n("transactions", m?.transactions_total)), m ? `${m.transactions_last_10m} in the last 10 min` : "")}
-      {tile("Throughput", rate === null ? "—" : rate.toFixed(2), tps !== null ? "tx/s · server" : "tx/s · received here, last 10 s")}
-      {tile("Active accounts", val(n("active", u?.active)), `${val(n("accounts", u?.nodes))} accounts · live window`)}
-      {tile("Early warnings", val(n("warnings", by.early_warning)), "behaviour or network signals", (n("warnings", by.early_warning) ?? 0) > 0 ? "st-watch" : "")}
-      {tile("Flagged", val(n("flagged", by.flagged)), "detector consensus above weak", (n("flagged", by.flagged) ?? 0) > 0 ? "st-critical" : "")}
-      {tile("Held / confirmed", <>{val(n("held", by.held))}<span className="muted" style={{ fontSize: 18 }}> / {val(n("confirmed", by.confirmed_fraud))}</span></>,
-        m ? `${formatPaiseShort(m.held_paise)} held · ${m.open_interventions} open interventions` : "", (n("held", by.held) ?? 0) > 0 ? "st-held" : "")}
-      {tile("PRIMA alerts", val(alerts), `tier ≥ 1 of ${val(m?.decisions_total)} decisions`)}
-      {tile("Attacks spawned", runs.unavailable ? "—" : val(list.length), runs.unavailable ? "/api/attacks/runs not served" : `${running} running · ${done.length} evaluated`)}
-      {tile("Attacks detected", runs.unavailable ? "—" : val(detectedRuns), done.length ? `${detectedRuns} of ${done.length} runs` : "no evaluated runs yet")}
-      {tile("Detection latency", msLabel(avg(done.map((r) => r.detection_ms))), `first warning avg ${msLabel(avg(done.map((r) => r.first_warning_ms)))}`)}
-      {tile("Precision / recall", last && last.precision != null ? `${last.precision.toFixed(2)} / ${last.recall?.toFixed(2) ?? "—"}` : "—", last ? `last run ${last.run_id} · simulator ground truth` : "no evaluated run yet")}
-      {tile("Decision latency", m?.latency_p95_ms != null ? `${m.latency_p95_ms.toFixed(1)} ms` : "—", m?.latency_p50_ms != null ? `p95 · p50 ${m.latency_p50_ms.toFixed(1)} ms` : "PRIMA pre-commit assessment")}
+      {tile("Postings · 10 min", val(m?.transactions_last_10m), m ? `${val(n("transactions", m.transactions_total))} in the ledger` : "")}
+      {tile("Throughput", rate === null ? "—" : `${rate.toFixed(2)} tx/s`, tps !== null ? "measured by the server" : "received here, last 10 s")}
+      {tile("Active accounts", val(n("active", u?.active)), `of ${val(n("accounts", u?.nodes))} · live window`)}
+      {tile("Early warnings", val(warn), "behaviour or network", warn > 0 ? "st-watch" : "")}
+      {tile("Flagged", val(flagged), "agreement above weak", flagged > 0 ? "st-critical" : "")}
+      {tile("Held / confirmed", <>{val(held)}<span className="muted"> / {val(n("confirmed", by.confirmed_fraud))}</span></>,
+        m ? `${formatPaiseShort(m.held_paise)} held in scoped holds` : "", held > 0 ? "st-held" : "")}
+      {tile("Open interventions", val(m?.open_interventions), m ? `of ${val(m.decisions_total)} decisions` : "", (m?.open_interventions ?? 0) > 0 ? "st-high" : "")}
+      {tile("Decision latency", m?.latency_p95_ms != null ? `${m.latency_p95_ms.toFixed(1)} ms` : "—", m?.latency_p50_ms != null ? `p95 · p50 ${m.latency_p50_ms.toFixed(1)} ms` : "pre-commit assessment")}
     </div>
   );
 });
 
-function PrimaStrip() {
+/** Tier mix of every pre-commit decision, with exact counts (no rounding that hides an intervention). */
+function TierMix() {
   const { metrics: m, mode } = usePlatform();
   const tiers = m?.decisions_by_tier ?? {};
   const total = Object.values(tiers).reduce((a, b) => a + b, 0);
+  const passed = tiers["0"] ?? 0;
   return (
-    <div className="prima-strip">
-      <div><div className="eyebrow">PRIMA layer</div><div className="b" style={{ fontSize: 17 }}>Pre-commit interventions</div></div>
-      <div className="m"><div className="k">Open interventions</div><div className="v" style={{ color: m?.open_interventions ? "var(--st-high)" : undefined }}>{m?.open_interventions ?? "—"}</div></div>
-      <div className="m"><div className="k">Held value (scoped)</div><div className="v" style={{ color: m?.held_paise ? "var(--st-held)" : undefined }}>{m ? formatINR(m.held_paise) : "—"}</div></div>
-      <div className="m"><div className="k">Zero-friction</div><div className="v">{m?.zero_friction_rate != null ? `${Math.round(m.zero_friction_rate * 100)}%` : "—"}</div></div>
-      <div className="m">
-        <div className="k">Tier mix · {total.toLocaleString("en-IN")} decisions · {mode?.mode === "shadow" ? "SHADOW" : "ACTIVE"}</div>
-        <div className="dist" style={{ marginTop: 8 }}>{Object.entries(tiers).map(([t, n]) => n > 0 && <span key={t} title={`T${t}: ${n}`} style={{ width: `${(n / Math.max(1, total)) * 100}%`, background: `var(--st-${tierStatus(Number(t))})` }} />)}</div>
+    <div className="sect">
+      <div className="spread xs muted" style={{ marginBottom: 6 }}>
+        <span>Tier mix · {total.toLocaleString("en-IN")} decisions · {mode?.mode === "shadow" ? "shadow" : "active"} mode</span>
+        <span>{total ? `${passed.toLocaleString("en-IN")} of ${total.toLocaleString("en-IN")} passed without friction` : "no decisions yet"}</span>
       </div>
-      <Link className="btn sm" to="/interventions">Interventions →</Link>
+      <div className="dist">{Object.entries(tiers).map(([t, k]) => k > 0 && <span key={t} title={`Tier ${t}: ${k}`} style={{ width: `${(k / Math.max(1, total)) * 100}%`, background: `var(--st-${tierStatus(Number(t))})` }} />)}</div>
+      <div className="legend xs" style={{ marginTop: 6 }}>
+        {Object.entries(tiers).map(([t, k]) => <span key={t}><i className="sw" style={{ background: `var(--st-${tierStatus(Number(t))})` }} />T{t} {k.toLocaleString("en-IN")}</span>)}
+      </div>
     </div>
   );
 }
@@ -154,9 +132,10 @@ function AttentionPanel() {
   });
   const attention = q.all.filter((r) => r.tier >= 2);
   return (
-    <Panel kicker="PRIMA · needs attention" title="Open interventions · tier ≥ 2" flush actions={<Link className="btn xs ghost" to="/interventions">Queue →</Link>}
-           footer={m ? <>Ledger {m.system_total_paise === 0 ? <span style={{ color: "var(--accent)" }}>balanced · system total ₹0</span> : <span style={{ color: "var(--st-critical)" }}>imbalance {formatINR(m.system_total_paise)}</span>} · inflow to suspicious accounts (72 h) {formatINR(m.suspicious_value_paise)} · traced (LIBR) {formatINR(m.attributable_paise)}</> : undefined}>
-      {attention.length === 0 ? <div className="empty">Nothing needs attention. Holds and purpose confirmations appear here the moment they are decided.</div> : (
+    <Panel title="Needs attention" q="open interventions · tier ≥ 2" flush actions={<Link className="btn xs ghost" to="/interventions">Queue →</Link>}
+           footer={m ? <>Ledger {m.system_total_paise === 0 ? <span style={{ color: "var(--ok)" }}>balanced (system total ₹0)</span> : <span style={{ color: "var(--st-critical)" }}>imbalance {formatINR(m.system_total_paise)}</span>} · inflow to suspicious accounts (72 h) {formatINR(m.suspicious_value_paise)} · traced (LIBR) {formatINR(m.attributable_paise)}</> : undefined}>
+      <TierMix />
+      {attention.length === 0 ? <div className="empty" style={{ borderTop: "1px solid var(--line)" }}>Nothing needs attention. Holds and purpose confirmations appear here the moment they are decided.</div> : (
         <table className="dt compact">
           <tbody>
             {attention.slice(0, 8).map((r) => (
@@ -179,7 +158,7 @@ function AgreementPanel() {
   useConsoleEvents((e) => { if (e.type === "intel.updated" || e.type === "demo.reset") intel.reload(); });
   const d = intel.data;
   return (
-    <Panel kicker="Detector agreement" title="What each detector family sees" q="accounts flagged per family">
+    <Panel title="Detector agreement" q="accounts flagged per family">
       {!d ? <div className="xs muted">{intel.unavailable ? "Detection intelligence (/api/intel/overview) not served." : intel.loading ? "Loading…" : intel.error?.message}</div> : (
         <>
           {Object.entries(d.detector_agreement).sort((a, b) => b[1] - a[1]).map(([fam, n]) => (
@@ -191,7 +170,7 @@ function AgreementPanel() {
               {Object.entries(d.role_counts).map(([r, n]) => <span key={r} className="tag"><RoleIcon role={r} size={11} />&nbsp;{ROLE_LABEL[r] ?? r} {n}</span>)}
             </div>
           )}
-          <div className="xs muted" style={{ marginTop: 10 }}>Model families are corroborating evidence (<span className="stamp-sv">SYNTHETIC VALIDATION</span>) — not used for authorisation.</div>
+          <div className="row wrap tight xs muted" style={{ marginTop: 10 }}><span className="stamp-sv">Synthetic validation</span><span>Model families are corroborating evidence, not used for authorisation.</span></div>
         </>
       )}
     </Panel>
@@ -236,42 +215,39 @@ export function OverviewPage() {
 
   return (
     <>
-      <Hero />
-      <KpiGrid statsSub={statsSub} runs={runs} liveCounts={stats.data?.counts ?? null} tps={stats.data?.throughput_tps ?? null} />
-      <PrimaStrip />
+      <Header />
+      <KpiGrid statsSub={statsSub} liveCounts={stats.data?.counts ?? null} tps={stats.data?.throughput_tps ?? null} />
 
-      <section className={`stage ${attackLive ? "attack-flash" : ""}`}>
-        <div className="stage-h">
-          <div>
-            <div className="k">Network intelligence</div>
-            <div className="t">Live Transaction Universe</div>
-          </div>
-          <div className="stack" style={{ gap: 10, alignItems: "flex-end" }}>
-            <UniverseLegend groundTruth={gt} />
-            <div className="row wrap" style={{ justifyContent: "flex-end" }}>
-              <button className={`btn xs ${orbit ? "on" : "ghost"}`} onClick={() => setOrbit(!orbit)}>Auto-orbit</button>
-              <button className={`btn xs ${gt ? "on" : "ghost"}`} onClick={() => setGt(!gt)} title="Colour postings tagged by the simulator (evaluation only — never scored)">Simulator ground truth</button>
-              <button className="btn xs ghost" onClick={() => setFocus({ ids: [...accounts.current.keys()], seq: Date.now() })}>Reset view</button>
-              <Link className="btn xs" to="/network">Full screen ↗</Link>
+      <div className="ov-top">
+        <section className={`stage ${attackLive ? "attack-flash" : ""}`}>
+          <div className="stage-h">
+            <div>
+              <div className="t">Live transaction network</div>
+              <UniverseLegend groundTruth={gt} />
+            </div>
+            <div className="row wrap" style={{ justifyContent: "flex-end", gap: 6 }}>
+              <button className={`btn xs ${orbit ? "on" : ""}`} onClick={() => setOrbit(!orbit)}>Auto-orbit</button>
+              <button className={`btn xs ${gt ? "on" : ""}`} onClick={() => setGt(!gt)} title="Colour postings tagged by the simulator (evaluation only — never scored)">Ground truth</button>
+              <button className="btn xs" onClick={() => setFocus({ ids: [...accounts.current.keys()], seq: Date.now() })}>Reset view</button>
+              <Link className="btn xs" to="/network">Open full view</Link>
             </div>
           </div>
-        </div>
-        <details className="uni-how" style={{ margin: "4px 22px 8px", position: "relative", zIndex: 3 }}>
-          <summary className="xs muted" style={{ cursor: "pointer" }}>How the universe works</summary>
-          <div className="xs ink2" style={{ maxWidth: 980, lineHeight: 1.6, marginTop: 6 }}>
-            Every account is a node at a fixed position derived from its id (merchants in the core, demo customers in their own shell, external
-            counterparties on the outer ring). Each new ledger posting draws an edge with a travelling particle; edges fade and expire after the live
-            window. Faint lines are a sample of older history. Colour is the account's live status from detection intelligence; size grows with severity;
-            a crimson ring marks confirmed fraud, violet a scoped hold. Click a node to investigate it.
+          <div style={{ position: "relative" }}>
+            <LiveUniverse3D mode="live" groundTruth={gt} autoRotate={orbit && !sel} size="hero" selected={sel?.id ?? null}
+                            onSelect={onSelect} onInfo={onInfo} onStats={onStats} focus={focus} />
+            {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} onClose={() => setSel(null)}
+                                    onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
           </div>
-        </details>
-        <div style={{ position: "relative" }}>
-          <LiveUniverse3D mode="live" groundTruth={gt} autoRotate={orbit && !sel} size="hero" selected={sel?.id ?? null}
-                          onSelect={onSelect} onInfo={onInfo} onStats={onStats} focus={focus} />
-          {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} onClose={() => setSel(null)}
-                                  onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
+          <div className="xs" style={{ padding: "8px 14px", borderTop: "1px solid #1c222b", color: "#7d8796", background: "#0e1217" }}>
+            Each account sits at a fixed position; each new posting draws an edge with a travelling marker and fades after the live window.
+            Colour is the account's live status; a violet ring marks a scoped hold, crimson a confirmed scam recipient. Click a node to investigate.
+          </div>
+        </section>
+        <div className="ov-side">
+          <AttentionPanel />
+          <AgreementPanel />
         </div>
-      </section>
+      </div>
 
       <div className="grid cols-2 align-start section-gap">
         <CommandCenter scenarios={scen.data} runs={runs.data} runsUnavailable={runs.unavailable} selected={scenarioId}
@@ -279,21 +255,14 @@ export function OverviewPage() {
         <AttackSubgraph scenario={attackScenario} statusOf={statusOf} />
       </div>
 
-      <div className="section-gap"><LiveStreams statusOf={statusOf} recent={recent} /></div>
-      <div className="section-gap"><ScoreTables key={uniVersion > 0 ? "u" : "n"} statusOf={statusOf} /></div>
-
       <div className="grid cols-2 align-start section-gap">
         <LastAttackResult runs={runs.data} unavailable={runs.unavailable} />
-        <div className="stack">
-          <AttentionPanel />
-          <AgreementPanel />
-        </div>
-      </div>
-
-      <div className="section-gap">
         <AttackHistory runs={runs.data} unavailable={runs.unavailable}
                        onPick={(r) => { setScenarioId(r.scenario_id); setFocus({ ids: r.injected, seq: Date.now() }); }} />
       </div>
+
+      <div className="section-gap"><LiveStreams statusOf={statusOf} recent={recent} /></div>
+      <div className="section-gap"><ScoreTables key={uniVersion > 0 ? "u" : "n"} statusOf={statusOf} /></div>
       <div className="section-gap">
         <LiveStatsCharts stats={stats.data} statsUnavailable={stats.unavailable} runs={runs.data} metrics={metrics} />
       </div>

@@ -33,7 +33,7 @@ export function EvidenceGraph({
 
   useEffect(() => {
     if (!box.current) return;
-    const ink = getComputedStyle(document.documentElement).getPropertyValue("--ink-2").trim() || "#b9cfc3";
+    const ink = getComputedStyle(document.documentElement).getPropertyValue("--ink-2").trim() || "#a7b0bd";
     const cy = cytoscape({
       container: box.current,
       wheelSensitivity: 0.25, minZoom: 0.2, maxZoom: 2.5, boxSelectionEnabled: false,
@@ -45,14 +45,14 @@ export function EvidenceGraph({
           "text-max-width": "90px", "text-wrap": "ellipsis",
         } },
         { selector: "node[?ring]", style: { "border-width": 3, "border-color": "data(ring)" } },
-        { selector: "node:selected", style: { "border-width": 3, "border-color": "#edf7f1" } },
+        { selector: "node:selected", style: { "border-width": 3, "border-color": "#e4e7ec" } },
         { selector: "edge", style: {
-          width: "data(w)", "line-color": "#24584a", "target-arrow-color": "#3a8a70", "target-arrow-shape": "triangle",
+          width: "data(w)", "line-color": "#33455e", "target-arrow-color": "#4e6f99", "target-arrow-shape": "triangle",
           "curve-style": "bezier", "arrow-scale": 0.9, opacity: 0.85,
         } },
         { selector: "edge[?tainted]", style: { "line-color": STATUS_HEX.fraud, "target-arrow-color": STATUS_HEX.fraud, opacity: 1 } },
-        { selector: "edge[?highlight]", style: { "line-color": "#68f0af", "target-arrow-color": "#68f0af" } },
-        { selector: ".fresh", style: { "line-color": "#68f0af", "target-arrow-color": "#68f0af", width: 4 } },
+        { selector: "edge[?highlight]", style: { "line-color": "#5b93f0", "target-arrow-color": "#5b93f0" } },
+        { selector: ".fresh", style: { "line-color": "#5b93f0", "target-arrow-color": "#5b93f0", width: 4 } },
       ],
     });
     cy.on("tap", "node", (e) => clickRef.current?.(e.target.id()));
@@ -84,7 +84,7 @@ export function EvidenceGraph({
         return {
           data: {
             id: n.id, short: handle(n.label.length > 18 ? n.id : n.label), color: STATUS_HEX[st], shape: ROLE_SHAPE[rk].cy,
-            size: 16 + Math.round(n.risk * 22), ring: n.attributable_paise > 0 && !n.labelled ? STATUS_HEX.fraud : evidence.focus === n.id ? "#68f0af" : "",
+            size: 16 + Math.round(n.risk * 22), ring: n.attributable_paise > 0 && !n.labelled ? STATUS_HEX.fraud : evidence.focus === n.id ? "#5b93f0" : "",
             tip: `${n.label} · ${STATUS_LABEL[st]}${n.role ? ` · ${n.role}` : ""}${n.risk ? ` · risk ${n.risk.toFixed(2)}` : ""}` +
                  `${n.attributable_paise ? ` · ${formatINR(n.attributable_paise)} traced` : ""}`,
           },

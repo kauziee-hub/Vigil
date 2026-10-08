@@ -32,24 +32,24 @@ export interface UHover { id: string; x: number; y: number }
 
 const C = (h: string) => new THREE.Color(h);
 const STATUS_COLOR: Record<string, THREE.Color> = {
-  normal: C("#2f7dff"), idle: C("#163a7a"), new: C("#22ff99"), early_warning: C("#ffc34d"), flagged: C("#ff3d63"),
-  held: C("#9b7bff"), confirmed_fraud: C("#ff1744"), external: C("#4d5c58"),
+  normal: C("#5f86b8"), idle: C("#2c3a4e"), new: C("#5fb0d6"), early_warning: C("#d6a23f"), flagged: C("#e2564e"),
+  held: C("#9283d6"), confirmed_fraud: C("#e23a55"), external: C("#4a5260"),
 };
 const STATUS_SCALE: Record<string, number> = {
   normal: 1, idle: 0.72, new: 1.45, early_warning: 1.55, flagged: 2.0, held: 1.9, confirmed_fraud: 2.25, external: 0.8,
 };
-const BAND = { normal: C("#2f7dff"), watch: C("#ffc34d"), high: C("#ff9157"), critical: C("#ff3d63") };
-const DIM = C("#1c3a30");
-const ROLE_ON = C("#d6efe2");
-const TAINT = C("#ff1744");
-const EDGE = C("#2bd9b0");
-const EDGE_EARLY = C("#ffb020");
-const EDGE_ALARM = C("#ff3d63");
-const EDGE_HELD = C("#9b7bff");
-const EDGE_GT = C("#d65cff");
-const RING_FRAUD = C("#ff1744");
-const RING_HELD = C("#b49cff");
-const RING_SEL = C("#68f0af");
+const BAND = { normal: C("#5f86b8"), watch: C("#d6a23f"), high: C("#dd7a3e"), critical: C("#e2564e") };
+const DIM = C("#1e2530");
+const ROLE_ON = C("#dfe4ec");
+const TAINT = C("#e23a55");
+const EDGE = C("#6a84aa");
+const EDGE_EARLY = C("#d6a23f");
+const EDGE_ALARM = C("#e2564e");
+const EDGE_HELD = C("#9283d6");
+const EDGE_GT = C("#c56fb0");
+const RING_FRAUD = C("#e23a55");
+const RING_HELD = C("#a99be6");
+const RING_SEL = C("#5b93f0");
 
 export function hashUnit(seed: string): number {
   let h = 2166136261;
@@ -135,7 +135,7 @@ export class UniverseEngine {
   constructor(container: HTMLElement, labelsHost: HTMLElement | null, opts: { autoRotate?: boolean; distance?: number } = {}) {
     this.container = container;
     this.labelsHost = labelsHost;
-    this.scene.fog = new THREE.FogExp2(0x06150f, 0.00016);
+    this.scene.fog = new THREE.FogExp2(0x0a0d12, 0.00016);
     this.camera = new THREE.PerspectiveCamera(58, 1, 1, 20000);
     this.camera.position.set(0, 260, opts.distance ?? 1750);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
@@ -176,29 +176,13 @@ export class UniverseEngine {
   }
 
   // ───────────────────────────────────────────────────────────── setup
+  /** A neutral floor grid as the only spatial reference — no decorative starfield. */
   private initBackground() {
-    const n = 1400;
-    const pos = new Float32Array(n * 3);
-    const cols = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) {
-      const r = 1700 + hashUnit(`r${i}`) * 3300;
-      const th = hashUnit(`t${i}`) * Math.PI * 2;
-      const ph = Math.acos(hashUnit(`p${i}`) * 2 - 1);
-      pos[i * 3] = Math.sin(ph) * Math.cos(th) * r;
-      pos[i * 3 + 1] = Math.cos(ph) * r * 0.68;
-      pos[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * r;
-      const pick = hashUnit(`c${i}`);
-      cols.set(pick < 0.55 ? [0, 0.8, 0.62] : pick < 0.85 ? [0.1, 0.35, 1] : [0.85, 0.4, 1], i * 3);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    g.setAttribute("color", new THREE.BufferAttribute(cols, 3));
-    this.scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.2, vertexColors: true, transparent: true, opacity: 0.26, depthWrite: false })));
-    const grid = new THREE.GridHelper(4600, 72, 0x0f5a3d, 0x0a3525);
+    const grid = new THREE.GridHelper(4600, 72, 0x2a3240, 0x1a2029);
     grid.position.y = -780;
     const gm = grid.material as THREE.Material;
     gm.transparent = true;
-    gm.opacity = 0.2;
+    gm.opacity = 0.35;
     this.scene.add(grid);
   }
 
@@ -213,7 +197,7 @@ export class UniverseEngine {
     this.capacity = capacity;
     this.core = new THREE.InstancedMesh(new THREE.SphereGeometry(4.6, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }), capacity);
     this.glow = new THREE.InstancedMesh(new THREE.SphereGeometry(4.6 * 2.2, 12, 8), new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending,
+      color: 0xffffff, transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending,
     }), capacity);
     for (const m of [this.core, this.glow]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -237,7 +221,7 @@ export class UniverseEngine {
     g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(capacity * 6), 3).setUsage(THREE.DynamicDrawUsage));
     g.setDrawRange(0, 0);
     const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexColors: true, transparent: true, opacity, depthWrite: false, blending: THREE.NormalBlending,
     }));
     l.frustumCulled = false;
     return l;

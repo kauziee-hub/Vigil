@@ -8,10 +8,10 @@ function loadChart() {
   if (!lib) {
     lib = import("chart.js").then((m) => {
       m.Chart.register(...m.registerables);
-      m.Chart.defaults.font.family = '"Space Grotesk", system-ui, sans-serif';
+      m.Chart.defaults.font.family = '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';
       m.Chart.defaults.font.size = 11;
-      m.Chart.defaults.color = "#96b1a2";
-      m.Chart.defaults.borderColor = "rgba(172,210,191,0.08)";
+      m.Chart.defaults.color = "#8790a0";
+      m.Chart.defaults.borderColor = "rgba(160,170,185,0.08)";
       return m;
     });
   }
@@ -19,15 +19,15 @@ function loadChart() {
 }
 
 export const CH = {
-  teal: "rgba(43, 217, 176, 0.78)",
-  amber: "rgba(255, 188, 77, 0.82)",
-  red: "rgba(255, 77, 109, 0.82)",
-  magenta: "rgba(214, 92, 255, 0.78)",
-  blue: "rgba(47, 125, 255, 0.78)",
-  grey: "rgba(150, 177, 162, 0.6)",
-  violet: "rgba(166, 139, 255, 0.82)",
-  orange: "rgba(255, 145, 87, 0.82)",
-  mint: "rgba(71, 211, 140, 0.82)",
+  teal: "rgba(95, 176, 214, 0.85)",
+  amber: "rgba(214, 162, 63, 0.85)",
+  red: "rgba(226, 86, 78, 0.85)",
+  magenta: "rgba(197, 111, 176, 0.85)",
+  blue: "rgba(95, 134, 184, 0.85)",
+  grey: "rgba(133, 147, 168, 0.6)",
+  violet: "rgba(146, 131, 214, 0.85)",
+  orange: "rgba(221, 122, 62, 0.85)",
+  mint: "rgba(91, 147, 240, 0.85)",
 };
 export const TIER_COLORS = [CH.blue, CH.amber, CH.orange, CH.violet, CH.red];
 
@@ -36,10 +36,10 @@ export function baseOptions(extra: Record<string, unknown> = {}): ChartOptions {
     responsive: true,
     maintainAspectRatio: false,
     animation: false,
-    plugins: { legend: { labels: { color: "#96b1a2", boxWidth: 12, boxHeight: 12 } }, tooltip: { backgroundColor: "rgba(4,14,10,0.95)", borderColor: "rgba(71,211,140,0.3)", borderWidth: 1 } },
+    plugins: { legend: { labels: { color: "#8790a0", boxWidth: 12, boxHeight: 12 } }, tooltip: { backgroundColor: "rgba(14,18,23,0.95)", borderColor: "rgba(91,147,240,0.3)", borderWidth: 1 } },
     scales: {
-      x: { ticks: { color: "#96b1a2", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "rgba(172,210,191,0.05)" } },
-      y: { ticks: { color: "#96b1a2" }, grid: { color: "rgba(172,210,191,0.08)" }, beginAtZero: true },
+      x: { ticks: { color: "#8790a0", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "rgba(160,170,185,0.05)" } },
+      y: { ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" }, beginAtZero: true },
     },
     ...extra,
   } as ChartOptions;

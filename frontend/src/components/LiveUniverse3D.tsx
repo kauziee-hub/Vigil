@@ -254,26 +254,26 @@ export function UniverseLegend({ mode = "live", groundTruth }: { mode?: Universe
   if (mode === "live") {
     return (
       <div className="uni-legend">
-        {live.map((s) => <span key={s} style={{ color: ACCOUNT_STATUS_HEX[s] }}><i style={{ background: ACCOUNT_STATUS_HEX[s] }} /><span style={{ color: "#b9cfc3" }}>{ACCOUNT_STATUS_LABEL[s]}</span></span>)}
-        {groundTruth && <span style={{ color: "#d65cff" }}><i style={{ background: "#d65cff" }} /><span style={{ color: "#b9cfc3" }}>Injected — simulator ground truth</span></span>}
+        {live.map((s) => <span key={s} style={{ color: ACCOUNT_STATUS_HEX[s] }}><i style={{ background: ACCOUNT_STATUS_HEX[s] }} /><span style={{ color: "#a7b0bd" }}>{ACCOUNT_STATUS_LABEL[s]}</span></span>)}
+        {groundTruth && <span style={{ color: "#c56fb0" }}><i style={{ background: "#c56fb0" }} /><span style={{ color: "#a7b0bd" }}>Injected — simulator ground truth</span></span>}
       </div>
     );
   }
-  const bands: [string, string][] = [["#2f7dff", "< 0.30"], ["#ffc34d", "0.30–0.50"], ["#ff9157", "0.50–0.75"], ["#ff3d63", "≥ 0.75"]];
+  const bands: [string, string][] = [["#5f86b8", "< 0.30"], ["#d6a23f", "0.30–0.50"], ["#dd7a3e", "0.50–0.75"], ["#e2564e", "≥ 0.75"]];
   if (mode === "risk" || mode === "model") {
     return (
       <div className="uni-legend">
-        <span style={{ color: "#96b1a2" }}>{mode === "risk" ? "RingWatch network score" : "Strongest model evidence (corroborating)"}</span>
-        {bands.map(([c, l]) => <span key={l} style={{ color: c }}><i style={{ background: c }} /><span style={{ color: "#b9cfc3" }}>{l}</span></span>)}
-        {mode === "model" && <span><i style={{ background: "#1c3a30" }} /><span style={{ color: "#b9cfc3" }}>not scored</span></span>}
+        <span style={{ color: "#8790a0" }}>{mode === "risk" ? "RingWatch network score" : "Strongest model evidence (corroborating)"}</span>
+        {bands.map(([c, l]) => <span key={l} style={{ color: c }}><i style={{ background: c }} /><span style={{ color: "#a7b0bd" }}>{l}</span></span>)}
+        {mode === "model" && <span><i style={{ background: "#1e2530" }} /><span style={{ color: "#a7b0bd" }}>not scored</span></span>}
       </div>
     );
   }
   return (
     <div className="uni-legend">
       {mode === "roles"
-        ? <><span style={{ color: "#d6efe2" }}><i style={{ background: "#d6efe2" }} /><span style={{ color: "#b9cfc3" }}>Mule role assigned</span></span><span><i style={{ background: "#1c3a30" }} /><span style={{ color: "#b9cfc3" }}>no role</span></span></>
-        : <><span style={{ color: "#ff1744" }}><i style={{ background: "#ff1744" }} /><span style={{ color: "#b9cfc3" }}>Value traced from a confirmed scam (LIBR) — size ∝ amount</span></span><span><i style={{ background: "#1c3a30" }} /><span style={{ color: "#b9cfc3" }}>untainted</span></span></>}
+        ? <><span style={{ color: "#dfe4ec" }}><i style={{ background: "#dfe4ec" }} /><span style={{ color: "#a7b0bd" }}>Mule role assigned</span></span><span><i style={{ background: "#1e2530" }} /><span style={{ color: "#a7b0bd" }}>no role</span></span></>
+        : <><span style={{ color: "#e23a55" }}><i style={{ background: "#e23a55" }} /><span style={{ color: "#a7b0bd" }}>Value traced from a confirmed scam (LIBR) — size ∝ amount</span></span><span><i style={{ background: "#1e2530" }} /><span style={{ color: "#a7b0bd" }}>untainted</span></span></>}
     </div>
   );
 }
