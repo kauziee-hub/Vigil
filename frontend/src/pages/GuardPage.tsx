@@ -69,7 +69,7 @@ export function GuardPage() {
       <div className="guard">
         <div className="stack">
           <CustomerDevice payer={payer} onPayerChange={(p) => setParams({ as: p })} onChange={setDevice} prefill={prefill} />
-          <Panel kicker="Demo inputs" title="" className="demo-inputs">
+          <Panel title="Demo inputs" q="prefill the device" className="demo-inputs">
             <div className="stack tight">
               {(QUICK[payer] ?? []).map((q) => (
                 <button key={q.label} className="btn sm" style={{ justifyContent: "flex-start" }}
