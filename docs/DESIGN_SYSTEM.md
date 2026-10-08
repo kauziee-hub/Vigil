@@ -1,4 +1,24 @@
-# Vigil design system (v3 — live platform)
+# Vigil design system
+
+## v4 — institutional (current, 2026-10-09; supersedes the v3 visual language below)
+
+User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): "Not the green UI. Make it a professional, matured UI. Neat it up. Fully functional, no fake stuff." v3's *functionality* (live universe, command center, streams, score tables, attack runs, all nine areas) is kept; its *look* (green-black field, mint accent, glow, translucent glass, display hero, letter-spaced eyebrows) is replaced.
+
+| Decision | v4 rule |
+|---|---|
+| Field | Neutral graphite (`#0d1015` page, `#141920` panels, `#222932` hairlines). Light theme is a real alternative (`data-theme="light"`), not an afterthought. |
+| Accent | One steel blue (`#5b93f0`, strong `#3f7be0`) for interaction only: primary buttons, selection, focus, links. Never means "safe". |
+| Status | Muted scales: normal slate `#8593a8`, watch amber `#d6a23f`, high `#dd7a3e`, critical `#e2564e`, held violet `#9283d6`, confirmed fraud crimson `#c8344d`. Live account status: normal steel `#5f86b8`, new sky `#5fb0d6`. No green anywhere except a muted `--ok` for "ledger balanced / approved". |
+| Type | IBM Plex Sans for UI, IBM Plex Mono only for identifiers, amounts in tables and code. 13 px base; page title 20 px; panel title 14 px. Sentence case everywhere (proper names keep capitals: RingWatch, CircuitBreaker, Random Forest). |
+| Shape | Flat surfaces, 1 px borders, radii 3–8 px, no gradients, glow, blur or translucency. Shadows only for floating layers (toasts, drawers). |
+| Headings | One heading per panel (`Panel` drops the kicker when a title exists). No numbered crumbs or nav items; nav uses 16 px stroke icons. |
+| Metrics | One hairline-divided metric strip (`.mstrip`), not a wall of tiles; status shown by a 2 px top rule and value colour. |
+| Canvas | 3D / graph stages are always dark (`--canvas`) in both themes; no starfield; node glow 0.07; edges drawn with normal blending (additive blending turned blue into cyan). |
+| Honesty | Charts must not imply direction they do not have (e.g. SHAP: signed `category_net` drawn red/blue; unsigned influence never shown with "+"). Exact counts beat rounded percentages that hide an intervention. |
+
+---
+
+# v3 — live platform (historical)
 
 Owner: Claude 3 (frontend). Applies to every bank-side screen. The customer device (`/pay`, the phone inside Transaction Guard) is a light consumer card; the trusted-contact phone (`/contact/:token`) uses the v3 dark field with one large alert card.
 
