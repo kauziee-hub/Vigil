@@ -50,6 +50,14 @@ async def demo_reset():
     ambient.set_enabled(False)
     scenarios.cancel_all()
     result = seed_mod.seed()
+    # rebuild the detection-intelligence snapshot now (≈0.7 s on world v3), inside the reset request,
+    # so the first payment after a reset is not the cold build (675 ms → 17 ms for s0)
+    try:
+        from vigil.intel import warm  # type: ignore[import-not-found]
+
+        warm()
+    except Exception:
+        pass
     HUB.publish("console", "demo.reset", result)
     if was_on:
         ambient.set_enabled(True)

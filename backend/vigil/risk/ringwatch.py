@@ -72,7 +72,7 @@ def features(account_id: str, now_t: float | None = None) -> dict[str, Any]:
     forwarded_fraction = min(1.0, quick_out / total_in) if total_in else 0.0
 
     # first-time senders: paid this account inside the window but never before it
-    earlier_senders = {e.src for e in GRAPH.inflows(account_id) if e.t < since}
+    earlier_senders = {e.src for e in GRAPH.inflows_before(account_id, since)}
     new_senders = {e.src for e in inflows} - earlier_senders
 
     account = GRAPH.accounts.get(account_id) or {}
@@ -85,7 +85,7 @@ def features(account_id: str, now_t: float | None = None) -> dict[str, Any]:
         "distinct_senders": len({e.src for e in inflows}),
         "first_time_senders": len(new_senders),
         "distinct_recipients": len({e.dst for e in outflows}),
-        "first_time_recipients": len({e.dst for e in outflows} - {e.dst for e in GRAPH.outflows(account_id) if e.t < since}),
+        "first_time_recipients": len({e.dst for e in outflows} - {e.dst for e in GRAPH.outflows_before(account_id, since)}),
         "total_in_paise": total_in,
         "total_out_paise": total_out,
         "forwarded_fraction": round(forwarded_fraction, 3),
@@ -102,7 +102,10 @@ def features(account_id: str, now_t: float | None = None) -> dict[str, Any]:
     }
 
 
-def evaluate(account_id: str, now_t: float | None = None) -> tuple[list[RiskSignal], dict[str, Any]]:
+def evaluate(account_id: str, now_t: float | None = None,
+             ctx: dict[str, Any] | None = None) -> tuple[list[RiskSignal], dict[str, Any]]:
+    """`ctx` = {"labelled": labelled_accounts(), "exposure": taint.exposure()} — population-wide
+    lookups that `scan()` computes once instead of once per account."""
     cfg = get_policy()["network"]
     f = features(account_id, now_t)
     signals: list[RiskSignal] = []
@@ -187,7 +190,7 @@ def evaluate(account_id: str, now_t: float | None = None) -> tuple[list[RiskSign
             {"age_days": f["age_days"], "total_in_paise": f["total_in_paise"]}, na["contribution"],
         ))
 
-    labelled = labelled_accounts()
+    labelled = ctx["labelled"] if ctx is not None else labelled_accounts()
     ln = cfg["labelled_neighbour"]
     if account_id in labelled:
         signals.append(_sig(
@@ -195,7 +198,7 @@ def evaluate(account_id: str, now_t: float | None = None) -> tuple[list[RiskSign
             "This account directly received a payment the bank has confirmed as a scam.",
             {"label_id": labelled[account_id]}, ln["contribution_1hop"] + ln["contribution_2hop"],
         ))
-    else:
+    elif labelled:
         # Follow the money downstream only: paying INTO a scam account (a victim) is not evidence against you.
         senders = {e.src for e in GRAPH.inflows(account_id)}
         one_hop = senders & set(labelled)
@@ -215,7 +218,7 @@ def evaluate(account_id: str, now_t: float | None = None) -> tuple[list[RiskSign
                 ))
 
     te = cfg["taint_exposure"]
-    exposure = taint.exposure().get(account_id, 0)
+    exposure = (ctx["exposure"] if ctx is not None else taint.exposure()).get(account_id, 0)
     if exposure >= te["min_paise"]:
         signals.append(_sig(
             "NET_TAINT_EXPOSURE", "Holds money traced to a scam",
@@ -277,14 +280,16 @@ def scan(min_score: float = 0.3) -> list[dict[str, Any]]:
         return [r for r in _scan_cache["rows"] if r["score"] >= min_score]
     now_t = clock.now().timestamp()
     since = now_t - float(get_policy()["network"]["window_hours"]) * 3600
-    active = {e.dst for edges in GRAPH.in_edges.values() for e in edges if e.t >= since}
-    active |= set(labelled_accounts())
-    active |= set(taint.exposure())
+    ctx = {"labelled": labelled_accounts(), "exposure": taint.exposure()}
+    # per-account lists are chronological: an inflow inside the window ⇔ the newest inflow is inside it
+    active = {aid for aid, edges in GRAPH.in_edges.items() if edges and edges[-1].t >= since}
+    active |= set(ctx["labelled"])
+    active |= set(ctx["exposure"])
     rows = []
     for account_id in active:
         if (GRAPH.accounts.get(account_id) or {}).get("kind") == "external":
             continue
-        signals, feats = evaluate(account_id, now_t)
+        signals, feats = evaluate(account_id, now_t, ctx)
         s = score(signals)
         if s > 0:
             rows.append({

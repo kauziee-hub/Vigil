@@ -161,3 +161,30 @@ def test_taint_cache_survives_unrelated_postings(world):
     again = taint.run()
     assert (time.perf_counter() - t) < 0.05
     assert again is first
+
+
+def test_demo_reset_rewarms_detection_intelligence(client, monkeypatch):
+    """The first payment after a reset must not pay the cold intel build (675 ms → 17 ms on world v3)."""
+    intel = pytest.importorskip("vigil.intel")
+    calls: list[int] = []
+    monkeypatch.setattr(intel, "warm", lambda: calls.append(1))
+    assert client.post("/api/demo/reset").status_code == 200
+    assert calls == [1]
+
+
+def test_pathgraph_windows_stay_exact_with_back_dated_postings(world):
+    """Window queries bisect on t; per-account lists must stay chronological even for a back-dated posting."""
+    from vigil import clock
+    from vigil.graph.pathgraph import GRAPH
+
+    acct = "kiran.traders@vigil"
+    newest = GRAPH.in_edges[acct][-1]
+    GRAPH.add_transaction({"id": "TX-BACKDATED", "seq": 10**9, "sender_id": "ramesh@vigil", "recipient_id": acct,
+                           "amount_paise": 100, "ts": clock.iso(clock.parse(newest.ts) - __import__("datetime").timedelta(hours=1)),
+                           "kind": "transfer"})
+    for edges in (GRAPH.in_edges[acct], GRAPH.out_edges["ramesh@vigil"]):
+        assert all(edges[i].t <= edges[i + 1].t for i in range(len(edges) - 1))
+    for since in (newest.t - 7200, newest.t - 3600, newest.t, newest.t + 1):
+        assert GRAPH.inflows(acct, since) == [e for e in GRAPH.in_edges[acct] if e.t >= since]
+        assert GRAPH.inflows_before(acct, since) == [e for e in GRAPH.in_edges[acct] if e.t < since]
+    GRAPH.load()

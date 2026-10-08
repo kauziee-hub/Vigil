@@ -63,6 +63,17 @@ def main() -> None:
     results["seed_ms"] = round((time.perf_counter() - t) * 1000, 1)
     results["world"] = {"accounts": info["accounts"], "transactions": info["transactions"]}
 
+    # the server warms detection intelligence at startup and inside every demo reset; mirror that
+    # so scenario timings are what a presenter sees (the warm-up itself is reported separately)
+    try:
+        from vigil.intel import warm
+
+        t = time.perf_counter()
+        warm()
+        results["intel_warmup_ms"] = round((time.perf_counter() - t) * 1000, 1)
+    except ImportError:
+        results["intel_warmup_ms"] = None
+
     # scenario processing (full pipeline incl. persistence and monitoring)
     scen_ms = {}
     for sid in ("s0", "s1", "s4", "s3", "s2"):
@@ -126,7 +137,7 @@ def main() -> None:
         print(json.dumps(results, indent=2))
     else:
         print(f"\nVigil benchmark — {results['machine']}")
-        print(f"  world: {results['world']}  (seed {results['seed_ms']} ms)")
+        print(f"  world: {results['world']}  (seed {results['seed_ms']} ms, intel warm-up {results['intel_warmup_ms']} ms)")
         r = results["risk_evaluation_ms"]
         print(f"  risk evaluation  p50 {r['p50']} ms   p95 {r['p95']} ms   max {r['max']} ms   (target p95 < 150 ms, n={r['n']})")
         c = results["intent_create_ms"]

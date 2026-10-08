@@ -9,6 +9,7 @@ Built once from SQLite at startup / reset; every settled payment calls
 
 from __future__ import annotations
 
+from bisect import bisect_left, insort
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Iterable
@@ -26,6 +27,18 @@ class Edge:
     ts: str
     t: float          # epoch seconds, for fast windows
     kind: str
+
+
+def _t(edge: Edge) -> float:
+    return edge.t
+
+
+def _push(edges: list[Edge], edge: Edge) -> None:
+    """Keep every per-account list chronological (window queries bisect on t)."""
+    if edges and edge.t < edges[-1].t:
+        insort(edges, edge, key=_t)   # a back-dated posting; ties keep posting order
+    else:
+        edges.append(edge)
 
 
 class PathGraph:
@@ -67,8 +80,8 @@ class PathGraph:
             amount_paise=int(row["amount_paise"]), ts=row["ts"],
             t=clock.parse(row["ts"]).timestamp(), kind=row["kind"],
         )
-        self.out_edges[edge.src].append(edge)
-        self.in_edges[edge.dst].append(edge)
+        _push(self.out_edges[edge.src], edge)
+        _push(self.in_edges[edge.dst], edge)
 
     def add_transaction(self, row: dict) -> None:
         self._append(row)
@@ -85,11 +98,19 @@ class PathGraph:
     # ── queries ────────────────────────────────────────────────────────
     def inflows(self, account_id: str, since_t: float | None = None) -> list[Edge]:
         edges = self.in_edges.get(account_id, [])
-        return edges if since_t is None else [e for e in edges if e.t >= since_t]
+        return edges if since_t is None else edges[bisect_left(edges, since_t, key=_t):]
 
     def outflows(self, account_id: str, since_t: float | None = None) -> list[Edge]:
         edges = self.out_edges.get(account_id, [])
-        return edges if since_t is None else [e for e in edges if e.t >= since_t]
+        return edges if since_t is None else edges[bisect_left(edges, since_t, key=_t):]
+
+    def inflows_before(self, account_id: str, before_t: float) -> list[Edge]:
+        edges = self.in_edges.get(account_id, [])
+        return edges[:bisect_left(edges, before_t, key=_t)]
+
+    def outflows_before(self, account_id: str, before_t: float) -> list[Edge]:
+        edges = self.out_edges.get(account_id, [])
+        return edges[:bisect_left(edges, before_t, key=_t)]
 
     def neighbours(self, account_id: str, since_t: float | None = None) -> set[str]:
         out = {e.dst for e in self.outflows(account_id, since_t)}
@@ -127,9 +148,10 @@ class PathGraph:
 
     def last_activity_before(self, account_id: str, before_t: float) -> float | None:
         latest: float | None = None
-        for edge in self.out_edges.get(account_id, []) + self.in_edges.get(account_id, []):
-            if edge.t < before_t and (latest is None or edge.t > latest):
-                latest = edge.t
+        for edges in (self.out_edges.get(account_id, []), self.in_edges.get(account_id, [])):
+            i = bisect_left(edges, before_t, key=_t)
+            if i and (latest is None or edges[i - 1].t > latest):
+                latest = edges[i - 1].t
         return latest
 
 
