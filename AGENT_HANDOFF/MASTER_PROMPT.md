@@ -10,5 +10,6 @@ The user's prompts, verbatim, in order. Later prompts override earlier ones wher
 | v2.r2 | 2026-10-07 ~01:00 | `prompts/03_USER_resume_2026-10-07_0100.md` | "CONTINUE IMPLEMENTATION" after a second session restart — continue v2 unchanged; recover run-2 WIP, relaunch agents as run 3. |
 | v3 | 2026-10-07 | `prompts/04_USER_refined_mule_repo_2026-10-07.md` | Refined money-mule repo (Gowtham640/money-mule-detection) sets the UI/3D/analytics bar: live 3D transaction universe, command center, live analytics — bring all into one Vigil. Plan: `docs/V3_LIVE_PLATFORM_PLAN.md`. |
 | v3.r | 2026-10-07 09:33 | `prompts/05_USER_continue_2026-10-07_0933.md` | "continue" after the 3rd session restart — continue v3 unchanged; relaunch the killed v3 agents. |
+| v4 | 2026-10-09 00:13 | `prompts/06_USER_professional_ui_2026-10-09.md` | Not the green UI — professional, mature, neat; fully functional, nothing fake. |
 
 Role prompts issued to agents are stored inside each run record in `runs/` (and the latest copies in `prompts/`).
