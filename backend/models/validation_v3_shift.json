@@ -1,0 +1,1163 @@
+{
+ "label": "SYNTHETIC VALIDATION \u2014 computer-generated worlds; not real-bank accuracy.",
+ "data": "SYNTHETIC",
+ "command": "python ml/eval_v3_shift.py",
+ "evaluated_at": "2026-10-07T04:36:45Z",
+ "artefacts": {
+  "random_forest": "rf-v2.1",
+  "gnn": "gnn-gat-v2.1",
+  "trained_at": "2026-10-06T20:11:11Z"
+ },
+ "early_warning": {
+  "v2_0": "legacy signals (population-relative velocity, any 3 recipients)",
+  "v3_0": "early-warning-v3.0"
+ },
+ "test_worlds": "indices 120..149, seed 20261006",
+ "datagen_v2_1": {
+  "all": {
+   "accounts": 8846,
+   "mules": 310,
+   "rules": {
+    "precision": 0.2621,
+    "recall": 0.3484,
+    "f1": 0.2992,
+    "pr_auc": 0.1866,
+    "confusion": {
+     "tp": 108,
+     "fp": 304,
+     "fn": 202,
+     "tn": 8232
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.087,
+     "cross_channel": 0.2069,
+     "dormant": 0.5,
+     "fan_in": 0.7,
+     "fan_out": 0.1905,
+     "shared_device": 0.9231,
+     "smurfing": 0.2069,
+     "velocity_chain": 0.0833,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 21,
+     "landlord": 0,
+     "merchant": 199,
+     "organiser": 4,
+     "payroll": 4,
+     "trader": 76
+    }
+   },
+   "random_forest": {
+    "precision": 0.9258,
+    "recall": 0.8452,
+    "f1": 0.8836,
+    "pr_auc": 0.9193,
+    "confusion": {
+     "tp": 262,
+     "fp": 21,
+     "fn": 48,
+     "tn": 8515
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.8571,
+     "circular": 1.0,
+     "cross_channel": 0.7931,
+     "dormant": 0.9,
+     "fan_in": 0.8,
+     "fan_out": 0.75,
+     "shared_device": 0.9615,
+     "smurfing": 0.4828,
+     "velocity_chain": 1.0,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 21,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "gnn": {
+    "precision": 0.9826,
+    "recall": 0.9097,
+    "f1": 0.9447,
+    "pr_auc": 0.9541,
+    "confusion": {
+     "tp": 282,
+     "fp": 5,
+     "fn": 28,
+     "tn": 8531
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9783,
+     "cross_channel": 0.8966,
+     "dormant": 0.9,
+     "fan_in": 0.7,
+     "fan_out": 0.8929,
+     "shared_device": 1.0,
+     "smurfing": 0.6897,
+     "velocity_chain": 0.9722,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 4,
+     "landlord": 1,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "early_warning": {
+    "precision": 0.4664,
+    "recall": 0.6484,
+    "f1": 0.5425,
+    "pr_auc": 0.4572,
+    "confusion": {
+     "tp": 201,
+     "fp": 230,
+     "fn": 109,
+     "tn": 8306
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.7174,
+     "cross_channel": 0.4828,
+     "dormant": 0.5,
+     "fan_in": 0.7,
+     "fan_out": 0.4881,
+     "shared_device": 1.0,
+     "smurfing": 0.3448,
+     "velocity_chain": 0.7222,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 89,
+     "landlord": 3,
+     "merchant": 63,
+     "organiser": 3,
+     "payroll": 4,
+     "trader": 68
+    }
+   },
+   "drift": {
+    "precision": 0.57,
+    "recall": 0.7613,
+    "f1": 0.6519,
+    "pr_auc": 0.6562,
+    "confusion": {
+     "tp": 236,
+     "fp": 178,
+     "fn": 74,
+     "tn": 8358
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9348,
+     "cross_channel": 0.4828,
+     "dormant": 0.7,
+     "fan_in": 0.9,
+     "fan_out": 0.6071,
+     "shared_device": 1.0,
+     "smurfing": 0.4483,
+     "velocity_chain": 0.9444,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 138,
+     "landlord": 2,
+     "merchant": 8,
+     "organiser": 11,
+     "payroll": 9,
+     "trader": 10
+    }
+   },
+   "pattern_memory": {
+    "precision": 0.8314,
+    "recall": 0.4613,
+    "f1": 0.5934,
+    "pr_auc": 0.6622,
+    "confusion": {
+     "tp": 143,
+     "fp": 29,
+     "fn": 167,
+     "tn": 8507
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.5714,
+     "circular": 0.6304,
+     "cross_channel": 0.2759,
+     "dormant": 0.4,
+     "fan_in": 0.4,
+     "fan_out": 0.1786,
+     "shared_device": 0.7308,
+     "smurfing": 0.3103,
+     "velocity_chain": 0.7222,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 21,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 8
+    }
+   },
+   "early_warning_v2_0": {
+    "precision": 0.2887,
+    "recall": 0.6258,
+    "f1": 0.3951,
+    "pr_auc": 0.2809,
+    "confusion": {
+     "tp": 194,
+     "fp": 478,
+     "fn": 116,
+     "tn": 8058
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.6739,
+     "cross_channel": 0.4483,
+     "dormant": 0.3,
+     "fan_in": 0.7,
+     "fan_out": 0.4643,
+     "shared_device": 1.0,
+     "smurfing": 0.3448,
+     "velocity_chain": 0.7222,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 181,
+     "landlord": 3,
+     "merchant": 197,
+     "organiser": 2,
+     "payroll": 9,
+     "trader": 86
+    }
+   }
+  },
+  "everyday_worlds": null,
+  "sparse_worlds": {
+   "accounts": 8846,
+   "mules": 310,
+   "rules": {
+    "precision": 0.2621,
+    "recall": 0.3484,
+    "f1": 0.2992,
+    "pr_auc": 0.1866,
+    "confusion": {
+     "tp": 108,
+     "fp": 304,
+     "fn": 202,
+     "tn": 8232
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.087,
+     "cross_channel": 0.2069,
+     "dormant": 0.5,
+     "fan_in": 0.7,
+     "fan_out": 0.1905,
+     "shared_device": 0.9231,
+     "smurfing": 0.2069,
+     "velocity_chain": 0.0833,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 21,
+     "landlord": 0,
+     "merchant": 199,
+     "organiser": 4,
+     "payroll": 4,
+     "trader": 76
+    }
+   },
+   "random_forest": {
+    "precision": 0.9258,
+    "recall": 0.8452,
+    "f1": 0.8836,
+    "pr_auc": 0.9193,
+    "confusion": {
+     "tp": 262,
+     "fp": 21,
+     "fn": 48,
+     "tn": 8515
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.8571,
+     "circular": 1.0,
+     "cross_channel": 0.7931,
+     "dormant": 0.9,
+     "fan_in": 0.8,
+     "fan_out": 0.75,
+     "shared_device": 0.9615,
+     "smurfing": 0.4828,
+     "velocity_chain": 1.0,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 21,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "gnn": {
+    "precision": 0.9826,
+    "recall": 0.9097,
+    "f1": 0.9447,
+    "pr_auc": 0.9541,
+    "confusion": {
+     "tp": 282,
+     "fp": 5,
+     "fn": 28,
+     "tn": 8531
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9783,
+     "cross_channel": 0.8966,
+     "dormant": 0.9,
+     "fan_in": 0.7,
+     "fan_out": 0.8929,
+     "shared_device": 1.0,
+     "smurfing": 0.6897,
+     "velocity_chain": 0.9722,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 4,
+     "landlord": 1,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "early_warning": {
+    "precision": 0.4664,
+    "recall": 0.6484,
+    "f1": 0.5425,
+    "pr_auc": 0.4572,
+    "confusion": {
+     "tp": 201,
+     "fp": 230,
+     "fn": 109,
+     "tn": 8306
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.7174,
+     "cross_channel": 0.4828,
+     "dormant": 0.5,
+     "fan_in": 0.7,
+     "fan_out": 0.4881,
+     "shared_device": 1.0,
+     "smurfing": 0.3448,
+     "velocity_chain": 0.7222,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 89,
+     "landlord": 3,
+     "merchant": 63,
+     "organiser": 3,
+     "payroll": 4,
+     "trader": 68
+    }
+   },
+   "drift": {
+    "precision": 0.57,
+    "recall": 0.7613,
+    "f1": 0.6519,
+    "pr_auc": 0.6562,
+    "confusion": {
+     "tp": 236,
+     "fp": 178,
+     "fn": 74,
+     "tn": 8358
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9348,
+     "cross_channel": 0.4828,
+     "dormant": 0.7,
+     "fan_in": 0.9,
+     "fan_out": 0.6071,
+     "shared_device": 1.0,
+     "smurfing": 0.4483,
+     "velocity_chain": 0.9444,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 138,
+     "landlord": 2,
+     "merchant": 8,
+     "organiser": 11,
+     "payroll": 9,
+     "trader": 10
+    }
+   },
+   "pattern_memory": {
+    "precision": 0.8314,
+    "recall": 0.4613,
+    "f1": 0.5934,
+    "pr_auc": 0.6622,
+    "confusion": {
+     "tp": 143,
+     "fp": 29,
+     "fn": 167,
+     "tn": 8507
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.5714,
+     "circular": 0.6304,
+     "cross_channel": 0.2759,
+     "dormant": 0.4,
+     "fan_in": 0.4,
+     "fan_out": 0.1786,
+     "shared_device": 0.7308,
+     "smurfing": 0.3103,
+     "velocity_chain": 0.7222,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 21,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 8
+    }
+   },
+   "early_warning_v2_0": {
+    "precision": 0.2887,
+    "recall": 0.6258,
+    "f1": 0.3951,
+    "pr_auc": 0.2809,
+    "confusion": {
+     "tp": 194,
+     "fp": 478,
+     "fn": 116,
+     "tn": 8058
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.6739,
+     "cross_channel": 0.4483,
+     "dormant": 0.3,
+     "fan_in": 0.7,
+     "fan_out": 0.4643,
+     "shared_device": 1.0,
+     "smurfing": 0.3448,
+     "velocity_chain": 0.7222,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 181,
+     "landlord": 3,
+     "merchant": 197,
+     "organiser": 2,
+     "payroll": 9,
+     "trader": 86
+    }
+   }
+  },
+  "worlds_with_everyday_economy": 0
+ },
+ "datagen_v3_0": {
+  "all": {
+   "accounts": 9171,
+   "mules": 310,
+   "rules": {
+    "precision": 0.202,
+    "recall": 0.3935,
+    "f1": 0.267,
+    "pr_auc": 0.1225,
+    "confusion": {
+     "tp": 122,
+     "fp": 482,
+     "fn": 188,
+     "tn": 8379
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.1957,
+     "cross_channel": 0.2414,
+     "dormant": 0.5,
+     "fan_in": 0.7,
+     "fan_out": 0.2738,
+     "shared_device": 0.9231,
+     "smurfing": 0.2069,
+     "velocity_chain": 0.1111,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 106,
+     "landlord": 2,
+     "merchant": 249,
+     "organiser": 4,
+     "payroll": 4,
+     "trader": 117
+    }
+   },
+   "random_forest": {
+    "precision": 0.9524,
+    "recall": 0.7742,
+    "f1": 0.8541,
+    "pr_auc": 0.9026,
+    "confusion": {
+     "tp": 240,
+     "fp": 12,
+     "fn": 70,
+     "tn": 8849
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.5714,
+     "circular": 0.8913,
+     "cross_channel": 0.7241,
+     "dormant": 0.9,
+     "fan_in": 0.8,
+     "fan_out": 0.631,
+     "shared_device": 0.9615,
+     "smurfing": 0.4483,
+     "velocity_chain": 0.9444,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 12,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "gnn": {
+    "precision": 0.9713,
+    "recall": 0.8742,
+    "f1": 0.9202,
+    "pr_auc": 0.9452,
+    "confusion": {
+     "tp": 271,
+     "fp": 8,
+     "fn": 39,
+     "tn": 8853
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.8571,
+     "circular": 0.9783,
+     "cross_channel": 0.7931,
+     "dormant": 0.9,
+     "fan_in": 0.5,
+     "fan_out": 0.8571,
+     "shared_device": 1.0,
+     "smurfing": 0.6897,
+     "velocity_chain": 0.9722,
+     "volume_spike": 0.5714
+    },
+    "false_positives_by_persona": {
+     "customer": 6,
+     "landlord": 2,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "early_warning": {
+    "precision": 0.4218,
+    "recall": 0.6613,
+    "f1": 0.5151,
+    "pr_auc": 0.4153,
+    "confusion": {
+     "tp": 205,
+     "fp": 281,
+     "fn": 105,
+     "tn": 8580
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.7174,
+     "cross_channel": 0.4828,
+     "dormant": 0.5,
+     "fan_in": 0.7,
+     "fan_out": 0.5119,
+     "shared_device": 1.0,
+     "smurfing": 0.3793,
+     "velocity_chain": 0.75,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 129,
+     "landlord": 3,
+     "merchant": 62,
+     "organiser": 3,
+     "payroll": 4,
+     "trader": 80
+    }
+   },
+   "drift": {
+    "precision": 0.5659,
+    "recall": 0.7484,
+    "f1": 0.6444,
+    "pr_auc": 0.6024,
+    "confusion": {
+     "tp": 232,
+     "fp": 178,
+     "fn": 78,
+     "tn": 8683
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9348,
+     "cross_channel": 0.4828,
+     "dormant": 0.7,
+     "fan_in": 0.9,
+     "fan_out": 0.5595,
+     "shared_device": 1.0,
+     "smurfing": 0.4483,
+     "velocity_chain": 0.9444,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 138,
+     "landlord": 2,
+     "merchant": 8,
+     "organiser": 11,
+     "payroll": 9,
+     "trader": 10
+    }
+   },
+   "pattern_memory": {
+    "precision": 0.8036,
+    "recall": 0.4355,
+    "f1": 0.5649,
+    "pr_auc": 0.6275,
+    "confusion": {
+     "tp": 135,
+     "fp": 33,
+     "fn": 175,
+     "tn": 8828
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.4286,
+     "circular": 0.5652,
+     "cross_channel": 0.2759,
+     "dormant": 0.4,
+     "fan_in": 0.4,
+     "fan_out": 0.1667,
+     "shared_device": 0.7308,
+     "smurfing": 0.2759,
+     "velocity_chain": 0.6667,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 24,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 9
+    }
+   },
+   "early_warning_v2_0": {
+    "precision": 0.2455,
+    "recall": 0.5677,
+    "f1": 0.3427,
+    "pr_auc": 0.2443,
+    "confusion": {
+     "tp": 176,
+     "fp": 541,
+     "fn": 134,
+     "tn": 8320
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.6522,
+     "cross_channel": 0.3793,
+     "dormant": 0.1,
+     "fan_in": 0.3,
+     "fan_out": 0.369,
+     "shared_device": 1.0,
+     "smurfing": 0.3793,
+     "velocity_chain": 0.6667,
+     "volume_spike": 0.8571
+    },
+    "false_positives_by_persona": {
+     "customer": 250,
+     "landlord": 6,
+     "merchant": 185,
+     "organiser": 1,
+     "payroll": 9,
+     "trader": 90
+    }
+   }
+  },
+  "everyday_worlds": {
+   "accounts": 6393,
+   "mules": 221,
+   "rules": {
+    "precision": 0.1862,
+    "recall": 0.4027,
+    "f1": 0.2546,
+    "pr_auc": 0.1152,
+    "confusion": {
+     "tp": 89,
+     "fp": 389,
+     "fn": 132,
+     "tn": 5783
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.25,
+     "cross_channel": 0.25,
+     "dormant": 0.6,
+     "fan_in": 0.7778,
+     "fan_out": 0.3043,
+     "shared_device": 0.9688,
+     "smurfing": 0.1429,
+     "velocity_chain": 0.12,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 104,
+     "landlord": 2,
+     "merchant": 185,
+     "organiser": 2,
+     "payroll": 3,
+     "trader": 93
+    }
+   },
+   "random_forest": {
+    "precision": 0.9693,
+    "recall": 0.7149,
+    "f1": 0.8229,
+    "pr_auc": 0.8899,
+    "confusion": {
+     "tp": 158,
+     "fp": 5,
+     "fn": 63,
+     "tn": 6167
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.25,
+     "circular": 0.8214,
+     "cross_channel": 0.6667,
+     "dormant": 1.0,
+     "fan_in": 0.7778,
+     "fan_out": 0.5797,
+     "shared_device": 0.9688,
+     "smurfing": 0.381,
+     "velocity_chain": 0.92,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 5,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "gnn": {
+    "precision": 0.9641,
+    "recall": 0.8507,
+    "f1": 0.9038,
+    "pr_auc": 0.9349,
+    "confusion": {
+     "tp": 188,
+     "fp": 7,
+     "fn": 33,
+     "tn": 6165
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.75,
+     "circular": 0.9643,
+     "cross_channel": 0.75,
+     "dormant": 1.0,
+     "fan_in": 0.5556,
+     "fan_out": 0.8261,
+     "shared_device": 1.0,
+     "smurfing": 0.6667,
+     "velocity_chain": 1.0,
+     "volume_spike": 0.5
+    },
+    "false_positives_by_persona": {
+     "customer": 5,
+     "landlord": 2,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "early_warning": {
+    "precision": 0.3978,
+    "recall": 0.6425,
+    "f1": 0.4913,
+    "pr_auc": 0.3879,
+    "confusion": {
+     "tp": 142,
+     "fp": 215,
+     "fn": 79,
+     "tn": 5957
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.6429,
+     "cross_channel": 0.5,
+     "dormant": 0.6,
+     "fan_in": 0.7778,
+     "fan_out": 0.5362,
+     "shared_device": 1.0,
+     "smurfing": 0.3333,
+     "velocity_chain": 0.72,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 109,
+     "landlord": 3,
+     "merchant": 40,
+     "organiser": 1,
+     "payroll": 3,
+     "trader": 59
+    }
+   },
+   "drift": {
+    "precision": 0.5544,
+    "recall": 0.7149,
+    "f1": 0.6245,
+    "pr_auc": 0.5721,
+    "confusion": {
+     "tp": 158,
+     "fp": 127,
+     "fn": 63,
+     "tn": 6045
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9286,
+     "cross_channel": 0.4583,
+     "dormant": 0.8,
+     "fan_in": 0.8889,
+     "fan_out": 0.5362,
+     "shared_device": 1.0,
+     "smurfing": 0.4286,
+     "velocity_chain": 0.92,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 98,
+     "landlord": 2,
+     "merchant": 6,
+     "organiser": 8,
+     "payroll": 6,
+     "trader": 7
+    }
+   },
+   "pattern_memory": {
+    "precision": 0.7699,
+    "recall": 0.3937,
+    "f1": 0.521,
+    "pr_auc": 0.5946,
+    "confusion": {
+     "tp": 87,
+     "fp": 26,
+     "fn": 134,
+     "tn": 6146
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.25,
+     "circular": 0.5,
+     "cross_channel": 0.25,
+     "dormant": 0.4,
+     "fan_in": 0.3333,
+     "fan_out": 0.1594,
+     "shared_device": 0.7812,
+     "smurfing": 0.2381,
+     "velocity_chain": 0.64,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 20,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 6
+    }
+   },
+   "early_warning_v2_0": {
+    "precision": 0.2214,
+    "recall": 0.5158,
+    "f1": 0.3098,
+    "pr_auc": 0.2251,
+    "confusion": {
+     "tp": 114,
+     "fp": 401,
+     "fn": 107,
+     "tn": 5771
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.5714,
+     "cross_channel": 0.375,
+     "dormant": 0.0,
+     "fan_in": 0.3333,
+     "fan_out": 0.3478,
+     "shared_device": 1.0,
+     "smurfing": 0.3333,
+     "velocity_chain": 0.6,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 201,
+     "landlord": 6,
+     "merchant": 122,
+     "organiser": 0,
+     "payroll": 6,
+     "trader": 66
+    }
+   }
+  },
+  "sparse_worlds": {
+   "accounts": 2778,
+   "mules": 89,
+   "rules": {
+    "precision": 0.2619,
+    "recall": 0.3708,
+    "f1": 0.307,
+    "pr_auc": 0.1779,
+    "confusion": {
+     "tp": 33,
+     "fp": 93,
+     "fn": 56,
+     "tn": 2596
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.1111,
+     "cross_channel": 0.2,
+     "dormant": 0.4,
+     "fan_in": 0.0,
+     "fan_out": 0.1333,
+     "shared_device": 0.85,
+     "smurfing": 0.375,
+     "velocity_chain": 0.0909,
+     "volume_spike": 0.6667
+    },
+    "false_positives_by_persona": {
+     "customer": 2,
+     "landlord": 0,
+     "merchant": 64,
+     "organiser": 2,
+     "payroll": 1,
+     "trader": 24
+    }
+   },
+   "random_forest": {
+    "precision": 0.9213,
+    "recall": 0.9213,
+    "f1": 0.9213,
+    "pr_auc": 0.953,
+    "confusion": {
+     "tp": 82,
+     "fp": 7,
+     "fn": 7,
+     "tn": 2682
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 1.0,
+     "cross_channel": 1.0,
+     "dormant": 0.8,
+     "fan_in": 1.0,
+     "fan_out": 0.8667,
+     "shared_device": 0.95,
+     "smurfing": 0.625,
+     "velocity_chain": 1.0,
+     "volume_spike": 1.0
+    },
+    "false_positives_by_persona": {
+     "customer": 7,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "gnn": {
+    "precision": 0.9881,
+    "recall": 0.9326,
+    "f1": 0.9595,
+    "pr_auc": 0.9678,
+    "confusion": {
+     "tp": 83,
+     "fp": 1,
+     "fn": 6,
+     "tn": 2688
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 1.0,
+     "cross_channel": 1.0,
+     "dormant": 0.8,
+     "fan_in": 0.0,
+     "fan_out": 1.0,
+     "shared_device": 1.0,
+     "smurfing": 0.75,
+     "velocity_chain": 0.9091,
+     "volume_spike": 0.6667
+    },
+    "false_positives_by_persona": {
+     "customer": 1,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 0
+    }
+   },
+   "early_warning": {
+    "precision": 0.4884,
+    "recall": 0.7079,
+    "f1": 0.578,
+    "pr_auc": 0.4977,
+    "confusion": {
+     "tp": 63,
+     "fp": 66,
+     "fn": 26,
+     "tn": 2623
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.8333,
+     "cross_channel": 0.4,
+     "dormant": 0.4,
+     "fan_in": 0.0,
+     "fan_out": 0.4,
+     "shared_device": 1.0,
+     "smurfing": 0.5,
+     "velocity_chain": 0.8182,
+     "volume_spike": 0.6667
+    },
+    "false_positives_by_persona": {
+     "customer": 20,
+     "landlord": 0,
+     "merchant": 22,
+     "organiser": 2,
+     "payroll": 1,
+     "trader": 21
+    }
+   },
+   "drift": {
+    "precision": 0.592,
+    "recall": 0.8315,
+    "f1": 0.6916,
+    "pr_auc": 0.6842,
+    "confusion": {
+     "tp": 74,
+     "fp": 51,
+     "fn": 15,
+     "tn": 2638
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.9444,
+     "cross_channel": 0.6,
+     "dormant": 0.6,
+     "fan_in": 1.0,
+     "fan_out": 0.6667,
+     "shared_device": 1.0,
+     "smurfing": 0.5,
+     "velocity_chain": 1.0,
+     "volume_spike": 0.6667
+    },
+    "false_positives_by_persona": {
+     "customer": 40,
+     "landlord": 0,
+     "merchant": 2,
+     "organiser": 3,
+     "payroll": 3,
+     "trader": 3
+    }
+   },
+   "pattern_memory": {
+    "precision": 0.8727,
+    "recall": 0.5393,
+    "f1": 0.6667,
+    "pr_auc": 0.7063,
+    "confusion": {
+     "tp": 48,
+     "fp": 7,
+     "fn": 41,
+     "tn": 2682
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 0.6667,
+     "circular": 0.6667,
+     "cross_channel": 0.4,
+     "dormant": 0.4,
+     "fan_in": 1.0,
+     "fan_out": 0.2,
+     "shared_device": 0.65,
+     "smurfing": 0.375,
+     "velocity_chain": 0.7273,
+     "volume_spike": 0.6667
+    },
+    "false_positives_by_persona": {
+     "customer": 4,
+     "landlord": 0,
+     "merchant": 0,
+     "organiser": 0,
+     "payroll": 0,
+     "trader": 3
+    }
+   },
+   "early_warning_v2_0": {
+    "precision": 0.3069,
+    "recall": 0.6966,
+    "f1": 0.4261,
+    "pr_auc": 0.3056,
+    "confusion": {
+     "tp": 62,
+     "fp": 140,
+     "fn": 27,
+     "tn": 2549
+    },
+    "per_attack_recall": {
+     "behavioural_drift": 1.0,
+     "circular": 0.7778,
+     "cross_channel": 0.4,
+     "dormant": 0.2,
+     "fan_in": 0.0,
+     "fan_out": 0.4667,
+     "shared_device": 1.0,
+     "smurfing": 0.5,
+     "velocity_chain": 0.8182,
+     "volume_spike": 0.6667
+    },
+    "false_positives_by_persona": {
+     "customer": 49,
+     "landlord": 0,
+     "merchant": 63,
+     "organiser": 1,
+     "payroll": 3,
+     "trader": 24
+    }
+   }
+  },
+  "worlds_with_everyday_economy": 20
+ }
+}

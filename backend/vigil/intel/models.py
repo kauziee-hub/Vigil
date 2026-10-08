@@ -73,26 +73,69 @@ def forest_predict(arr: dict[str, Any], X: Any) -> Any:
     return p1[base + idx].sum(axis=0) / n_trees
 
 
-def gat_forward(W: dict[str, Any], x: Any, edges_in: tuple[Any, Any], edges_out: tuple[Any, Any]) -> Any:
-    """2-layer relational GAT, numpy. edges_*: (j_src_idx, i_dst_idx) message j -> i, self-loops included."""
+def _segments(j: Any, i: Any, n: int) -> tuple[Any, Any, Any] | None:
+    """Edges sorted by destination + segment starts, when every node 0..n-1 has >= 1 incoming edge (self-loops
+    guarantee it). None -> fall back to ufunc.at scatter."""
+    import numpy as np
+    order = np.argsort(i, kind="stable")
+    i_s, j_s = i[order], j[order]
+    counts = np.bincount(i_s, minlength=n)
+    if len(counts) != n or (counts == 0).any():
+        return None
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]]).astype(np.int64)
+    return j_s, i_s, starts
+
+
+def prepare_edges(n: int, edges_in: tuple[Any, Any], edges_out: tuple[Any, Any]) -> list[tuple[str, Any, Any, Any]]:
+    """Index arrays + per-destination segments for both relations (reusable while the graph is unchanged)."""
+    import numpy as np
+    rels = []
+    for r, (j, i) in (("in", edges_in), ("out", edges_out)):
+        j, i = np.asarray(j, dtype=np.int64), np.asarray(i, dtype=np.int64)
+        rels.append((r, j, i, _segments(j, i, n)))
+    return rels
+
+
+def gat_forward(W: dict[str, Any], x: Any, edges_in: tuple[Any, Any] | None, edges_out: tuple[Any, Any] | None,
+                prepared: list[tuple[str, Any, Any, Any]] | None = None) -> Any:
+    """2-layer relational GAT, numpy. edges_*: (j_src_idx, i_dst_idx) message j -> i, self-loops included.
+
+    Per-destination softmax and aggregation use sorted segment reductions (`reduceat`), the same arithmetic as
+    the scatter (`ufunc.at`) form up to floating-point summation order, ~5x faster on the live graph (v3: the
+    live stream runs this once per posting). `prepared` (from prepare_edges) skips re-indexing an unchanged graph.
+    """
     import numpy as np
     h = np.asarray(x, dtype=np.float64)
     heads = int(W["heads"])
+    n = h.shape[0]
+    rels = prepared if prepared is not None else prepare_edges(n, edges_in, edges_out)
     for k in (1, 2):
         out = h @ W[f"l{k}_self_w"] + W[f"l{k}_self_b"]
-        n = h.shape[0]
-        for r, (j, i) in (("in", edges_in), ("out", edges_out)):
-            z = (h @ W[f"l{k}_{r}_w"]).reshape(n, heads, -1)
-            e = (z[i] * W[f"l{k}_{r}_adst"]).sum(-1) + (z[j] * W[f"l{k}_{r}_asrc"]).sum(-1)
-            e = np.where(e > 0, e, 0.2 * e)
-            emax = np.full((n, heads), -np.inf)
-            np.maximum.at(emax, i, e)
-            ex = np.exp(e - emax[i])
-            den = np.zeros((n, heads))
-            np.add.at(den, i, ex)
-            alpha = ex / den[i]
-            m = np.zeros_like(z)
-            np.add.at(m, i, alpha[..., None] * z[j])
+        for r, j, i, seg in rels:
+            zf = h @ W[f"l{k}_{r}_w"]
+            z = zf.reshape(n, heads, -1)
+            if seg is not None:
+                j, i, starts = seg
+                # attention logits from per-node terms (same sum as (z[i] * a_dst).sum(-1) + (z[j] * a_src).sum(-1))
+                e = np.einsum("nhd,hd->nh", z, W[f"l{k}_{r}_adst"])[i] + np.einsum("nhd,hd->nh", z, W[f"l{k}_{r}_asrc"])[j]
+                e = np.where(e > 0, e, 0.2 * e)
+                emax = np.maximum.reduceat(e, starts, axis=0)
+                ex = np.exp(e - emax[i])
+                den = np.add.reduceat(ex, starts, axis=0)
+                alpha = ex / den[i]
+                msg = np.einsum("ehd,eh->ehd", zf[j].reshape(len(j), heads, -1), alpha).reshape(len(j), -1)
+                m = np.add.reduceat(msg, starts, axis=0).reshape(z.shape)
+            else:
+                e = (z[i] * W[f"l{k}_{r}_adst"]).sum(-1) + (z[j] * W[f"l{k}_{r}_asrc"]).sum(-1)
+                e = np.where(e > 0, e, 0.2 * e)
+                emax = np.full((n, heads), -np.inf)
+                np.maximum.at(emax, i, e)
+                ex = np.exp(e - emax[i])
+                den = np.zeros((n, heads))
+                np.add.at(den, i, ex)
+                alpha = ex / den[i]
+                m = np.zeros_like(z)
+                np.add.at(m, i, alpha[..., None] * z[j])
             out = out + m.reshape(n, -1)
         h = np.where(out > 0, out, np.expm1(np.minimum(out, 0)))
     logit = (h @ W["out_w"]).reshape(-1) + W["out_b"].reshape(-1)[0]
@@ -176,14 +219,25 @@ class ModelStore:
         return float(y0 + (y1 - y0) * (p - x0) / (x1 - x0)) if x1 > x0 else float(y1)
 
     # GNN
-    def gnn_scores(self, raw_rows: list[list[float]], pairs: list[tuple[int, int]]) -> list[float] | None:
+    def gnn_graph(self, n: int, pairs: list[tuple[int, int]]) -> list[tuple[str, Any, Any, Any]] | None:
+        """Prepared edge structure for gnn_scores(prepared=...); None when the GNN is unavailable."""
+        self.load()
+        if self.gnn is None:
+            return None
+        e_in, e_out = build_edge_index(n, pairs)
+        return prepare_edges(n, e_in, e_out)
+
+    def gnn_scores(self, raw_rows: list[list[float]], pairs: list[tuple[int, int]] | None,
+                   prepared: list[tuple[str, Any, Any, Any]] | None = None) -> list[float] | None:
         self.load()
         if self.gnn is None or not raw_rows:
             return None if self.gnn is None else []
         import numpy as np
         x = (np.asarray(raw_rows, dtype=np.float64) - self.gnn["mean"]) / self.gnn["std"]
-        e_in, e_out = build_edge_index(len(raw_rows), pairs)
-        return [float(v) for v in gat_forward(self.gnn, x, e_in, e_out)]
+        if prepared is None:
+            e_in, e_out = build_edge_index(len(raw_rows), pairs or [])
+            prepared = prepare_edges(len(raw_rows), e_in, e_out)
+        return gat_forward(self.gnn, x, None, None, prepared=prepared).tolist()
 
     # SHAP
     def explainer(self) -> Any:

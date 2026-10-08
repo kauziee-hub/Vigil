@@ -15,6 +15,15 @@ Repairs audit findings A1-A5, A14 (docs/ML_VALIDATION_REPORT.md §1):
     there is no attack-window shortcut;
   * labels are mule / not-mule. Victims and bystanders are NEGATIVES. Roles recorded where meaningful.
 
+v3.0 — EVERYDAY ECONOMY layer (`_everyday`; ML_VALIDATION_REPORT §10.2): in about two worlds in three a share of
+the customers (35-95 %) are everyday UPI payers — 0.6-4 small payments a day to 3-6 favourite local shops
+(category-typical amounts, daytime rhythm) and a few friends, every relationship established weeks before the
+window — and the local shops settle their takings every 2-7 days in the small hours. This is the density of the
+v3 live world (a 72 h window with 5-15 postings for a person and 50-300 for a shop), which the v2.1 generator
+never produced: v2.1 models scored recruited mules with a dense everyday history (ring / chain members) far
+below their sparse-history counterparts. The layer uses its OWN random stream, so the background, the attack
+instances and the labels of every world are identical to v2.1; only the everyday traffic is added.
+
 Edge attribute names match vigil.graph.pathgraph.Edge (src, dst, amount_paise, t) so that the SAME
 feature function (vigil/intel/features.py) runs on these worlds and on the live graph.
 """
@@ -46,6 +55,20 @@ FAMILY_NAMES = {
 LIVE_SCENARIO = {f: f"atk_{f}" for f in FAMILIES}
 LIVE_SCENARIO["volume_spike"] = "atk_volume_spike"
 EXTERNALS = ("ext:employer", "ext:atm", "ext:other-bank")
+GENERATOR_VERSION = "datagen-v3.0"
+
+# Everyday economy (v3.0). Category: (rupees low, rupees high, how often people buy there). Generic everyday
+# spend ranges for an Indian city; each world draws its own set of shops from these categories.
+EVERYDAY_P_WORLD = 0.65                      # share of worlds with an everyday economy
+EVERYDAY_CATEGORIES: dict[str, tuple[float, float, float]] = {
+    "grocery": (100, 1_800, 9.0), "tea": (15, 80, 10.0), "fuel": (300, 2_500, 4.0), "food": (150, 900, 6.0),
+    "transit": (40, 300, 6.0), "auto": (40, 300, 6.0), "bakery": (40, 400, 4.0), "vegetables": (40, 400, 6.0),
+    "salon": (150, 900, 1.0), "pharmacy": (80, 1_500, 2.0), "restaurant": (300, 2_500, 2.0), "laundry": (100, 600, 1.0),
+    "stationery": (20, 300, 1.0), "gym": (800, 2_500, 0.5), "cinema": (250, 900, 1.0), "recharge": (199, 799, 1.0),
+}
+EVERYDAY_PERSONAS = ((0.30, 0.6, 1.2, 0.8), (0.45, 1.2, 2.4, 1.0), (0.25, 2.4, 4.0, 1.3))   # share, rate/day lo-hi, scale
+EVERYDAY_HOURS = (1.0, 17.0)                 # payments 1-17 h after a day starts (07:00-23:00 if days start at 06:00)
+EVERYDAY_SETTLE_H = 21.0                     # shop settlement 21 h after the day starts (03:00, after the evening)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +100,7 @@ class World:
         self.attacks: list[dict[str, Any]] = []
         self.kind_hint: dict[str, str] = {}  # background persona (for error analysis only)
         self.n_edges = 0
+        self.everyday: dict[str, Any] = {}   # v3.0 everyday-economy layer summary (empty = sparse v2.1-style world)
 
     # ── GraphSource ────────────────────────────────────────────────────
     def inflows(self, account_id: str) -> list[SimEdge]:
@@ -416,6 +440,75 @@ def _background(w: World, r: random.Random) -> dict[str, Any]:
             "dormant_reserve": dormant_reserve, "dormant_legit": dormant_legit}
 
 
+# ── everyday economy (v3.0) ───────────────────────────────────────────────
+def _everyday(w: World, re: random.Random, ctx: dict[str, Any]) -> None:
+    """Everyday UPI payers and local shops (own random stream `re`; see module docstring).
+
+    Every favourite relationship starts 40-58 days before the evaluation time (never first-time inside the
+    window); shops settle 70-95 % of their takings to another bank every 2-7 days at 03:00, hours after the last
+    inflow (so they are not fast pass-throughs). Dormant accounts stay quiet.
+    """
+    if re.random() >= EVERYDAY_P_WORLD:
+        return
+    now = w.now_t
+    days = HISTORY_DAYS
+    cats = list(EVERYDAY_CATEGORIES)
+    shops: list[tuple[str, str]] = []
+    for i in range(re.randint(10, 22)):
+        cat = re.choices(cats, weights=[EVERYDAY_CATEGORIES[c][2] for c in cats])[0]
+        aid = w.add_account(f"w{w.index}.shop{i}", "merchant", re.uniform(600, 3_000))
+        shops.append((aid, cat))
+    quiet = set(ctx["dormant_legit"]) | set(ctx["dormant_reserve"])
+    active = [c for c in ctx["customers"] if c not in quiet]
+    share = re.uniform(0.35, 0.95)
+    payers = [c for c in active if re.random() < share]
+    shop_weights = [EVERYDAY_CATEGORIES[c][2] for _a, c in shops]
+    # a day starts at now - k days (anchor-relative, like the live world): payments in its daytime hours
+    for c in payers:
+        persona = re.choices(EVERYDAY_PERSONAS, weights=[p[0] for p in EVERYDAY_PERSONAS])[0]
+        rate, scale = re.uniform(persona[1], persona[2]), persona[3]
+        favs: list[tuple[str, str]] = []
+        n_fav = re.randint(3, 6)
+        while len(favs) < min(n_fav, len(shops)):
+            s = re.choices(shops, weights=shop_weights)[0]
+            if s not in favs:
+                favs.append(s)
+        friends = [(f, "p2p") for f in re.sample(active, min(len(active), re.randint(0, 3))) if f != c]
+        targets = favs + friends
+        t_weights = [EVERYDAY_CATEGORIES[cat][2] for _s, cat in favs] + [1.5] * len(friends)
+
+        def amount(cat: str) -> float:
+            lo, hi = (100.0, 3_000.0) if cat == "p2p" else EVERYDAY_CATEGORIES[cat][:2]
+            return math.exp(re.uniform(math.log(lo), math.log(hi))) * scale
+
+        for target, cat in targets:                       # established relationships
+            t = now - re.uniform(40, 58) * DAY
+            w.tx(c, target, amount(cat), t, "upi")
+        for k in range(days - 1, -1, -1):
+            day_start = now - (k + 1) * DAY
+            for _ in range(_poisson(re, rate)):
+                target, cat = re.choices(targets, weights=t_weights)[0]
+                t = day_start + re.uniform(*EVERYDAY_HOURS) * HOUR
+                w.tx(c, target, amount(cat), t, "upi")
+    for aid, _cat in shops:
+        every = re.choice([2, 3, 7, 7])
+        frac = re.uniform(0.70, 0.95)
+        offset = re.randint(0, every - 1)
+        inflows = sorted(w.inflows(aid), key=lambda e: e.t)
+        i, acc = 0, 0
+        for k in range(days - 1, -1, -1):
+            if (k + offset) % every:
+                continue
+            t = now - (k + 1) * DAY + EVERYDAY_SETTLE_H * HOUR
+            while i < len(inflows) and inflows[i].t < t:
+                acc += inflows[i].amount_paise
+                i += 1
+            if acc > 0 and t <= now:
+                w.tx(aid, "ext:other-bank", acc * frac / 100.0, t, "neft")
+                acc = 0
+    w.everyday = {"shops": len(shops), "payers": len(payers), "share": round(share, 3)}
+
+
 # ── attacks ───────────────────────────────────────────────────────────────
 class _Attack:
     def __init__(self, w: World, r: random.Random, family: str, k: int, ctx: dict[str, Any], used: set[str]) -> None:
@@ -656,11 +749,17 @@ _ATTACK_FN = {
 }
 
 
-def make_world(index: int, seed: int = 20261006, families: list[str] | None = None) -> World:
-    """Deterministic: identical (index, seed) -> identical world."""
+def make_world(index: int, seed: int = 20261006, families: list[str] | None = None,
+               everyday: bool = True) -> World:
+    """Deterministic: identical (index, seed) -> identical world.
+
+    everyday=False reproduces the v2.1 generator exactly (the everyday layer has its own random stream, so the
+    background, attacks and labels are the same with and without it)."""
     r = random.Random(seed * 10_007 + index)
     w = World(index, seed)
     ctx = _background(w, r)
+    if everyday:
+        _everyday(w, random.Random(seed * 7_919 + index * 31 + 3), ctx)
     used: set[str] = set()
     fams = families if families is not None else r.sample(FAMILIES, r.choice([2, 3, 3, 4]))
     for k, fam in enumerate(fams):
@@ -671,8 +770,8 @@ def make_world(index: int, seed: int = 20261006, families: list[str] | None = No
     return w.finalize()
 
 
-def generate(n_worlds: int, seed: int = 20261006) -> list[World]:
-    return [make_world(i, seed) for i in range(n_worlds)]
+def generate(n_worlds: int, seed: int = 20261006, everyday: bool = True) -> list[World]:
+    return [make_world(i, seed, everyday=everyday) for i in range(n_worlds)]
 
 
 if __name__ == "__main__":  # quick summary: python ml/datagen.py
@@ -682,6 +781,6 @@ if __name__ == "__main__":  # quick summary: python ml/datagen.py
     for w in ws:
         n = len(w.scored_accounts())
         pos = sum(w.labels[a] for a in w.scored_accounts())
-        print(f"world {w.index}: accounts={n} mules={pos} ({pos / n:.1%}) edges={w.n_edges} "
+        print(f"world {w.index}: accounts={n} mules={pos} ({pos / n:.1%}) edges={w.n_edges} everyday={w.everyday} "
               f"attacks={[x['family'] + '@' + str(x['offset_h']) + 'h' for x in w.attacks]}")
     print(f"{time.perf_counter() - t0:.2f}s")

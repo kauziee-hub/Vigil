@@ -76,36 +76,40 @@ def extract(src: GraphSource, account_id: str, now_t: float, window_s: float = W
         return zero_features()
     start = now_t - window_s
     base_start = start - BASELINE_S
-    inflows = src.inflows(account_id)
-    outflows = src.outflows(account_id)
 
-    w_in = [e for e in inflows if start < e.t <= now_t]
-    w_out = [e for e in outflows if start < e.t <= now_t]
+    # one pass per direction: the window edges, and history strictly before the window (prior counterparties,
+    # last activity, baseline rate). v3: was two passes; identical values.
+    w_in: list[Any] = []
+    w_out: list[Any] = []
+    prior: set[str] = set()
+    last_before: float | None = None
+    baseline_n = 0
+    for e in src.inflows(account_id):
+        t = e.t
+        if t <= start:
+            prior.add(e.src)
+            if last_before is None or t > last_before:
+                last_before = t
+            if t > base_start:
+                baseline_n += 1
+        elif t <= now_t:
+            w_in.append(e)
+    for e in src.outflows(account_id):
+        t = e.t
+        if t <= start:
+            prior.add(e.dst)
+            if last_before is None or t > last_before:
+                last_before = t
+            if t > base_start:
+                baseline_n += 1
+        elif t <= now_t:
+            w_out.append(e)
     total_in = sum(e.amount_paise for e in w_in)
     total_out = sum(e.amount_paise for e in w_out)
 
     senders = {e.src for e in w_in}
     recipients = {e.dst for e in w_out}
     neighbours = (senders | recipients) - {account_id}
-
-    # history strictly before the window: prior counterparties, last activity, baseline rate
-    prior: set[str] = set()
-    last_before: float | None = None
-    baseline_n = 0
-    for e in inflows:
-        if e.t <= start:
-            prior.add(e.src)
-            if last_before is None or e.t > last_before:
-                last_before = e.t
-            if e.t > base_start:
-                baseline_n += 1
-    for e in outflows:
-        if e.t <= start:
-            prior.add(e.dst)
-            if last_before is None or e.t > last_before:
-                last_before = e.t
-            if e.t > base_start:
-                baseline_n += 1
 
     # forwarded quickly: outflow value leaving within FORWARD_S after the most recent window inflow
     in_times = sorted(e.t for e in w_in)
@@ -200,46 +204,57 @@ def drift_profile(src: GraphSource, account_id: str, now_t: float) -> dict[str, 
     n_blocks = int(DRIFT_BASELINE_S // WINDOW_S)
     start = now_t - WINDOW_S
     opened = src.opened_t(account_id)
-    blocks: list[dict[str, Any]] = [
-        {"in": [], "out": []} for _ in range(n_blocks + 1)
-    ]  # index 0 = current window, 1..n = baseline blocks going back in time
+    # index 0 = current window, 1..n = baseline blocks going back in time; per-block accumulators (one pass over
+    # the edges; v3 — same values as collecting each block's edges first, ~2x faster on a busy shop's history)
+    nb = n_blocks + 1
+    n_in, n_out, t_in, t_out = [0] * nb, [0] * nb, [0] * nb, [0] * nb
+    snd: list[set[str]] = [set() for _ in range(nb)]
+    rcv: list[set[str]] = [set() for _ in range(nb)]
+    chs: list[set[str]] = [set() for _ in range(nb)]
+    channel, ceil, W = src.channel, math.ceil, WINDOW_S
     for e in src.inflows(account_id):
-        if e.t > now_t:
+        t = e.t
+        if t > now_t:
             continue
-        k = int(math.ceil((now_t - e.t) / WINDOW_S)) - 1 if e.t < now_t else 0
+        k = int(ceil((now_t - t) / W)) - 1 if t < now_t else 0
         if 0 <= k <= n_blocks:
-            blocks[k]["in"].append(e)
+            n_in[k] += 1
+            t_in[k] += e.amount_paise
+            snd[k].add(e.src)
+            chs[k].add(channel(e))
     for e in src.outflows(account_id):
-        if e.t > now_t:
+        t = e.t
+        if t > now_t:
             continue
-        k = int(math.ceil((now_t - e.t) / WINDOW_S)) - 1 if e.t < now_t else 0
+        k = int(ceil((now_t - t) / W)) - 1 if t < now_t else 0
         if 0 <= k <= n_blocks:
-            blocks[k]["out"].append(e)
+            n_out[k] += 1
+            t_out[k] += e.amount_paise
+            rcv[k].add(e.dst)
+            chs[k].add(channel(e))
 
-    def stats(b: dict[str, Any]) -> dict[str, float]:
-        tin = sum(e.amount_paise for e in b["in"])
-        tout = sum(e.amount_paise for e in b["out"])
-        s = {e.src for e in b["in"]} - {account_id}
-        r = {e.dst for e in b["out"]} - {account_id}
-        ch = {src.channel(e) for e in b["in"]} | {src.channel(e) for e in b["out"]}
+    def stats(k: int) -> dict[str, float]:
+        tin, tout = t_in[k], t_out[k]
+        s = snd[k] - {account_id}
+        r = rcv[k] - {account_id}
         return {
-            "transaction_count": float(len(b["in"]) + len(b["out"])),
+            "transaction_count": float(n_in[k] + n_out[k]),
             "unique_neighbors": float(len(s | r)),
             "in_degree": float(len(s)),
             "out_degree": float(len(r)),
             "total_in_amount": tin / 100.0,
             "total_out_amount": tout / 100.0,
             "retention_ratio": max(0.0, (tin - tout) / tin) if tin else 1.0,
-            "unique_channels": float(len(ch)),
+            "unique_channels": float(len(chs[k])),
         }
 
-    current = stats(blocks[0])
+    current = stats(0)
     base_rows = []
     for k in range(1, n_blocks + 1):
         block_end = start - (k - 1) * WINDOW_S
         if opened is not None and block_end <= opened:
             break
-        base_rows.append(stats(blocks[k]))
+        base_rows.append(stats(k))
     mean: dict[str, float] = {}
     std: dict[str, float] = {}
     for f in DRIFT_FEATURES:

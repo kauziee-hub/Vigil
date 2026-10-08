@@ -57,8 +57,9 @@ from vigil.intel.models import SHAP_CATEGORIES, build_edge_index, forest_predict
 SEED = 20261006
 N_TRAIN, N_VAL, N_TEST = 90, 30, 30
 MODELS = BACKEND / "models"
-VERSION = "v2.1"
-GENERATOR = "backend/ml/datagen.py v2.1 (world-level payday calendar)"
+VERSION = "v3.0"
+GENERATOR = ("backend/ml/datagen.py v3.0 (world-level payday calendar; everyday-economy layer — daily small UPI "
+             "payments to favourite local shops, shops settling every 2-7 days — in about 2 of 3 worlds)")
 LOAO_GNN_EPOCHS, LOAO_GNN_PATIENCE = 20, 6
 FULL_LOAO_GNN_EPOCHS, FULL_LOAO_GNN_PATIENCE = 60, 15
 RF_PARAMS = dict(n_estimators=100, max_depth=10, min_samples_leaf=5, max_features="sqrt",
@@ -92,6 +93,7 @@ def process(w: datagen.World) -> dict[str, Any]:
         "world": w, "ids": ids, "X": np.array([F.vector(feats[a]) for a in ids]),
         "y": np.array([w.labels[a] for a in ids], dtype=int), "fam": [w.family.get(a) for a in ids],
         "role": [w.role.get(a) for a in ids], "primary": np.array([a in w.primary for a in ids]),
+        "everyday": np.full(len(ids), bool(w.everyday)),
         "kind": [w.kind_hint[a] for a in ids], "feats": feats, "ctx": ctx,
         "ew_score": np.array([ew[a]["score"] for a in ids]), "ew_flag": np.array([ew[a]["flagged"] for a in ids]),
         "rules_score": np.array([rules[a]["score"] for a in ids]), "rules_flag": np.array([rules[a]["flagged"] for a in ids]),
@@ -271,7 +273,7 @@ def detector_scores(tables: list[dict[str, Any]], rf: RandomForestClassifier, ca
     sims = np.array([max([m["similarity"] for m in PM.match(s, mem, top=10)] or [0.0]) for t in tables for s in t["sigs"]])
     out = {
         "y": cat(tables, "y"), "fam": cat(tables, "fam"), "kind": cat(tables, "kind"), "role": cat(tables, "role"),
-        "X": X, "active": X[:, F.FEATURES.index("transaction_count")] > 0,
+        "X": X, "active": X[:, F.FEATURES.index("transaction_count")] > 0, "everyday": cat(tables, "everyday"),
         "rules": (cat(tables, "rules_score"), cat(tables, "rules_flag")),
         "random_forest": (rf_cal, rf_cal >= thr["random_forest"]),
         "rf_raw": rf_raw,
@@ -298,6 +300,13 @@ def summarise(s: dict[str, Any]) -> dict[str, Any]:
         neg = y == 0
         r["false_positives_by_persona"] = {k: {"flagged": int((flag & neg & (kind == k)).sum()), "of": int((neg & (kind == k)).sum())}
                                            for k in sorted(set(kind[neg]))}
+        if "everyday" in s:                       # v3.0: worlds with / without the everyday-economy layer
+            r["by_world_type"] = {}
+            for name, m in (("everyday_worlds", s["everyday"]), ("sparse_worlds", ~s["everyday"])):
+                if m.any() and 0 < y[m].sum() < m.sum():
+                    b = M.binary(y[m], score[m], flag[m])
+                    r["by_world_type"][name] = {k: b[k] for k in ("precision", "recall", "f1", "pr_auc", "confusion", "n",
+                                                                  "positives")}
         res[d] = r
     return res
 
@@ -664,6 +673,10 @@ def main() -> None:
         print(f"{d:16s} {r['precision']:6.3f} {r['recall']:6.3f} {r['f1']:6.3f} {r['roc_auc'] or 0:7.3f} {r['pr_auc'] or 0:6.3f} "
               f"{r['pr_auc_active_accounts'] or 0:9.3f}  {r['confusion']}")
     print("per-attack recall:", {d: {f: v["recall"] for f, v in per_attack[d].items()} for d in ("rules", "random_forest", "gnn")})
+    for d in DETECTORS:
+        bw = summary[d].get("by_world_type") or {}
+        print(f"  {d:16s} " + "  ".join(f"{k}: P={v['precision']:.3f} R={v['recall']:.3f} PR-AUC={v['pr_auc'] or 0:.3f}"
+                                         for k, v in bw.items()))
     print("old protocol:", {k: (v["f1"], v["pr_auc"]) for k, v in old.items() if isinstance(v, dict)})
     print("timings:", timings)
     if args.quick:
@@ -689,6 +702,11 @@ def main() -> None:
         "mules": {"train": int(cat(train, "y").sum()), "val": int(y_v.sum()), "test": int(s_test["y"].sum())},
         "attack_instances": {f: sum(1 for w in worlds for a in w.attacks if a["family"] == f) for f in datagen.FAMILIES},
         "evaluation_offset_hours": "attack start drawn uniformly 0.25-72 h before the evaluation time",
+        "worlds_with_everyday_economy": {
+            name: int(sum(bool(w.everyday) for w in ws)) for name, ws in
+            (("train", worlds[:n_tr]), ("val", worlds[n_tr:n_tr + n_va]), ("test", worlds[n_tr + n_va:]))},
+        "postings": {"total": int(sum(w.n_edges for w in worlds)),
+                     "median_per_world": int(np.median([w.n_edges for w in worlds]))},
     }
     import joblib
     joblib.dump(rf, MODELS / "rf_v2.joblib", compress=3)
