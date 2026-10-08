@@ -36,8 +36,8 @@ export interface Graph3DProps {
   hoverEdgeText: (e: SceneEdge) => string;
 }
 
-const BG = 0x070d16;
-const ACCENT = "#8fb0dc";
+const BG = 0x020b08;
+const ACCENT = "#68f0af";
 const SHAPES: ShapeKey[] = ["sphere", "octa", "cone", "dodeca", "cyl", "tetra", "ico", "hex", "box"];
 
 function makeGeometry(k: ShapeKey): THREE.BufferGeometry {
@@ -122,11 +122,11 @@ export function Graph3D(p: Graph3DProps) {
     controls.minDistance = 30;
     controls.maxDistance = 2200;
 
-    scene.add(new THREE.HemisphereLight(0xc8d6ea, 0x0a111b, 1.35));
+    scene.add(new THREE.HemisphereLight(0xd6efe2, 0x05110d, 1.35));
     const key = new THREE.DirectionalLight(0xffffff, 1.6);
     key.position.set(240, 400, 300);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x8fb0dc, 0.5);
+    const rim = new THREE.DirectionalLight(0x47d38c, 0.45);
     rim.position.set(-300, -120, -260);
     scene.add(rim);
 
@@ -490,7 +490,7 @@ export function Graph3D(p: Graph3DProps) {
     b.nodes.forEach((n, i) => {
       const rc = style.ringColor(n);
       if (rc) rings.push({ node: i, color: new THREE.Color(rc), scale: 1.75 });
-      if (n.victim) rings.push({ node: i, color: new THREE.Color("#dce5ef"), scale: 2.1 });
+      if (n.victim) rings.push({ node: i, color: new THREE.Color("#edf7f1"), scale: 2.1 });
     });
     if (selIdx !== undefined) rings.push({ node: selIdx, color: accent.clone(), scale: 2.45 });
     rings.slice(0, 512).forEach((r, i) => c.rings.setColorAt(i, r.color));
@@ -540,7 +540,7 @@ function build(s: GraphScene, geos: Map<ShapeKey, THREE.BufferGeometry>, nodeMat
       dummy.scale.set(r, r, r);
       dummy.updateMatrix();
       mesh.setMatrixAt(slot, dummy.matrix);
-      mesh.setColorAt(slot, new THREE.Color(0x5d6f86));
+      mesh.setColorAt(slot, new THREE.Color(0x4d6559));
       meshOf[ni] = { mesh, slot };
     });
     mesh.computeBoundingSphere();
@@ -580,8 +580,8 @@ function build(s: GraphScene, geos: Map<ShapeKey, THREE.BufferGeometry>, nodeMat
     const times = e.txs.map((t) => Date.parse(t.ts)).filter((t) => !Number.isNaN(t)).sort((x, y) => x - y);
     edgeTimes.push(times.length ? times : [Date.parse(e.first_ts)]);
     edgeFirst.push(times.length ? times[0] : Date.parse(e.first_ts));
-    shaft.setColorAt(i, new THREE.Color(0x3a4f6b));
-    arrow.setColorAt(i, new THREE.Color(0x3a4f6b));
+    shaft.setColorAt(i, new THREE.Color(0x24584a));
+    arrow.setColorAt(i, new THREE.Color(0x24584a));
   });
   group.add(shaft, arrow);
 

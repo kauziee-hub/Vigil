@@ -5,14 +5,15 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { DetectorFamily, IntelOverview, IntelScores, ModelInfo, RingRow } from "../api/types";
+import type { IntelOverview, IntelScores, ModelInfo, RingRow } from "../api/types";
+import { FlaggedPerFamilyChart, ModelMetricsChart, PerAttackRecallChart, modelHeadline } from "../components/DetectionCharts";
 import { RoleIcon } from "../components/intel";
 import { ModelCard, ModelComparison, Synthetic } from "../components/ModelCard";
 import { useConsoleEvents } from "../components/Shell";
-import { Async, Bar, Glyph, PageHead, Panel, Pill, Seg } from "../components/ui";
+import { Async, Bar, Metric, PageHead, Panel, Pill, Seg } from "../components/ui";
 import { handle, pct } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
-import { FAMILY, ROLE_LABEL, levelStatus, scoreStatus } from "../lib/status";
+import { ROLE_LABEL, levelStatus, scoreStatus } from "../lib/status";
 
 type SortKey = "max" | "rules" | "rf" | "gnn";
 
@@ -60,6 +61,27 @@ export function DetectionPage() {
         <span className="xs muted">RF · GNN · drift · early warning · pattern memory never set a payment's tier.</span>
       </div>
 
+      <div className="mstrip kpi-row" style={{ marginBottom: 20 }}>
+        <Metric k={<>RF held-out ROC-AUC</>} v={fx(modelHeadline(models.data, "random_forest", "roc_auc"), 3)} d={`PR-AUC ${fx(modelHeadline(models.data, "random_forest", "pr_auc"), 3)} · synthetic validation`} />
+        <Metric k={<>GNN held-out ROC-AUC</>} v={fx(modelHeadline(models.data, "gnn", "roc_auc"), 3)} d={`PR-AUC ${fx(modelHeadline(models.data, "gnn", "pr_auc"), 3)} · synthetic validation`} />
+        <Metric k="Rule engine recall" v={fx(modelHeadline(models.data, "rules", "recall"), 2)} d={`precision ${fx(modelHeadline(models.data, "rules", "precision"), 2)} · point score, not a probability`} />
+        <Metric k="Accounts scored" v={scores.data ? String(scoreRows.length) : "—"} d={scores.data ? `graph v${scores.data.graph_version}` : scores.unavailable ? "/api/intel/scores not served" : "loading"} />
+        <Metric k="RingWatch flags" v={ring.data ? String(ring.data.length) : "—"} status={ring.data && ring.data.length ? "high" : undefined} d="operational · score ≥ 0.30" />
+        <Metric k="Early warnings" v={overview.data ? String(overview.data.early_warnings.length) : "—"} status={overview.data && overview.data.early_warnings.length ? "watch" : undefined} d="behaviour change · not mule evidence alone" />
+      </div>
+
+      <div className="grid cols-3 align-start" style={{ marginBottom: 20 }}>
+        <Panel kicker="Live · all families" title="Accounts flagged per family" q={overview.data ? `graph v${overview.data.graph_version}` : undefined}>
+          <div className="chart-shell"><FlaggedPerFamilyChart overview={overview.data} /></div>
+        </Panel>
+        <Panel kicker="Held-out test worlds" title="Metrics by model" actions={<Synthetic />}>
+          <div className="chart-shell"><ModelMetricsChart models={models.data} /></div>
+        </Panel>
+        <Panel kicker="Per attack family" title="Recall · RF vs GNN vs rules" actions={<Synthetic />}>
+          <div className="chart-shell"><PerAttackRecallChart models={models.data} /></div>
+        </Panel>
+      </div>
+
       {intelDown && (
         <div style={{ marginBottom: 12 }}>
           <Unavail />
@@ -67,22 +89,8 @@ export function DetectionPage() {
       )}
 
       <div className="grid cols-3 align-start">
-        <Panel kicker="Detector agreement" title="Accounts flagged per family" flush>
+        <Panel kicker="Rule engine · RingWatch" title="Network rules firing now" flush q="operational — feeds every payment's recipient-network dimension">
           <div className="sect">
-            <Async load={overview} what="Detector agreement" endpoint="/api/intel/overview">
-              {(o) => (
-                <div>
-                  {Object.entries(o.detector_agreement).sort((a, b) => b[1] - a[1]).map(([fam, n]) => (
-                    <div key={fam} className="barrow"><span className="lbl"><Glyph family={fam as DetectorFamily} /> {FAMILY[fam as DetectorFamily]?.label ?? fam}</span>
-                      <Bar value={n} max={Math.max(1, ...Object.values(o.detector_agreement))} /><span className="val">{n}</span></div>
-                  ))}
-                  <div className="xs muted" style={{ marginTop: 4 }}>graph v{o.graph_version}</div>
-                </div>
-              )}
-            </Async>
-          </div>
-          <div className="sect">
-            <div className="sect-t">Rule engine · RingWatch (operational, live)</div>
             {ruleCounts.length === 0 ? <div className="xs muted">No network rule fires on any account.</div> : ruleCounts.map(([l, v]) => (
               <div key={l} className="barrow" title={v.rule}><span className="lbl">{l}</span><Bar value={v.n} max={Math.max(1, ruleCounts[0][1].n)} /><span className="val">{v.n}</span></div>
             ))}
@@ -193,6 +201,8 @@ export function DetectionPage() {
     </>
   );
 }
+
+const fx = (v: number | null, d: number) => (v === null ? "—" : v.toFixed(d));
 
 function Unavail() {
   return (

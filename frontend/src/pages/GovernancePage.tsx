@@ -5,10 +5,12 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { DecisionRecord, DecisionSummary, GovernanceSummary, InterventionRow, PolicyView } from "../api/types";
+import { TiersOverTimeChart } from "../components/live/LiveStatsCharts";
 import { usePlatform, useConsoleEvents } from "../components/Shell";
 import { Async, Bar, Glyph, KV, Metric, PageHead, Panel, Pill, Sim, Tabs, TierPill } from "../components/ui";
 import { DIM_LABEL, formatINR, formatStamp, humanKey, pct } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
+import { useLiveStats } from "../lib/live";
 import { DIM_GLYPH, STATUS_LABEL, TIER_SHORT, tierStatus } from "../lib/status";
 
 type Tab = "oversight" | "records" | "positioning";
@@ -38,6 +40,7 @@ function Oversight() {
   const sum = useLoad<GovernanceSummary>(api.governance);
   const recent = useLoad<DecisionSummary[]>(() => api.decisions(0));
   const shadowRows = useLoad<InterventionRow[]>(() => api.interventions("all"));
+  const live = useLiveStats(5000);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const refresh = useDebounced(() => { sum.reload(); recent.reload(); shadowRows.reload(); }, 1500);
@@ -98,7 +101,7 @@ function Oversight() {
                 </div>
               </Panel>
               <Panel kicker="Shadow comparison" title="Bank baseline vs Vigil recommendation" q="recorded on every decision">
-                <div className="mstrip" style={{ marginBottom: 10 }}>
+                <div className="mstrip dense" style={{ marginBottom: 10, gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                   <Metric k="Shadow" v={String(s.shadow.evaluated)} d="decisions evaluated" />
                   <Metric k="Vigil" v={String(s.shadow.vigil_would_intervene)} d="would intervene (T2+)" />
                   <Metric k="Baseline" v={String(s.shadow.baseline_would_challenge)} d="would challenge" />
@@ -186,6 +189,10 @@ function Oversight() {
                 <Panel kicker="Decisions" title={`${total.toLocaleString("en-IN")} by tier`} q="all sources, since seed">
                   <div className="dist" style={{ marginBottom: 8 }}>
                     {Object.entries(s.decisions_by_tier).map(([t, n]) => n > 0 && <span key={t} title={`T${t}: ${n}`} style={{ width: `${(n / Math.max(1, total)) * 100}%`, background: `var(--st-${tierStatus(Number(t))})` }} />)}
+                  </div>
+                  <div className="chart-shell" style={{ marginBottom: 10 }}>
+                    <div className="chart-h">{live.data?.tiers_over_time?.length ? "Per minute · live" : "Since seed"}</div>
+                    <TiersOverTimeChart stats={live.data} tierMix={s.decisions_by_tier} height={190} />
                   </div>
                   <table className="dt compact"><tbody>
                     {Object.entries(s.decisions_by_tier).map(([t, n]) => (

@@ -11,12 +11,13 @@ import { GuardPage } from "./pages/GuardPage";
 import { HealthPage } from "./pages/HealthPage";
 import { InterventionsPage } from "./pages/InterventionsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
-import { OverviewPage } from "./pages/OverviewPage";
+
 import { PayPage } from "./pages/PayPage";
 import { RecordPage } from "./pages/RecordPage";
 import { ScenarioLabPage } from "./pages/ScenarioLabPage";
 
 // Network Intelligence carries three.js + Cytoscape: code-split so every other page stays light.
+const OverviewPage = lazy(() => import("./pages/OverviewPage").then((m) => ({ default: m.OverviewPage })));
 const NetworkPage = lazy(() => import("./pages/NetworkPage").then((m) => ({ default: m.NetworkPage })));
 
 /** Old v1 routes → their v2 homes (FINAL_PARALLEL_PLAN §1). */
@@ -38,7 +39,7 @@ export default function App() {
       <Route path="/*" element={
         <Shell>
           <Routes>
-            <Route path="/" element={<OverviewPage />} />
+            <Route path="/" element={<Lazy><OverviewPage /></Lazy>} />
             <Route path="/guard" element={<GuardPage />} />
             <Route path="/network" element={<Lazy><NetworkPage /></Lazy>} />
             <Route path="/detection" element={<DetectionPage />} />

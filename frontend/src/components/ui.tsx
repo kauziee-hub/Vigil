@@ -43,9 +43,9 @@ export function Panel({ title, kicker, q, actions, children, flush, footer, clas
   );
 }
 
-export function PageHead({ crumb, title, lede, actions }: { crumb?: ReactNode; title: ReactNode; lede?: ReactNode; actions?: ReactNode }) {
+export function PageHead({ crumb, title, lede, actions, compact }: { crumb?: ReactNode; title: ReactNode; lede?: ReactNode; actions?: ReactNode; compact?: boolean }) {
   return (
-    <div className="page-head">
+    <div className={`page-head ${compact ? "compact" : ""}`}>
       <div style={{ minWidth: 0 }}>
         {crumb && <div className="crumb">{crumb}</div>}
         <h1>{title}</h1>
