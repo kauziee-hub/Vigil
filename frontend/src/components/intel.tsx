@@ -83,7 +83,10 @@ export function ConsensusStrip({ consensus, detectors }: { consensus: DetectorCo
 export function ShapPanel({ shap }: { shap: ShapExplanation }) {
   const all = [...shap.top_positive, ...shap.top_negative];
   const max = Math.max(1e-9, ...all.map((c) => Math.abs(c.contribution)));
-  const cats = Object.entries(shap.categories).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  // signed per-category sums when the backend provides them; otherwise unsigned influence (never shown as "+")
+  const signed = !!shap.category_net;
+  const cats = Object.entries(shap.category_net ?? shap.categories).filter(([, v]) => Math.abs(v) >= 0.0005)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
   const cmax = Math.max(1e-9, ...cats.map(([, v]) => Math.abs(v)));
   return (
     <div className="stack">
@@ -115,12 +118,12 @@ export function ShapPanel({ shap }: { shap: ShapExplanation }) {
       <div className="xs dim">left = pushes the model's output down · right = pushes it up</div>
       {cats.length > 0 && (
         <div>
-          <div className="up" style={{ marginBottom: 4 }}>By human-readable category</div>
+          <div className="up" style={{ marginBottom: 4 }}>{signed ? "By category · net effect on the model score" : "By category · influence (direction not reported)"}</div>
           {cats.map(([k, v]) => (
             <div key={k} className="barrow">
               <span className="lbl">{k}</span>
-              <Bar value={Math.abs(v)} max={cmax} status={v > 0 ? "high" : undefined} />
-              <span className="val">{v > 0 ? "+" : ""}{v.toFixed(3)}</span>
+              <Bar value={Math.abs(v)} max={cmax} status={signed && v > 0 ? "high" : undefined} />
+              <span className="val">{signed && v > 0 ? "+" : ""}{v.toFixed(3)}</span>
             </div>
           ))}
         </div>

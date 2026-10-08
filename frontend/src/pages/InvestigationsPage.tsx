@@ -76,7 +76,7 @@ export function InvestigationsPage() {
 
   return (
     <>
-      <PageHead crumb="05 · Intelligence" title="Investigations"
+      <PageHead crumb="Intelligence" title="Investigations"
         lede="Every intervention is a case: why it was risky, what each detector saw, what would have made it safe, and what to do next. Open a case for its Decision Replay, or an account for its risk history and model evidence." />
 
       <div className="grid cols-ms align-start">

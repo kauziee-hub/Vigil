@@ -75,7 +75,7 @@ export function InterventionsPage() {
 
   return (
     <>
-      <PageHead crumb="06 · Intelligence" title="Interventions"
+      <PageHead crumb="Intelligence" title="Interventions"
         lede="Every active intervention, its review clock and the bank's decision. Holds are scoped to the single payment amount — no account is frozen. Release approves the payment; reject closes it without sending anything."
         actions={mode?.mode === "shadow" ? <Pill status="watch">shadow mode — new decisions are not enforced</Pill> : undefined} />
 

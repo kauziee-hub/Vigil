@@ -67,15 +67,18 @@ def shap_explanation(snap: live.Snapshot, account_id: str) -> ShapExplanation | 
     rows = [ShapContribution(feature=k, value=round(float(f[k]), 4), contribution=round(c, 6),
                              category=SHAP_CATEGORIES.get(k, "Other")) for k, c in zip(F.FEATURES, contrib)]
     categories: dict[str, float] = {}
+    net: dict[str, float] = {}
     for r in rows:
         categories[r.category] = round(categories.get(r.category, 0.0) + abs(r.contribution), 6)
+        net[r.category] = round(net.get(r.category, 0.0) + r.contribution, 6)
     raw = snap.rf.get(account_id, (base + sum(contrib), None))[0]
     exp = ShapExplanation(
         model_version=str(STORE.rf_meta.get("version", "rf")), base_value=round(base, 6), prediction=round(raw, 6),
         prediction_kind="probability_uncalibrated",
         top_positive=sorted([r for r in rows if r.contribution > 0], key=lambda r: -r.contribution)[:5],
         top_negative=sorted([r for r in rows if r.contribution < 0], key=lambda r: r.contribution)[:5],
-        categories=dict(sorted(categories.items(), key=lambda kv: -kv[1])))
+        categories=dict(sorted(categories.items(), key=lambda kv: -kv[1])),
+        category_net=dict(sorted(net.items(), key=lambda kv: -abs(kv[1]))))
     if len(_shap_cache) > 512:
         _shap_cache.clear()
     _shap_cache[key] = exp

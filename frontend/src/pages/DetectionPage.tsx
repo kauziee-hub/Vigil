@@ -50,7 +50,7 @@ export function DetectionPage() {
 
   return (
     <>
-      <PageHead crumb="04 · Intelligence" title="Detection & Models"
+      <PageHead crumb="Intelligence" title="Detection & models"
         lede="What each detector family sees across the network, and how well the models perform on synthetic validation. Rules decide; models corroborate." />
 
       <div className="banner-val" style={{ marginBottom: 12 }}>

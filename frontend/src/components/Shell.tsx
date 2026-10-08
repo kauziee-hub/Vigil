@@ -39,15 +39,15 @@ export function usePlatform() {
 }
 
 export const NAV: { to: string; label: string; end?: boolean; group?: string }[] = [
-  { to: "/", label: "Live Operations", end: true, group: "Operate" },
-  { to: "/guard", label: "Transaction Guard" },
-  { to: "/network", label: "Network Intelligence", group: "Intelligence" },
-  { to: "/detection", label: "Detection & Models" },
+  { to: "/", label: "Live operations", end: true, group: "Operate" },
+  { to: "/guard", label: "Transaction guard" },
+  { to: "/network", label: "Network intelligence", group: "Intelligence" },
+  { to: "/detection", label: "Detection & models" },
   { to: "/investigations", label: "Investigations" },
   { to: "/interventions", label: "Interventions" },
-  { to: "/governance", label: "Governance & Audit", group: "Control" },
-  { to: "/lab", label: "Scenario Lab" },
-  { to: "/health", label: "System Health" },
+  { to: "/governance", label: "Governance & audit", group: "Control" },
+  { to: "/lab", label: "Scenario lab" },
+  { to: "/health", label: "System health" },
 ];
 
 /** 16px stroke icons for the primary navigation (one per area; no numbering). */

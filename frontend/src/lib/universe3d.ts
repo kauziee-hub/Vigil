@@ -238,7 +238,7 @@ export class UniverseEngine {
   private initHistory(capacity: number) {
     if (this.hist) { this.root.remove(this.hist); this.hist.geometry.dispose(); }
     this.histCap = capacity;
-    this.hist = this.lineSeg(capacity, 0.6);
+    this.hist = this.lineSeg(capacity, 0.16);
     this.root.add(this.hist);
     this.histDirty = true;
   }
@@ -575,7 +575,7 @@ export class UniverseEngine {
       const a = h.i * 3, b = h.j * 3, o = m * 6;
       hp[o] = this.cur[a]; hp[o + 1] = this.cur[a + 1]; hp[o + 2] = this.cur[a + 2];
       hp[o + 3] = this.cur[b]; hp[o + 4] = this.cur[b + 1]; hp[o + 5] = this.cur[b + 2];
-      if (this.histDirty) { hc[o] = hc[o + 3] = 0.005; hc[o + 1] = hc[o + 4] = 0.028; hc[o + 2] = hc[o + 5] = 0.024; }   // faint: live postings must read first
+      if (this.histDirty) { hc[o] = hc[o + 3] = 0.24; hc[o + 1] = hc[o + 4] = 0.29; hc[o + 2] = hc[o + 5] = 0.36; }   // faint: live postings must read first
       m++;
     }
     this.hist.geometry.setDrawRange(0, m * 2);

@@ -63,7 +63,7 @@ export function GuardPage() {
 
   return (
     <>
-      <PageHead crumb="02 · Operate" title="Transaction Guard"
+      <PageHead crumb="Operate" title="Transaction guard"
         lede="Every payment intent is assessed before the provider is called. The customer sees one proportionate intervention; the bank sees the full case."
         actions={<a className="btn sm ghost" href={`/pay?as=${encodeURIComponent(payer)}`} target="_blank" rel="noreferrer">Customer kiosk ↗</a>} />
       <div className="guard">

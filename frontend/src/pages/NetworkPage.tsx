@@ -586,7 +586,7 @@ function LiveUniverseView() {
       {mode === "model" && <div className="notice sm" style={{ marginBottom: 10 }}>MODEL SCORE colours the strongest model evidence per account (RF / GNN, <span className="stamp-sv">SYNTHETIC VALIDATION</span>) — corroborating only, never used for authorisation.</div>}
       <section className="stage">
         <div className="stage-h">
-          <div><div className="k">Network intelligence · {UMODES.find((m) => m[0] === mode)?.[1]}</div><div className="t">Live Transaction Universe</div></div>
+          <div><div className="t">Live transaction network · {UMODES.find((m) => m[0] === mode)?.[1]?.toLowerCase()}</div></div>
           <UniverseLegend mode={mode} groundTruth={gt} />
         </div>
         <div style={{ position: "relative" }}>
@@ -608,9 +608,9 @@ export function NetworkPage() {
     : params.get("focus") || params.get("scenario") || v === "2d" || v === "3d" || v === "scene" ? "scene" : "live";
   return (
     <>
-      <PageHead compact crumb="03 · Intelligence" title="Network Intelligence"
+      <PageHead compact crumb="Intelligence" title="Network intelligence"
         lede={tab === "live"
-          ? "Every account and every live posting. Lenses: LIVE STATUS (detection intelligence), RISK (RingWatch network score — on the authorisation path), MODEL SCORE (corroborating), ROLES and TAINT (value traced from confirmed scams)."
+          ? "Every account and every live posting. Lenses: live status (detection intelligence), risk (RingWatch network score, used for authorisation), model score (corroborating only), roles, and taint (value traced from confirmed scams)."
           : "Scoped evidence scene with replay, role shapes and an investigation drawer — the suspicious subgraph, an account's neighbourhood or one attack."}
         actions={<Tabs tabs={[["live", "Live universe"], ["scene", "Evidence scene"]]} value={tab}
                        onChange={(t) => setParams(t === "live" ? new URLSearchParams() : new URLSearchParams({ tab: "scene" }), { replace: true })} />} />

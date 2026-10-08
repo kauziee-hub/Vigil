@@ -435,7 +435,8 @@ export interface ShapExplanation {
   prediction_kind: ValueKind;
   top_positive: ShapContribution[];
   top_negative: ShapContribution[];
-  categories: Record<string, number>;
+  categories: Record<string, number>;      // summed |SHAP| per category (influence, unsigned)
+  category_net?: Record<string, number>;   // summed SHAP per category (signed: + raises the score, - lowers it)
 }
 export interface DriftFeature { feature: string; baseline: number; current: number; change: number }
 export interface DriftReport {

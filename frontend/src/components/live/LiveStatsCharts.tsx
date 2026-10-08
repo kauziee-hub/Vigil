@@ -68,7 +68,7 @@ export function LiveStatsCharts({ stats, statsUnavailable, runs, metrics }: {
 
   const noRuns = "No completed attack run yet.";
   return (
-    <Panel kicker="System intelligence" title="Live Statistics"
+    <Panel kicker="System intelligence" title="Live statistics"
            q={useLocal ? `volume and channels counted from postings received since ${formatTime(new Date(local.since).toISOString())} — /api/live/stats not served${statsUnavailable ? "" : " yet"}` : undefined}>
       <div className="charts-grid">
         <div>

@@ -64,7 +64,7 @@ export function ScenarioLabPage() {
 
   return (
     <>
-      <PageHead crumb="08 · Control" title="Scenario Lab"
+      <PageHead crumb="Control" title="Scenario lab"
         lede="Deterministic demonstrations: the same inputs produce the same decisions after every reset. Attack patterns are injected as observed ledger postings; payment journeys run through the full pre-commit path."
         actions={<>
           <button className="btn sm" disabled={!health || busy === "ambient"} onClick={() => act("ambient", () => api.ambient(!health?.ambient))}

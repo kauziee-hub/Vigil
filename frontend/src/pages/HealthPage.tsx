@@ -64,7 +64,7 @@ export function HealthPage() {
   const scene = (h?.cache?.scene ?? null) as { entries?: number; hits?: number; misses?: number } | null;
   return (
     <>
-      <PageHead crumb="09 · Control" title="System Health"
+      <PageHead crumb="Control" title="System health"
         lede="Is the platform able to decide, pay, push and explain right now? Values are read on load, on demand and when the realtime channel reports a change."
         actions={<>
           <span className="xs muted">{checkedAt ? `checked ${formatStamp(checkedAt)}` : ""}</span>

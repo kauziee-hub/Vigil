@@ -52,7 +52,7 @@ export function CommandCenter({ scenarios, runs, runsUnavailable, selected, onSe
   };
 
   return (
-    <Panel kicker="Attack controls" title="Simulation Command Center"
+    <Panel kicker="Attack controls" title="Simulation command center"
            actions={<span className={`chip ${running ? "danger" : "mute"}`}>Running: {running}</span>}
            footer={<span>Every injected step is a real ledger posting scored live. <Sim text="SIMULATED INPUTS" /> Scenario tags are simulator ground truth — used for evaluation only, never scored. <Link to="/lab">Scenario Lab →</Link></span>}>
       <div className="stack" style={{ gap: 12 }}>

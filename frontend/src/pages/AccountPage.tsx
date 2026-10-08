@@ -90,7 +90,7 @@ export function AccountPage() {
   if (acct.error && !acct.data) {
     return (
       <>
-        <PageHead crumb={<Link to="/investigations">05 · Investigations</Link>} title={handle(accountId)} />
+        <PageHead crumb={<Link to="/investigations">Investigations</Link>} title={handle(accountId)} />
         <ErrorNote error={acct.error} />
       </>
     );
@@ -111,7 +111,7 @@ export function AccountPage() {
 
   return (
     <>
-      <PageHead crumb={<><Link to="/investigations">05 · Investigations</Link> / account investigation</>}
+      <PageHead crumb={<><Link to="/investigations">Investigations</Link> / account investigation</>}
         title={<span className="row wrap tight"><RoleIcon role={role} size={22} /><span>{a.display_name}</span><span className="mono sm muted">{a.id}</span></span>}
         lede={<span className="row wrap tight">
           {live.status ? <span className={`pill as-${live.status}`}>{ACCOUNT_STATUS_LABEL[live.status]}</span> : <Pill status={st}>{STATUS_LABEL[st]}</Pill>}
@@ -174,17 +174,20 @@ export function AccountPage() {
             </div>
           )}
         </Panel>
-        <Panel kicker="SHAP · explains the MODEL" title="Risk breakdown by category" q="Random Forest · not the operational decision"
-               footer={x?.shap ? <>raw model prediction <b className="mono">{x.shap.prediction.toFixed(3)}</b> ({KIND_LABEL[x.shap.prediction_kind] ?? x.shap.prediction_kind}) · base value <span className="mono">{x.shap.base_value.toFixed(3)}</span> · model <span className="mono">{x.shap.model_version}</span> · red pushes the model's output up, blue pushes it down</> : undefined}>
+        <Panel title="What moved the model score" q="SHAP by category · Random Forest · explains the model, not the operational decision"
+               footer={x?.shap ? <>base value <span className="mono">{x.shap.base_value.toFixed(3)}</span> → raw model prediction <b className="mono">{x.shap.prediction.toFixed(3)}</b> ({KIND_LABEL[x.shap.prediction_kind] ?? x.shap.prediction_kind}) · model <span className="mono">{x.shap.model_version}</span> · <span style={{ color: CH.red }}>red</span> raised the score, <span style={{ color: CH.blue }}>blue</span> lowered it</> : undefined}>
           {intel.unavailable ? <Unavailable what="SHAP" endpoint="/api/intel/accounts/{id}" /> : !x ? <Loading /> : !x.shap ? (
             <div className="empty">No SHAP explanation: the Random Forest was not run for this account.</div>
+          ) : !x.shap.category_net ? (
+            <div className="empty">This backend reports SHAP influence without direction; restart it to get signed contributions.</div>
           ) : (() => {
-            const cats = Object.entries(x.shap.categories).sort((p, q) => Math.abs(q[1]) - Math.abs(p[1])).slice(0, 10);
+            const cats = Object.entries(x.shap.category_net).filter(([, v]) => Math.abs(v) >= 0.0005)
+              .sort((p, q) => Math.abs(q[1]) - Math.abs(p[1])).slice(0, 10);
             return (
               <div className="chart-shell">
-                <ChartCanvas type="bar" height={250} empty="No category contributions."
-                  data={{ labels: cats.map(([k]) => k), datasets: [{ label: "SHAP contribution", data: cats.map(([, v]) => v),
-                    backgroundColor: cats.map(([, v]) => (v >= 0 ? CH.red : CH.blue)), borderRadius: 4 }] }}
+                <ChartCanvas type="bar" height={250} empty="No category moved the score."
+                  data={{ labels: cats.map(([k]) => k), datasets: [{ label: "SHAP contribution (signed)", data: cats.map(([, v]) => v),
+                    backgroundColor: cats.map(([, v]) => (v >= 0 ? CH.red : CH.blue)), borderRadius: 2 }] }}
                   options={baseOptions({ indexAxis: "y", plugins: { legend: { display: false } },
                     scales: { x: { ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" } }, y: { ticks: { color: "#a7b0bd" }, grid: { display: false } } } }) as never} />
               </div>

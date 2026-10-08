@@ -20,7 +20,7 @@ const fx = (v: number | null | undefined, d = 2) => (v === null || v === undefin
 export function LastAttackResult({ runs, unavailable, emptyText }: { runs: AttackRun[] | null; unavailable: boolean; emptyText?: string }) {
   const r = (runs ?? []).find((x) => x.status === "completed") ?? (runs ?? [])[0] ?? null;
   return (
-    <Panel kicker="Outcome" title="Last Attack Result" actions={<span className="sim gt">simulator ground truth</span>}>
+    <Panel kicker="Outcome" title="Last attack result" actions={<span className="sim gt">simulator ground truth</span>}>
       {unavailable ? <Unavailable what="Attack-run evaluation" endpoint="/api/attacks/runs" /> : !r ? (
         <div className="empty">{emptyText ?? "No attack has run since the last reset. Spawn one in the Command Center."}</div>
       ) : (
@@ -48,7 +48,7 @@ export function LastAttackResult({ runs, unavailable, emptyText }: { runs: Attac
 export function AttackHistory({ runs, unavailable, onPick }: { runs: AttackRun[] | null; unavailable: boolean; onPick?: (r: AttackRun) => void }) {
   const list = runs ?? [];
   return (
-    <Panel id="attack-history" kicker="Audit trail" title="Attack History" flush
+    <Panel id="attack-history" kicker="Audit trail" title="Attack history" flush
            actions={<span className="chip mute">{list.length} run{list.length === 1 ? "" : "s"} · /api/attacks/runs</span>}>
       {unavailable ? <div style={{ padding: "0 20px 12px" }}><Unavailable what="Attack history" endpoint="/api/attacks/runs" /></div> : (
         <div className="tscroll" style={{ maxHeight: 380 }}>

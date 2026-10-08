@@ -32,7 +32,7 @@ export function RecordPage() {
 
   return (
     <>
-      <PageHead crumb={<><Link to="/governance?tab=records">07 · Governance & Audit</Link> / record</>}
+      <PageHead crumb={<><Link to="/governance?tab=records">Governance & audit</Link> / record</>}
         title={<>Decision record <span className="mono">{decisionId}</span></>}
         lede="Append-only, versioned. Every value below is read from the stored record; nothing is recomputed in the browser."
         actions={<>

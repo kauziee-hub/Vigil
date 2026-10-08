@@ -132,21 +132,21 @@ export function LiveStreams({ statusOf, recent }: { statusOf?: (id: string) => A
   const scored = scoredSeen.current;
   return (
     <div className="grid cols-3 align-start">
-      <Panel kicker="Stream" title="Live Transactions" flush actions={<span className="chip mute">last {live.items.length} of {live.count}</span>}
+      <Panel kicker="Stream" title="Live transactions" flush actions={<span className="chip mute">last {live.items.length} of {live.count}</span>}
              footer={scored ? "Each posting after live scoring: sender / recipient status and network risk, scoring latency."
                : "Ledger postings — the newest of the live window, then each one as it posts. Pills = each party's current live status (RingWatch + Vigil state); per-posting scores appear once intel.tx_scored is served."}>
         <div className="feed feed-scroll">
           {live.items.length === 0 ? <div className="empty">Waiting for the next posting…</div> : live.items.map((x) => <TxRow key={x.id} x={x} />)}
         </div>
       </Panel>
-      <Panel kicker="Detector" title="Risky Transactions" flush actions={<span className={`chip ${risky.count ? "danger" : "mute"}`}>{risky.count} in last {live.count}</span>}
+      <Panel kicker="Detector" title="Risky transactions" flush actions={<span className={`chip ${risky.count ? "danger" : "mute"}`}>{risky.count} in last {live.count}</span>}
              footer={scored ? "Postings where the sender or recipient was in early warning or worse right after scoring."
                : "Postings where the sender or recipient is in early warning or worse (live status at the time it was shown)."}>
         <div className="feed feed-scroll">
           {risky.items.length === 0 ? <div className="empty">No risky posting in the live window or since this page opened.</div> : risky.items.map((x) => <TxRow key={x.id} x={x} />)}
         </div>
       </Panel>
-      <Panel kicker="Alerts" title="Alert Stream" flush actions={<span className="chip mute">{alerts.count} total</span>}
+      <Panel kicker="Alerts" title="Alert stream" flush actions={<span className="chip mute">{alerts.count} total</span>}
              footer="Account status changes · PRIMA decisions tier ≥ 1 (newest at load, then pushed) · CircuitBreaker.">
         <div className="feed-scroll">
           {alerts.items.length === 0 ? <div className="empty">No PRIMA alert and no status change yet.</div> : alerts.items.map((a) => (

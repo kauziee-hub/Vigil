@@ -21,7 +21,7 @@ export function GovernancePage() {
   const tab = (params.get("tab") as Tab) || "oversight";
   return (
     <>
-      <PageHead crumb="07 · Control" title="Governance & Audit"
+      <PageHead crumb="Control" title="Governance & audit"
         lede="How a bank would govern Vigil: start in SHADOW (evaluate, record, never intervene), compare against the bank's baseline, then enable the intervention ladder. Every decision is an append-only, versioned record that can be inspected raw and replayed." />
       <div style={{ marginBottom: 12 }}>
         <Tabs tabs={[["oversight", "Mode · policy · models"], ["records", "Decision records"], ["positioning", "Deployment positioning"]]}

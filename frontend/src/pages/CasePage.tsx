@@ -72,7 +72,7 @@ export function CasePage() {
   if (inv.error && !inv.data) {
     return (
       <>
-        <PageHead crumb={<Link to="/investigations">05 · Investigations</Link>} title={`Case ${decisionId}`} />
+        <PageHead crumb={<Link to="/investigations">Investigations</Link>} title={`Case ${decisionId}`} />
         <ErrorNote error={inv.error} />
       </>
     );
@@ -88,7 +88,7 @@ export function CasePage() {
 
   return (
     <>
-      <PageHead crumb={<><Link to="/investigations">05 · Investigations</Link> / case <span className="mono">{d.decision_id}</span></>}
+      <PageHead crumb={<><Link to="/investigations">Investigations</Link> / case <span className="mono">{d.decision_id}</span></>}
         title={<span className="row wrap tight"><TierPill tier={d.tier} lg full /> <span>{handle(d.sender_id)} → {handle(d.recipient_id)} · <span className="mono">{formatINR(d.amount_paise)}</span></span></span>}
         lede={d.reasons.analyst.summary}
         actions={<>

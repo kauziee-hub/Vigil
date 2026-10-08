@@ -299,7 +299,8 @@ class ShapExplanation(BaseModel):
     prediction_kind: ValueKind
     top_positive: list[ShapContribution]
     top_negative: list[ShapContribution]
-    categories: dict[str, float]       # category -> summed |SHAP|
+    categories: dict[str, float]       # category -> summed |SHAP| (influence, unsigned)
+    category_net: dict[str, float] = Field(default_factory=dict)   # category -> summed SHAP (signed: + raises, - lowers)
 
 
 class DriftFeature(BaseModel):
