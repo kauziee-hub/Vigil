@@ -1,24 +1,10 @@
 {
   "label": "SYNTHETIC VALIDATION \u2014 computer-generated worlds; not real-bank accuracy.",
-  "evaluated_at": "2026-10-07T02:55:44Z",
-  "command": "python ml/eval_roles_consensus.py",
-  "artefacts": "committed artefacts in backend/models (no retraining; trained_at 2026-10-06T20:11:11Z)",
+  "evaluated_at": "2026-10-07T04:57:08Z",
+  "command": "python ml/train_all.py",
+  "artefacts": "artefacts trained by this run",
   "seed": 20261006,
   "test_worlds": "world indices 120..149 (split by world)",
-  "reproduces_validation_v2": {
-    "rules": true,
-    "random_forest": true,
-    "gnn": true,
-    "early_warning": true,
-    "drift": true,
-    "pattern_memory": true
-  },
-  "levels": [
-    "none",
-    "weak",
-    "moderate",
-    "strong"
-  ],
   "families": [
     "rules",
     "random_forest",
@@ -33,23 +19,23 @@
       "accuracy_by_true_role": {
         "coordinator": 1.0,
         "collector": 0.104,
-        "distributor": 0.656,
+        "distributor": 0.625,
         "entry": 0.857,
-        "exit": 0.507
+        "exit": 0.493
       },
       "correct_of_mules_with_true_role": {
-        "correct": 113,
+        "correct": 110,
         "of": 252
       },
       "mules_with_any_role": {
-        "assigned": 238,
+        "assigned": 241,
         "of": 310
       },
       "false_role_assignments": {
-        "total": 279,
+        "total": 205,
         "by_persona": {
           "customer": {
-            "flagged": 68,
+            "flagged": 79,
             "of": 7485
           },
           "landlord": {
@@ -57,50 +43,50 @@
             "of": 147
           },
           "merchant": {
-            "flagged": 153,
-            "of": 331
+            "flagged": 67,
+            "of": 656
           },
           "organiser": {
             "flagged": 4,
             "of": 19
           },
           "payroll": {
-            "flagged": 9,
+            "flagged": 4,
             "of": 84
           },
           "trader": {
-            "flagged": 45,
+            "flagged": 51,
             "of": 470
           }
         },
         "by_subgroup": {
           "victim": {
-            "flagged": 13,
+            "flagged": 12,
             "of": 187
           },
           "salary_in_window": {
-            "flagged": 12,
+            "flagged": 10,
             "of": 892
           },
           "salary_and_large_payment": {
-            "flagged": 10,
+            "flagged": 9,
             "of": 33
           }
         }
       },
       "confusion": {
         "exit": {
-          "coordinator": 9,
+          "coordinator": 12,
           "collector": 8,
-          "unclassified": 42,
-          "exit": 69,
-          "distributor": 8
+          "unclassified": 39,
+          "exit": 67,
+          "distributor": 10
         },
         "collector": {
+          "exit": 2,
           "unclassified": 10,
-          "entry": 35,
+          "entry": 34,
           "collector": 7,
-          "exit": 1,
           "coordinator": 13,
           "distributor": 1
         },
@@ -109,8 +95,8 @@
           "unclassified": 1
         },
         "distributor": {
-          "distributor": 21,
-          "coordinator": 8,
+          "distributor": 20,
+          "coordinator": 9,
           "unclassified": 3
         },
         "coordinator": {
@@ -122,23 +108,23 @@
       "accuracy_by_true_role": {
         "coordinator": 1.0,
         "collector": 0.104,
-        "distributor": 0.656,
+        "distributor": 0.625,
         "entry": 0.857,
-        "exit": 0.5
+        "exit": 0.493
       },
       "correct_of_mules_with_true_role": {
-        "correct": 112,
+        "correct": 110,
         "of": 252
       },
       "mules_with_any_role": {
-        "assigned": 235,
+        "assigned": 240,
         "of": 310
       },
       "false_role_assignments": {
-        "total": 33,
+        "total": 35,
         "by_persona": {
           "customer": {
-            "flagged": 27,
+            "flagged": 28,
             "of": 7485
           },
           "landlord": {
@@ -147,7 +133,7 @@
           },
           "merchant": {
             "flagged": 0,
-            "of": 331
+            "of": 656
           },
           "organiser": {
             "flagged": 0,
@@ -158,38 +144,38 @@
             "of": 84
           },
           "trader": {
-            "flagged": 6,
+            "flagged": 7,
             "of": 470
           }
         },
         "by_subgroup": {
           "victim": {
-            "flagged": 5,
+            "flagged": 6,
             "of": 187
           },
           "salary_in_window": {
-            "flagged": 2,
+            "flagged": 5,
             "of": 892
           },
           "salary_and_large_payment": {
-            "flagged": 2,
+            "flagged": 5,
             "of": 33
           }
         }
       },
       "confusion": {
         "exit": {
-          "coordinator": 8,
+          "coordinator": 11,
           "collector": 8,
-          "unclassified": 44,
-          "exit": 68,
-          "distributor": 8
+          "unclassified": 40,
+          "exit": 67,
+          "distributor": 10
         },
         "collector": {
+          "exit": 2,
           "unclassified": 10,
-          "entry": 35,
+          "entry": 34,
           "collector": 7,
-          "exit": 1,
           "coordinator": 13,
           "distributor": 1
         },
@@ -198,9 +184,9 @@
           "unclassified": 1
         },
         "distributor": {
-          "distributor": 21,
-          "coordinator": 7,
-          "unclassified": 4
+          "distributor": 20,
+          "coordinator": 9,
+          "unclassified": 3
         },
         "coordinator": {
           "coordinator": 10
@@ -211,23 +197,23 @@
       "accuracy_by_true_role": {
         "coordinator": 1.0,
         "collector": 0.104,
-        "distributor": 0.656,
+        "distributor": 0.625,
         "entry": 0.857,
-        "exit": 0.61
+        "exit": 0.596
       },
       "correct_of_mules_with_true_role": {
-        "correct": 127,
+        "correct": 124,
         "of": 252
       },
       "mules_with_any_role": {
-        "assigned": 251,
+        "assigned": 256,
         "of": 310
       },
       "false_role_assignments": {
-        "total": 39,
+        "total": 64,
         "by_persona": {
           "customer": {
-            "flagged": 31,
+            "flagged": 47,
             "of": 7485
           },
           "landlord": {
@@ -236,7 +222,7 @@
           },
           "merchant": {
             "flagged": 0,
-            "of": 331
+            "of": 656
           },
           "organiser": {
             "flagged": 0,
@@ -247,38 +233,38 @@
             "of": 84
           },
           "trader": {
-            "flagged": 8,
+            "flagged": 17,
             "of": 470
           }
         },
         "by_subgroup": {
           "victim": {
-            "flagged": 5,
+            "flagged": 7,
             "of": 187
           },
           "salary_in_window": {
-            "flagged": 2,
+            "flagged": 7,
             "of": 892
           },
           "salary_and_large_payment": {
-            "flagged": 2,
+            "flagged": 7,
             "of": 33
           }
         }
       },
       "confusion": {
         "exit": {
-          "coordinator": 9,
+          "coordinator": 13,
           "collector": 8,
-          "unclassified": 28,
-          "exit": 83,
-          "distributor": 8
+          "unclassified": 24,
+          "exit": 81,
+          "distributor": 10
         },
         "collector": {
+          "exit": 2,
           "unclassified": 10,
-          "entry": 35,
+          "entry": 34,
           "collector": 7,
-          "exit": 1,
           "coordinator": 13,
           "distributor": 1
         },
@@ -287,9 +273,9 @@
           "unclassified": 1
         },
         "distributor": {
-          "distributor": 21,
-          "coordinator": 7,
-          "unclassified": 4
+          "distributor": 20,
+          "coordinator": 9,
+          "unclassified": 3
         },
         "coordinator": {
           "coordinator": 10
@@ -300,23 +286,23 @@
       "accuracy_by_true_role": {
         "coordinator": 1.0,
         "collector": 0.104,
-        "distributor": 0.656,
+        "distributor": 0.625,
         "entry": 0.857,
-        "exit": 0.507
+        "exit": 0.493
       },
       "correct_of_mules_with_true_role": {
-        "correct": 113,
+        "correct": 110,
         "of": 252
       },
       "mules_with_any_role": {
-        "assigned": 238,
+        "assigned": 241,
         "of": 310
       },
       "false_role_assignments": {
-        "total": 242,
+        "total": 171,
         "by_persona": {
           "customer": {
-            "flagged": 38,
+            "flagged": 47,
             "of": 7485
           },
           "landlord": {
@@ -324,8 +310,8 @@
             "of": 147
           },
           "merchant": {
-            "flagged": 153,
-            "of": 331
+            "flagged": 67,
+            "of": 656
           },
           "organiser": {
             "flagged": 4,
@@ -336,17 +322,17 @@
             "of": 84
           },
           "trader": {
-            "flagged": 43,
+            "flagged": 49,
             "of": 470
           }
         },
         "by_subgroup": {
           "victim": {
-            "flagged": 6,
+            "flagged": 9,
             "of": 187
           },
           "salary_in_window": {
-            "flagged": 11,
+            "flagged": 10,
             "of": 892
           },
           "salary_and_large_payment": {
@@ -357,17 +343,17 @@
       },
       "confusion": {
         "exit": {
-          "coordinator": 9,
+          "coordinator": 12,
           "collector": 8,
-          "unclassified": 42,
-          "exit": 69,
-          "distributor": 8
+          "unclassified": 39,
+          "exit": 67,
+          "distributor": 10
         },
         "collector": {
+          "exit": 2,
           "unclassified": 10,
-          "entry": 35,
+          "entry": 34,
           "collector": 7,
-          "exit": 1,
           "coordinator": 13,
           "distributor": 1
         },
@@ -376,8 +362,8 @@
           "unclassified": 1
         },
         "distributor": {
-          "distributor": 21,
-          "coordinator": 8,
+          "distributor": 20,
+          "coordinator": 9,
           "unclassified": 3
         },
         "coordinator": {
@@ -390,37 +376,37 @@
     "v2.0_count_only": {
       "level_distribution": {
         "mules": {
-          "none": 19,
+          "none": 17,
           "weak": 23,
-          "moderate": 61,
-          "strong": 207
+          "moderate": 60,
+          "strong": 210
         },
         "non_mules": {
-          "none": 7911,
-          "weak": 284,
-          "moderate": 335,
-          "strong": 6
+          "none": 8131,
+          "weak": 505,
+          "moderate": 218,
+          "strong": 7
         }
       },
       "at_least_moderate": {
-        "precision": 0.4401,
-        "recall": 0.8645,
-        "f1": 0.5832,
+        "precision": 0.5455,
+        "recall": 0.871,
+        "f1": 0.6708,
         "confusion": {
-          "tp": 268,
-          "fp": 341,
-          "fn": 42,
-          "tn": 8195
+          "tp": 270,
+          "fp": 225,
+          "fn": 40,
+          "tn": 8636
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0688,
+        "prevalence": 0.0338,
+        "flag_rate": 0.054,
         "false_positives": {
-          "total": 341,
+          "total": 225,
           "by_persona": {
             "customer": {
-              "flagged": 82,
+              "flagged": 91,
               "of": 7485
             },
             "landlord": {
@@ -428,33 +414,33 @@
               "of": 147
             },
             "merchant": {
-              "flagged": 197,
-              "of": 331
+              "flagged": 68,
+              "of": 656
             },
             "organiser": {
               "flagged": 4,
               "of": 19
             },
             "payroll": {
-              "flagged": 9,
+              "flagged": 4,
               "of": 84
             },
             "trader": {
-              "flagged": 47,
+              "flagged": 56,
               "of": 470
             }
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 15,
+              "flagged": 16,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 24,
+              "flagged": 19,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 15,
+              "flagged": 12,
               "of": 33
             }
           }
@@ -462,35 +448,35 @@
         "per_attack": {
           "behavioural_drift": 1.0,
           "circular": 1.0,
-          "cross_channel": 0.7931,
+          "cross_channel": 0.8276,
           "dormant": 0.9,
           "fan_in": 0.9,
           "fan_out": 0.7738,
           "shared_device": 1.0,
-          "smurfing": 0.5172,
+          "smurfing": 0.5517,
           "velocity_chain": 1.0,
           "volume_spike": 0.8571
         }
       },
       "at_least_strong": {
-        "precision": 0.9718,
-        "recall": 0.6677,
-        "f1": 0.7916,
+        "precision": 0.9677,
+        "recall": 0.6774,
+        "f1": 0.797,
         "confusion": {
-          "tp": 207,
-          "fp": 6,
-          "fn": 103,
-          "tn": 8530
+          "tp": 210,
+          "fp": 7,
+          "fn": 100,
+          "tn": 8854
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0241,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0237,
         "false_positives": {
-          "total": 6,
+          "total": 7,
           "by_persona": {
             "customer": {
-              "flagged": 3,
+              "flagged": 4,
               "of": 7485
             },
             "landlord": {
@@ -499,7 +485,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -516,28 +502,28 @@
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 33
             }
           }
         },
         "per_attack": {
           "behavioural_drift": 1.0,
-          "circular": 0.8478,
-          "cross_channel": 0.4138,
+          "circular": 0.8261,
+          "cross_channel": 0.4483,
           "dormant": 0.5,
-          "fan_in": 0.8,
-          "fan_out": 0.4524,
-          "shared_device": 0.9808,
-          "smurfing": 0.3793,
+          "fan_in": 0.7,
+          "fan_out": 0.5238,
+          "shared_device": 0.9615,
+          "smurfing": 0.3448,
           "velocity_chain": 0.8333,
           "volume_spike": 0.8571
         }
@@ -546,37 +532,37 @@
     "v2.1_mule_evidence_cap": {
       "level_distribution": {
         "mules": {
-          "none": 19,
-          "weak": 25,
+          "none": 17,
+          "weak": 24,
           "moderate": 59,
-          "strong": 207
+          "strong": 210
         },
         "non_mules": {
-          "none": 7911,
-          "weak": 587,
-          "moderate": 32,
-          "strong": 6
+          "none": 8131,
+          "weak": 686,
+          "moderate": 37,
+          "strong": 7
         }
       },
       "at_least_moderate": {
-        "precision": 0.875,
-        "recall": 0.8581,
-        "f1": 0.8664,
+        "precision": 0.8594,
+        "recall": 0.8677,
+        "f1": 0.8636,
         "confusion": {
-          "tp": 266,
-          "fp": 38,
-          "fn": 44,
-          "tn": 8498
+          "tp": 269,
+          "fp": 44,
+          "fn": 41,
+          "tn": 8817
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0344,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0341,
         "false_positives": {
-          "total": 38,
+          "total": 44,
           "by_persona": {
             "customer": {
-              "flagged": 31,
+              "flagged": 34,
               "of": 7485
             },
             "landlord": {
@@ -585,7 +571,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -596,21 +582,21 @@
               "of": 84
             },
             "trader": {
-              "flagged": 6,
+              "flagged": 9,
               "of": 470
             }
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 6,
+              "flagged": 10,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 4,
+              "flagged": 9,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 3,
+              "flagged": 7,
               "of": 33
             }
           }
@@ -618,35 +604,35 @@
         "per_attack": {
           "behavioural_drift": 1.0,
           "circular": 1.0,
-          "cross_channel": 0.7586,
+          "cross_channel": 0.8276,
           "dormant": 0.9,
-          "fan_in": 0.9,
-          "fan_out": 0.7619,
+          "fan_in": 0.8,
+          "fan_out": 0.7738,
           "shared_device": 1.0,
-          "smurfing": 0.5172,
+          "smurfing": 0.5517,
           "velocity_chain": 1.0,
           "volume_spike": 0.8571
         }
       },
       "at_least_strong": {
-        "precision": 0.9718,
-        "recall": 0.6677,
-        "f1": 0.7916,
+        "precision": 0.9677,
+        "recall": 0.6774,
+        "f1": 0.797,
         "confusion": {
-          "tp": 207,
-          "fp": 6,
-          "fn": 103,
-          "tn": 8530
+          "tp": 210,
+          "fp": 7,
+          "fn": 100,
+          "tn": 8854
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0241,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0237,
         "false_positives": {
-          "total": 6,
+          "total": 7,
           "by_persona": {
             "customer": {
-              "flagged": 3,
+              "flagged": 4,
               "of": 7485
             },
             "landlord": {
@@ -655,7 +641,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -672,28 +658,28 @@
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 33
             }
           }
         },
         "per_attack": {
           "behavioural_drift": 1.0,
-          "circular": 0.8478,
-          "cross_channel": 0.4138,
+          "circular": 0.8261,
+          "cross_channel": 0.4483,
           "dormant": 0.5,
-          "fan_in": 0.8,
-          "fan_out": 0.4524,
-          "shared_device": 0.9808,
-          "smurfing": 0.3793,
+          "fan_in": 0.7,
+          "fan_out": 0.5238,
+          "shared_device": 0.9615,
+          "smurfing": 0.3448,
           "velocity_chain": 0.8333,
           "volume_spike": 0.8571
         }
@@ -702,37 +688,37 @@
     "alt_drift_and_ew_as_one_family": {
       "level_distribution": {
         "mules": {
-          "none": 19,
+          "none": 17,
           "weak": 23,
-          "moderate": 100,
-          "strong": 168
+          "moderate": 93,
+          "strong": 177
         },
         "non_mules": {
-          "none": 7911,
-          "weak": 328,
-          "moderate": 296,
+          "none": 8131,
+          "weak": 543,
+          "moderate": 186,
           "strong": 1
         }
       },
       "at_least_moderate": {
-        "precision": 0.4743,
-        "recall": 0.8645,
-        "f1": 0.6126,
+        "precision": 0.5908,
+        "recall": 0.871,
+        "f1": 0.704,
         "confusion": {
-          "tp": 268,
-          "fp": 297,
-          "fn": 42,
-          "tn": 8239
+          "tp": 270,
+          "fp": 187,
+          "fn": 40,
+          "tn": 8674
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0639,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0498,
         "false_positives": {
-          "total": 297,
+          "total": 187,
           "by_persona": {
             "customer": {
-              "flagged": 46,
+              "flagged": 56,
               "of": 7485
             },
             "landlord": {
@@ -740,8 +726,8 @@
               "of": 147
             },
             "merchant": {
-              "flagged": 197,
-              "of": 331
+              "flagged": 68,
+              "of": 656
             },
             "organiser": {
               "flagged": 4,
@@ -752,21 +738,21 @@
               "of": 84
             },
             "trader": {
-              "flagged": 45,
+              "flagged": 54,
               "of": 470
             }
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 7,
+              "flagged": 13,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 22,
+              "flagged": 19,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 13,
+              "flagged": 12,
               "of": 33
             }
           }
@@ -774,30 +760,30 @@
         "per_attack": {
           "behavioural_drift": 1.0,
           "circular": 1.0,
-          "cross_channel": 0.7931,
+          "cross_channel": 0.8276,
           "dormant": 0.9,
           "fan_in": 0.9,
           "fan_out": 0.7738,
           "shared_device": 1.0,
-          "smurfing": 0.5172,
+          "smurfing": 0.5517,
           "velocity_chain": 1.0,
           "volume_spike": 0.8571
         }
       },
       "at_least_strong": {
-        "precision": 0.9941,
-        "recall": 0.5419,
-        "f1": 0.7015,
+        "precision": 0.9944,
+        "recall": 0.571,
+        "f1": 0.7254,
         "confusion": {
-          "tp": 168,
+          "tp": 177,
           "fp": 1,
-          "fn": 142,
-          "tn": 8535
+          "fn": 133,
+          "tn": 8860
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0191,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0194,
         "false_positives": {
           "total": 1,
           "by_persona": {
@@ -811,7 +797,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -842,12 +828,12 @@
           }
         },
         "per_attack": {
-          "behavioural_drift": 0.8571,
-          "circular": 0.6739,
-          "cross_channel": 0.3103,
+          "behavioural_drift": 1.0,
+          "circular": 0.7391,
+          "cross_channel": 0.3448,
           "dormant": 0.5,
-          "fan_in": 0.6,
-          "fan_out": 0.2619,
+          "fan_in": 0.7,
+          "fan_out": 0.2976,
           "shared_device": 0.9231,
           "smurfing": 0.3103,
           "velocity_chain": 0.7222,
@@ -858,37 +844,37 @@
     "alt_one_change_family_and_cap": {
       "level_distribution": {
         "mules": {
-          "none": 19,
-          "weak": 25,
-          "moderate": 98,
-          "strong": 168
+          "none": 17,
+          "weak": 24,
+          "moderate": 92,
+          "strong": 177
         },
         "non_mules": {
-          "none": 7911,
-          "weak": 587,
-          "moderate": 37,
+          "none": 8131,
+          "weak": 686,
+          "moderate": 43,
           "strong": 1
         }
       },
       "at_least_moderate": {
-        "precision": 0.875,
-        "recall": 0.8581,
-        "f1": 0.8664,
+        "precision": 0.8594,
+        "recall": 0.8677,
+        "f1": 0.8636,
         "confusion": {
-          "tp": 266,
-          "fp": 38,
-          "fn": 44,
-          "tn": 8498
+          "tp": 269,
+          "fp": 44,
+          "fn": 41,
+          "tn": 8817
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0344,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0341,
         "false_positives": {
-          "total": 38,
+          "total": 44,
           "by_persona": {
             "customer": {
-              "flagged": 31,
+              "flagged": 34,
               "of": 7485
             },
             "landlord": {
@@ -897,7 +883,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -908,21 +894,21 @@
               "of": 84
             },
             "trader": {
-              "flagged": 6,
+              "flagged": 9,
               "of": 470
             }
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 6,
+              "flagged": 10,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 4,
+              "flagged": 9,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 3,
+              "flagged": 7,
               "of": 33
             }
           }
@@ -930,30 +916,30 @@
         "per_attack": {
           "behavioural_drift": 1.0,
           "circular": 1.0,
-          "cross_channel": 0.7586,
+          "cross_channel": 0.8276,
           "dormant": 0.9,
-          "fan_in": 0.9,
-          "fan_out": 0.7619,
+          "fan_in": 0.8,
+          "fan_out": 0.7738,
           "shared_device": 1.0,
-          "smurfing": 0.5172,
+          "smurfing": 0.5517,
           "velocity_chain": 1.0,
           "volume_spike": 0.8571
         }
       },
       "at_least_strong": {
-        "precision": 0.9941,
-        "recall": 0.5419,
-        "f1": 0.7015,
+        "precision": 0.9944,
+        "recall": 0.571,
+        "f1": 0.7254,
         "confusion": {
-          "tp": 168,
+          "tp": 177,
           "fp": 1,
-          "fn": 142,
-          "tn": 8535
+          "fn": 133,
+          "tn": 8860
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0191,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0194,
         "false_positives": {
           "total": 1,
           "by_persona": {
@@ -967,7 +953,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -998,12 +984,12 @@
           }
         },
         "per_attack": {
-          "behavioural_drift": 0.8571,
-          "circular": 0.6739,
-          "cross_channel": 0.3103,
+          "behavioural_drift": 1.0,
+          "circular": 0.7391,
+          "cross_channel": 0.3448,
           "dormant": 0.5,
-          "fan_in": 0.6,
-          "fan_out": 0.2619,
+          "fan_in": 0.7,
+          "fan_out": 0.2976,
           "shared_device": 0.9231,
           "smurfing": 0.3103,
           "velocity_chain": 0.7222,
@@ -1014,37 +1000,37 @@
     "alt_cap_with_rules_as_mule_evidence": {
       "level_distribution": {
         "mules": {
-          "none": 19,
+          "none": 17,
           "weak": 23,
-          "moderate": 61,
-          "strong": 207
+          "moderate": 60,
+          "strong": 210
         },
         "non_mules": {
-          "none": 7911,
-          "weak": 328,
-          "moderate": 291,
-          "strong": 6
+          "none": 8131,
+          "weak": 543,
+          "moderate": 180,
+          "strong": 7
         }
       },
       "at_least_moderate": {
-        "precision": 0.4743,
-        "recall": 0.8645,
-        "f1": 0.6126,
+        "precision": 0.5908,
+        "recall": 0.871,
+        "f1": 0.704,
         "confusion": {
-          "tp": 268,
-          "fp": 297,
-          "fn": 42,
-          "tn": 8239
+          "tp": 270,
+          "fp": 187,
+          "fn": 40,
+          "tn": 8674
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0639,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0498,
         "false_positives": {
-          "total": 297,
+          "total": 187,
           "by_persona": {
             "customer": {
-              "flagged": 46,
+              "flagged": 56,
               "of": 7485
             },
             "landlord": {
@@ -1052,8 +1038,8 @@
               "of": 147
             },
             "merchant": {
-              "flagged": 197,
-              "of": 331
+              "flagged": 68,
+              "of": 656
             },
             "organiser": {
               "flagged": 4,
@@ -1064,21 +1050,21 @@
               "of": 84
             },
             "trader": {
-              "flagged": 45,
+              "flagged": 54,
               "of": 470
             }
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 7,
+              "flagged": 13,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 22,
+              "flagged": 19,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 13,
+              "flagged": 12,
               "of": 33
             }
           }
@@ -1086,35 +1072,35 @@
         "per_attack": {
           "behavioural_drift": 1.0,
           "circular": 1.0,
-          "cross_channel": 0.7931,
+          "cross_channel": 0.8276,
           "dormant": 0.9,
           "fan_in": 0.9,
           "fan_out": 0.7738,
           "shared_device": 1.0,
-          "smurfing": 0.5172,
+          "smurfing": 0.5517,
           "velocity_chain": 1.0,
           "volume_spike": 0.8571
         }
       },
       "at_least_strong": {
-        "precision": 0.9718,
-        "recall": 0.6677,
-        "f1": 0.7916,
+        "precision": 0.9677,
+        "recall": 0.6774,
+        "f1": 0.797,
         "confusion": {
-          "tp": 207,
-          "fp": 6,
-          "fn": 103,
-          "tn": 8530
+          "tp": 210,
+          "fp": 7,
+          "fn": 100,
+          "tn": 8854
         },
-        "n": 8846,
+        "n": 9171,
         "positives": 310,
-        "prevalence": 0.035,
-        "flag_rate": 0.0241,
+        "prevalence": 0.0338,
+        "flag_rate": 0.0237,
         "false_positives": {
-          "total": 6,
+          "total": 7,
           "by_persona": {
             "customer": {
-              "flagged": 3,
+              "flagged": 4,
               "of": 7485
             },
             "landlord": {
@@ -1123,7 +1109,7 @@
             },
             "merchant": {
               "flagged": 0,
-              "of": 331
+              "of": 656
             },
             "organiser": {
               "flagged": 0,
@@ -1140,28 +1126,28 @@
           },
           "by_subgroup": {
             "victim": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 187
             },
             "salary_in_window": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 892
             },
             "salary_and_large_payment": {
-              "flagged": 0,
+              "flagged": 1,
               "of": 33
             }
           }
         },
         "per_attack": {
           "behavioural_drift": 1.0,
-          "circular": 0.8478,
-          "cross_channel": 0.4138,
+          "circular": 0.8261,
+          "cross_channel": 0.4483,
           "dormant": 0.5,
-          "fan_in": 0.8,
-          "fan_out": 0.4524,
-          "shared_device": 0.9808,
-          "smurfing": 0.3793,
+          "fan_in": 0.7,
+          "fan_out": 0.5238,
+          "shared_device": 0.9615,
+          "smurfing": 0.3448,
           "velocity_chain": 0.8333,
           "volume_spike": 0.8571
         }
@@ -1172,150 +1158,150 @@
     "all": {
       "rules": {
         "rules": 1.0,
-        "random_forest": 0.274,
-        "gnn": 0.277,
-        "early_warning": 0.672,
-        "drift": 0.281,
-        "pattern_memory": 0.268
+        "random_forest": 0.259,
+        "gnn": 0.251,
+        "early_warning": 0.44,
+        "drift": 0.252,
+        "pattern_memory": 0.208
       },
       "random_forest": {
-        "rules": 0.274,
+        "rules": 0.259,
         "random_forest": 1.0,
-        "gnn": 0.899,
-        "early_warning": 0.413,
-        "drift": 0.693,
-        "pattern_memory": 0.649
+        "gnn": 0.888,
+        "early_warning": 0.531,
+        "drift": 0.71,
+        "pattern_memory": 0.589
       },
       "gnn": {
-        "rules": 0.277,
-        "random_forest": 0.899,
+        "rules": 0.251,
+        "random_forest": 0.888,
         "gnn": 1.0,
-        "early_warning": 0.41,
-        "drift": 0.666,
-        "pattern_memory": 0.635
+        "early_warning": 0.519,
+        "drift": 0.673,
+        "pattern_memory": 0.571
       },
       "early_warning": {
-        "rules": 0.672,
-        "random_forest": 0.413,
-        "gnn": 0.41,
+        "rules": 0.44,
+        "random_forest": 0.531,
+        "gnn": 0.519,
         "early_warning": 1.0,
-        "drift": 0.486,
-        "pattern_memory": 0.405
+        "drift": 0.597,
+        "pattern_memory": 0.484
       },
       "drift": {
-        "rules": 0.281,
-        "random_forest": 0.693,
-        "gnn": 0.666,
-        "early_warning": 0.486,
+        "rules": 0.252,
+        "random_forest": 0.71,
+        "gnn": 0.673,
+        "early_warning": 0.597,
         "drift": 1.0,
-        "pattern_memory": 0.585
+        "pattern_memory": 0.558
       },
       "pattern_memory": {
-        "rules": 0.268,
-        "random_forest": 0.649,
-        "gnn": 0.635,
-        "early_warning": 0.405,
-        "drift": 0.585,
+        "rules": 0.208,
+        "random_forest": 0.589,
+        "gnn": 0.571,
+        "early_warning": 0.484,
+        "drift": 0.558,
         "pattern_memory": 1.0
       }
     },
     "non_mules": {
       "rules": {
         "rules": 1.0,
-        "random_forest": -0.01,
-        "gnn": -0.005,
-        "early_warning": 0.671,
-        "drift": 0.078,
-        "pattern_memory": 0.054
+        "random_forest": 0.02,
+        "gnn": 0.006,
+        "early_warning": 0.357,
+        "drift": 0.071,
+        "pattern_memory": 0.028
       },
       "random_forest": {
-        "rules": -0.01,
+        "rules": 0.02,
         "random_forest": 1.0,
-        "gnn": 0.194,
-        "early_warning": 0.039,
-        "drift": 0.191,
-        "pattern_memory": 0.119
+        "gnn": 0.066,
+        "early_warning": 0.059,
+        "drift": 0.224,
+        "pattern_memory": 0.06
       },
       "gnn": {
-        "rules": -0.005,
-        "random_forest": 0.194,
+        "rules": 0.006,
+        "random_forest": 0.066,
         "gnn": 1.0,
-        "early_warning": 0.015,
-        "drift": 0.132,
-        "pattern_memory": 0.082
+        "early_warning": 0.03,
+        "drift": 0.114,
+        "pattern_memory": 0.083
       },
       "early_warning": {
-        "rules": 0.671,
-        "random_forest": 0.039,
-        "gnn": 0.015,
+        "rules": 0.357,
+        "random_forest": 0.059,
+        "gnn": 0.03,
         "early_warning": 1.0,
-        "drift": 0.26,
-        "pattern_memory": 0.178
+        "drift": 0.349,
+        "pattern_memory": 0.201
       },
       "drift": {
-        "rules": 0.078,
-        "random_forest": 0.191,
-        "gnn": 0.132,
-        "early_warning": 0.26,
+        "rules": 0.071,
+        "random_forest": 0.224,
+        "gnn": 0.114,
+        "early_warning": 0.349,
         "drift": 1.0,
-        "pattern_memory": 0.287
+        "pattern_memory": 0.248
       },
       "pattern_memory": {
-        "rules": 0.054,
-        "random_forest": 0.119,
-        "gnn": 0.082,
-        "early_warning": 0.178,
-        "drift": 0.287,
+        "rules": 0.028,
+        "random_forest": 0.06,
+        "gnn": 0.083,
+        "early_warning": 0.201,
+        "drift": 0.248,
         "pattern_memory": 1.0
       }
     },
     "mules": {
       "rules": {
         "rules": 1.0,
-        "random_forest": 0.219,
-        "gnn": 0.16,
-        "early_warning": 0.481,
-        "drift": 0.378,
-        "pattern_memory": 0.288
+        "random_forest": 0.259,
+        "gnn": 0.178,
+        "early_warning": 0.479,
+        "drift": 0.347,
+        "pattern_memory": 0.246
       },
       "random_forest": {
-        "rules": 0.219,
+        "rules": 0.259,
         "random_forest": 1.0,
         "gnn": 0.518,
-        "early_warning": 0.425,
-        "drift": 0.618,
-        "pattern_memory": 0.378
+        "early_warning": 0.475,
+        "drift": 0.622,
+        "pattern_memory": 0.365
       },
       "gnn": {
-        "rules": 0.16,
+        "rules": 0.178,
         "random_forest": 0.518,
         "gnn": 1.0,
-        "early_warning": 0.338,
-        "drift": 0.404,
-        "pattern_memory": 0.269
+        "early_warning": 0.344,
+        "drift": 0.386,
+        "pattern_memory": 0.225
       },
       "early_warning": {
-        "rules": 0.481,
-        "random_forest": 0.425,
-        "gnn": 0.338,
+        "rules": 0.479,
+        "random_forest": 0.475,
+        "gnn": 0.344,
         "early_warning": 1.0,
-        "drift": 0.646,
-        "pattern_memory": 0.435
+        "drift": 0.598,
+        "pattern_memory": 0.482
       },
       "drift": {
-        "rules": 0.378,
-        "random_forest": 0.618,
-        "gnn": 0.404,
-        "early_warning": 0.646,
+        "rules": 0.347,
+        "random_forest": 0.622,
+        "gnn": 0.386,
+        "early_warning": 0.598,
         "drift": 1.0,
-        "pattern_memory": 0.442
+        "pattern_memory": 0.439
       },
       "pattern_memory": {
-        "rules": 0.288,
-        "random_forest": 0.378,
-        "gnn": 0.269,
-        "early_warning": 0.435,
-        "drift": 0.442,
+        "rules": 0.246,
+        "random_forest": 0.365,
+        "gnn": 0.225,
+        "early_warning": 0.482,
+        "drift": 0.439,
         "pattern_memory": 1.0
       }
     }
@@ -1323,19 +1309,19 @@
   "combinations_without_mule_evidence": {
     "rules + early_warning": {
       "mules": 0,
-      "non_mules": 238
+      "non_mules": 121
     },
     "early_warning + drift": {
       "mules": 0,
-      "non_mules": 44
+      "non_mules": 38
     },
     "rules + early_warning + drift": {
       "mules": 1,
-      "non_mules": 18
+      "non_mules": 13
     },
     "rules + drift": {
-      "mules": 1,
-      "non_mules": 3
+      "mules": 0,
+      "non_mules": 9
     }
   },
   "rules_in_use": {
