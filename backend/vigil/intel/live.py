@@ -312,6 +312,7 @@ def role_flags(snap: Snapshot) -> dict[str, dict[str, bool]]:
     for a in sorted(candidates):
         rw = C.ringwatch_result(a, snap.as_of)
         out[a]["ringwatch"] = bool(rw.flagged and rw.status == "ok")
+        out[a]["_onward"] = C.forwards_money([rw])        # None when not measured (never downgrades)
     snap.views["role_flags"] = out
     return out
 

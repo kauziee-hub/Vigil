@@ -96,8 +96,9 @@ def test_ordinary_payer_after_acts_and_control_has_no_role_and_weak_agreement(cl
     # the walkthrough state this test pins: behaviour-change flags only (salary in + rent out in one 72 h window)
     assert flagged and flagged <= CHANGE_FAMILIES | {"rules"}, flagged
     assert not flagged & MULE_EVIDENCE_FAMILIES
-    assert "no mule-structure evidence" in ramesh.role.reason
-    assert ramesh.role.evidence["mule_evidence_families"] == []
+    # world v3: one change flag ("no corroborated flag") or two ("no mule-structure evidence") — either way no role
+    assert "no mule-structure evidence" in ramesh.role.reason or "No corroborated detector flag" in ramesh.role.reason
+    assert ramesh.role.evidence.get("mule_evidence_families", []) == []
 
     # Act 2's recipient keeps its structural evidence and its role
     kiran = _intel(client, "kiran.traders@vigil")

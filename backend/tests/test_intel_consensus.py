@@ -142,3 +142,22 @@ def test_model_evidence_is_never_fused_into_the_tier(world, monkeypatch):
     without = decide.evaluate(dict(intent))
     assert without.model_evidence == []
     assert (with_intel.final_score, with_intel.tier) == (without.final_score, without.tier)
+
+
+# ── consensus-v2.2: model evidence needs onward money flow ───────────────
+@pytest.mark.parametrize("detail,level", [
+    ({"forwarded_fraction": 0.0, "role": None, "rules": []}, "weak"),                 # victim: pays out of own balance
+    ({"forwarded_fraction": 0.82, "role": None, "rules": []}, "moderate"),            # receives and moves money on
+    ({"forwarded_fraction": 0.0, "role": "collector", "rules": []}, "moderate"),      # RingWatch flow role
+    ({"forwarded_fraction": 0.0, "role": None, "rules": ["NET_CIRCULAR"]}, "moderate"),  # part of a closed loop
+    ({}, "moderate"),                                                                 # flow not measured: no downgrade
+])
+def test_model_evidence_needs_onward_flow(detail, level):
+    from vigil.intel.consensus import summarise
+    rw = DetectorResult(family="ringwatch", label="ringwatch", value=0.1, display="0.10", kind="score", flagged=False,
+                        status="ok", version="t", observed_at="2026-01-01T00:00:00.000Z", detail=detail)
+    res = [_r("random_forest", True), _r("drift", True), _r("gnn", False), rw]
+    c = summarise(res)
+    assert c.families_flagging == 2 and c.agreement == level, (detail, c.summary)
+    if level == "weak":
+        assert "no onward money flow" in c.summary

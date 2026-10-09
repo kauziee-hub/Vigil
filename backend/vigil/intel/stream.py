@@ -132,10 +132,13 @@ def _flagging(snap: live.Snapshot, account_id: str) -> list[str]:
     return [f for f in live.INTEL_FAMILIES if fl.get(f)]
 
 
-def classify(risk: float | None, fam: str | None, flagging: Iterable[str], threshold: float) -> str | None:
+def classify(risk: float | None, fam: str | None, flagging: Iterable[str], threshold: float,
+             structural: bool = False, onward: bool = True) -> str | None:
     """The live detector-status rule (pure; shared with ml/eval_live_status.py).
 
-    flagged:       strongest model evidence >= threshold AND another family flags;
+    flagged:       strongest model evidence >= threshold AND another family flags; OR
+                   structural network evidence (an operational RingWatch rule set at or above RINGWATCH_FLAG —
+                   circular flow, fast chain, fan-in/out, pass-through …) AND >= 2 independent intel families flag;
     early_warning: the early-warning detector flags, OR >= 2 families flag.
     A single family on its own is uncorroborated (consensus-v2.1 "weak") and is NOT a live status: drift alone is
     what a scam victim or a salaried customer shows (ML_VALIDATION_REPORT §7), rules alone a busy merchant, and a
@@ -144,18 +147,63 @@ def classify(risk: float | None, fam: str | None, flagging: Iterable[str], thres
     """
     flagging = list(flagging)
     above = risk is not None and risk >= threshold
-    if above and any(f != fam for f in flagging):
+    if above and onward and any(f != fam for f in flagging):     # consensus-v2.2: model evidence needs onward flow
+        return "flagged"
+    if structural and len(flagging) >= 2:
         return "flagged"
     if "early_warning" in flagging or len(flagging) >= 2:
         return "early_warning"
     return None
 
 
+_STRUCT: dict[str, Any] = {"key": None, "v": {}}
+
+
+def _rw(account_id: str) -> tuple[bool, bool]:
+    """(RingWatch >= RINGWATCH_FLAG, forwards received money) for one account, cached per graph state.
+
+    Evaluated per account (≈0.3 ms) and only for the few accounts that already have >= 2 intel families
+    flagging or model evidence above the threshold — never a population scan on the posting hook."""
+    try:
+        from vigil.intel.consensus import FORWARDING_MIN, RINGWATCH_FLAG
+        from vigil.risk import ringwatch, taint
+        key = (live.GRAPH.version, taint._cache_key())
+        if _STRUCT["key"] != key:
+            _STRUCT["key"], _STRUCT["v"] = key, {}
+        hit = _STRUCT["v"].get(account_id)
+        if hit is None:
+            signals, feats = ringwatch.evaluate(account_id)
+            hit = (ringwatch.score(signals) >= RINGWATCH_FLAG,
+                   float(feats.get("forwarded_fraction") or 0.0) >= FORWARDING_MIN or feats.get("role") is not None
+                   or any(x.rule_id == "NET_CIRCULAR" for x in signals))
+            _STRUCT["v"][account_id] = hit
+        return hit
+    except Exception:  # never raise on the posting hook
+        return (False, True)
+
+
+def structural(account_id: str) -> bool:
+    """RingWatch (the payment engine's transparent network rules) at or above RINGWATCH_FLAG."""
+    return _rw(account_id)[0]
+
+
+def onward(account_id: str) -> bool:
+    """The account moves received money on (mule structure) — see consensus.forwards_money."""
+    return _rw(account_id)[1]
+
+
+def _gates(account_id: str, risk: float | None, fam: str | None, flagging: list[str], threshold: float) -> dict[str, bool]:
+    """Evaluate the RingWatch-backed gates only when they can change the answer."""
+    model_route = risk is not None and risk >= threshold and any(f != fam for f in flagging)
+    return {"structural": len(flagging) >= 2 and structural(account_id),
+            "onward": onward(account_id) if model_route else True}
+
+
 def detector_status(snap: live.Snapshot, account_id: str, threshold: float) -> tuple[str | None, str]:
     """flagged / early_warning / None from the detector snapshot alone (no Vigil state), with its reason."""
     risk, fam = model_evidence(snap, account_id)
     flagging = _flagging(snap, account_id)
-    status = classify(risk, fam, flagging, threshold)
+    status = classify(risk, fam, flagging, threshold, **_gates(account_id, risk, fam, flagging, threshold))
     return status, detector_reason(snap, account_id, threshold, status, risk, fam, flagging)
 
 
@@ -163,9 +211,12 @@ def detector_reason(snap: live.Snapshot, account_id: str, threshold: float, stat
                     risk: float | None, fam: str | None, flagging: list[str]) -> str:
     """One-line reason for a detector status (built only when needed: status changes and status_map())."""
     others = [f for f in flagging if f != fam]
-    if status == "flagged":
+    if status == "flagged" and risk is not None and fam and risk >= threshold and others:
         return (f"Model evidence {risk:.2f} ({SHORT[fam]}) >= live threshold {threshold:.2f}, "
                 f"corroborated by {', '.join(SHORT[f] for f in others)}")
+    if status == "flagged":
+        return (f"Operational network rule (RingWatch) fired, corroborated by {len(flagging)} independent families: "
+                f"{', '.join(SHORT[f] for f in flagging)}")
     if status is None or not flagging:
         return ""
     detail = []
@@ -182,7 +233,10 @@ def detector_reason(snap: live.Snapshot, account_id: str, threshold: float, stat
             detail.append(SHORT[f])
     if set(flagging) <= {"early_warning", "drift"}:
         return f"Behaviour change: {', '.join(detail)} — not mule evidence on its own"
-    if risk is not None and risk >= threshold:
+    if risk is not None and risk >= threshold and others:
+        tail = (f"model evidence {risk:.2f} is above the live threshold, but the account does not move received money on "
+                "(paying out of its own balance is not mule structure)")
+    elif risk is not None and risk >= threshold:
         tail = f"model evidence {risk:.2f} has no other family's corroboration"
     elif risk is not None:
         tail = f"model evidence {risk:.2f} is below the live threshold {threshold:.2f}"
@@ -267,7 +321,7 @@ def _compute(snap: live.Snapshot, now_t: float, held: dict[str, str], confirmed:
             if fl:
                 flagging = [f for f in live.INTEL_FAMILIES if fl.get(f)]
             if flagging:
-                det = classify(risk, fam, flagging, T)
+                det = classify(risk, fam, flagging, T, **_gates(a, risk, fam, flagging, T))
         age = None
         if a in confirmed:
             status = "confirmed_fraud"

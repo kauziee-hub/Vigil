@@ -12,6 +12,9 @@ Consensus semantics (DetectorConsensus; consensus-v2.1):
   agreement: none (0 flagging) · weak (1) · moderate (2-3) · strong (>= 4), with one cap:
   agreement above "weak" needs at least one MULE-EVIDENCE family (structural / model: random_forest, gnn,
   pattern_memory, ringwatch; or the external registry listing the account as reported / confirmed mule).
+  consensus-v2.2: a MODEL family (RF / GNN) counts as mule evidence only when the account forwards received
+  money (RingWatch forwarded fraction >= FORWARDING_MIN or a RingWatch flow role) — a scam victim paying out
+  of their own balance is not mule structure, whatever the model says.
   Change and heuristic families (drift, early_warning, rules) and payment-journey families (trailscore,
   context) can corroborate mule evidence but cannot create agreement on their own: a salary arriving and
   rent leaving in the same 72 h trips drift + early warning on any salaried customer, and rules + early
@@ -47,7 +50,7 @@ SHORT = {"rules": "rules", "random_forest": "RF", "gnn": "GNN", "drift": "drift"
 CORROBORATION_ORDER = ("random_forest", "gnn", "rules", "early_warning", "drift", "pattern_memory")
 RINGWATCH_FLAG = 0.4            # the score at which the scenarios' "RingWatch scan" lists an account
 SYNTHETIC_CAVEAT = "SYNTHETIC VALIDATION — trained and calibrated on computer-generated worlds; not real-bank accuracy."
-CONSENSUS_VERSION = "consensus-v2.1"
+CONSENSUS_VERSION = "consensus-v2.2"
 
 # Families whose flag is evidence of mule STRUCTURE or mule IDENTITY. Validated on test worlds for RF, GNN and
 # pattern memory (ML_VALIDATION_REPORT §7); RingWatch (the payment engine's network rules) and the SIMULATED
@@ -83,11 +86,43 @@ def _names(fams: Iterable[str]) -> str:
     return ", ".join(SHORT.get(f, f) for f in fams)
 
 
+MODEL_FAMILIES = frozenset({"random_forest", "gnn"})
+FORWARDING_MIN = 0.3            # share of window inflow moved on within RingWatch's pass-through minutes
+
+
+def forwards_money(results: Iterable[DetectorResult]) -> bool | None:
+    """Does the account move RECEIVED money on? (RingWatch features; None when RingWatch did not evaluate.)
+
+    Every mule pattern receives and forwards (collector, pass-through, distributor, chain, ring, dormant
+    wake-up, smurfing). A scam VICTIM pays out of their own balance — large, to a new payee — which a model
+    trained on windowed features can mistake for mule behaviour. Same principle as RingWatch's labelled-
+    neighbour rule: follow the money downstream; paying into a scam is not evidence against you."""
+    for r in results:
+        if r.family == "ringwatch" and r.status == "ok":
+            d = r.detail or {}
+            if "forwarded_fraction" not in d:        # flow not measured → unknown, never a reason to downgrade
+                return None
+            return (float(d.get("forwarded_fraction") or 0.0) >= FORWARDING_MIN or d.get("role") is not None
+                    or "NET_CIRCULAR" in (d.get("rules") or []))      # part of a closed money loop
+    return None
+
+
+def _mule_evidence(flagging: list[DetectorResult], results: list[DetectorResult]) -> bool:
+    """consensus-v2.2: structural families count as mule evidence on their own; MODEL families (RF / GNN)
+    count only when the account forwards received money (or RingWatch could not evaluate it)."""
+    if any(r.family in MULE_EVIDENCE_FAMILIES - MODEL_FAMILIES for r in flagging):
+        return True
+    if any(r.family in MODEL_FAMILIES for r in flagging):
+        return forwards_money(results) is not False
+    return False
+
+
 def summarise(results: Iterable[DetectorResult]) -> DetectorConsensus:
+    results = list(results)
     ok = [r for r in results if r.status == "ok"]
     flagging = [r for r in ok if r.flagged]
     n, m = len(flagging), len(ok)
-    evidence = any(r.family in MULE_EVIDENCE_FAMILIES for r in flagging)
+    evidence = _mule_evidence(flagging, ok)
     if m == 0:
         summary = "No detector family could evaluate this account"
     elif n == 0:
@@ -95,8 +130,9 @@ def summarise(results: Iterable[DetectorResult]) -> DetectorConsensus:
     elif n == 1:
         summary = f"1 of {m} signal families flags this account ({SHORT[flagging[0].family]}) — uncorroborated"
     elif not evidence:
-        kinds = [k for k, fams in (("behaviour-change", CHANGE_FAMILIES), ("rule-heuristic", {"rules"}),
-                                   ("payment-journey", JOURNEY_FAMILIES)) if any(r.family in fams for r in flagging)]
+        kinds = [k for k, fams in (("model (no onward money flow)", MODEL_FAMILIES), ("behaviour-change", CHANGE_FAMILIES),
+                                   ("rule-heuristic", {"rules"}), ("payment-journey", JOURNEY_FAMILIES))
+                 if any(r.family in fams for r in flagging)]
         what = ((", ".join(kinds[:-1]) + " and " + kinds[-1]) if len(kinds) > 1 else (kinds or ["non-structural"])[0]) \
             + " signals only"
         summary = (f"{n} of {m} signal families flag this account ({_names(r.family for r in flagging)}) — {what}, "
@@ -202,7 +238,8 @@ def ringwatch_result(account_id: str, observed_at: str) -> DetectorResult:
             family="ringwatch", label=LABELS["ringwatch"], value=_r(score), display=f"{score:.2f}", kind="score",
             flagged=score >= RINGWATCH_FLAG, version=version, observed_at=observed_at,
             detail={"rules": [s.rule_id for s in signals], "labels": [s.label for s in signals], "threshold": RINGWATCH_FLAG,
-                    "role": feats.get("role"), "note": "Transparent policy rules (the payment engine's network dimension)."})
+                    "role": feats.get("role"), "forwarded_fraction": feats.get("forwarded_fraction", 0.0),
+                    "note": "Transparent policy rules (the payment engine's network dimension)."})
     except Exception as exc:  # pragma: no cover - defensive
         return _unavailable("ringwatch", "score", version, observed_at, f"{type(exc).__name__}: {exc}")
 

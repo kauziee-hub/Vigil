@@ -33,6 +33,14 @@ def gate(flags: Mapping[str, bool]) -> tuple[bool, str]:
     on = [f for f in ACCOUNT_FAMILIES if flags.get(f)]
     if len(on) < ROLE_MIN_FAMILIES:
         return False, NO_FLAG_REASON
+    # consensus-v2.2: model families alone are not mule structure for an account measured NOT to move received
+    # money on ("_onward" is False only when RingWatch measured the flow; absent/None never downgrades)
+    if (flags.get("_onward") is False and set(on) & {"random_forest", "gnn"}
+            and not set(on) & (MULE_EVIDENCE_FAMILIES - {"random_forest", "gnn"})):
+        names = ", ".join(SHORT.get(f, f) for f in on)
+        return False, (f"Flagged by {names}, but the account does not move received money on — paying out of its own "
+                       "balance (as a scam victim does) is not mule structure. Roles are only assigned inside "
+                       "corroborated mule structure.")
     if not set(on) & MULE_EVIDENCE_FAMILIES:
         names = ", ".join(SHORT.get(f, f) for f in on)
         lead = (f"Behaviour changed ({names})" if set(on) <= CHANGE_FAMILIES

@@ -15,6 +15,13 @@ def _n(snap, a):
     return sum(snap.flags[a].values())
 
 
+def _n8(snap, a):
+    """Families agreeing in the platform's account consensus: the six intel families + RingWatch + registry."""
+    from vigil.intel import consensus, live
+    fl = live.role_flags(snap).get(a) or {}
+    return sum(1 for f in consensus.ACCOUNT_FAMILIES if fl.get(f))
+
+
 def _ordinary(db, exclude=()):
     rows = db.q("SELECT id FROM accounts WHERE kind = 'customer' AND seed_role = 'legit' AND is_demo_customer = 0")
     return [r["id"] for r in rows if r["id"] not in set(exclude)]
@@ -44,8 +51,15 @@ def test_s2_mule_ring_flagged_by_three_or_more_families(world):
     ordinary = _ordinary(world, exclude=scenarios.touched_accounts("s2"))
     assert not [a for a in ordinary if _n(snap, a) >= 2]
     assert sum(1 for a in ordinary if _n(snap, a) >= 1) <= 0.05 * len(ordinary)
-    # victims paid INTO the ring: they are never corroborated as mules
-    assert all(_n(snap, v) <= 1 for v in seed.VICTIMS)
+    # victims paid INTO the ring: they are never corroborated as mules (world v3: the RF may still raw-flag a
+    # victim's large first-time outflow; consensus-v2.2 keeps it uncorroborated, role-less and never "flagged")
+    from vigil.intel import service, stream
+    sm = stream.status_map()
+    for v in seed.VICTIMS:
+        intel = service.account_intel(v)
+        assert intel.consensus.agreement in ("none", "weak"), (v, intel.consensus.summary)
+        assert intel.role.role == "unclassified", (v, intel.role.reason)
+        assert (sm.get(v) or {}).get("status") != "flagged", v
 
 
 @pytest.mark.parametrize("sid", ["atk_fan_in", "atk_fan_out", "atk_circular", "atk_velocity_chain",
@@ -57,7 +71,8 @@ def test_each_attack_pattern_is_corroborated_without_spill_over(world, sid):
     scenarios.run_sync(sid)
     snap = live.build()
     touched = scenarios.touched_accounts(sid)
-    assert max(_n(snap, a) for a in touched if a in snap.flags) >= 3
+    # corroboration as the platform reports it (8 account families incl. RingWatch); spill-over check unchanged
+    assert max(_n8(snap, a) for a in touched if a in snap.flags) >= 3
     cast = {"kiran.traders@vigil", "zenith.exports@vigil", *seed.DOWNSTREAM}
     spill = [a for a in snap.ids if a not in touched and a not in cast and _n(snap, a) >= 2]
     assert spill == []
