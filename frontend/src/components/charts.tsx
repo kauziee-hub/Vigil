@@ -2,11 +2,12 @@
 // updates in place (update("none")) at most once per second regardless of how often its data changes.
 import { useEffect, useRef, type ReactNode } from "react";
 import type { Chart, ChartConfiguration, ChartData, ChartOptions, ChartType } from "chart.js";
+import { withChunkReload } from "../lib/chunks";
 
 let lib: Promise<typeof import("chart.js")> | null = null;
 function loadChart() {
   if (!lib) {
-    lib = import("chart.js").then((m) => {
+    lib = withChunkReload(() => import("chart.js")).then((m) => {
       m.Chart.register(...m.registerables);
       m.Chart.defaults.font.family = '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';
       m.Chart.defaults.font.size = 11;

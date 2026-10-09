@@ -9,7 +9,23 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
-## Status: v3 live platform — in progress (updated 2026-10-07 09:45 IST)
+## Status: v4 professional UI — done by Claude 1 alone (updated 2026-10-09 10:30 IST)
+
+User direction 2026-10-09 (`prompts/06_USER_professional_ui_2026-10-09.md`): not the green UI; professional, mature, neat; fully functional, nothing fake.
+
+| Area | Where | State |
+|---|---|---|
+| v3 agents (stopped by usage limit 10-07) recovered + merged | `claude3/v3-run2-wip` → `a8be146`; `claude2/v3-run2-wip` → `99c4955` | ✅ |
+| Design system v4 (graphite, steel-blue accent, IBM Plex, flat hairline, sentence case, icon nav, light theme) | `8c10d32`, `docs/DESIGN_SYSTEM.md` §v4 | ✅ every area reviewed at 1600×1000 + contact at 390 px |
+| Honesty: SHAP signed categories; exact tier mix; one heading per panel | `85a6c73`, `97437db` | ✅ |
+| Detection consensus-v2.2 (structural flagged route; model evidence needs onward flow) | `d071d56`, `docs/ML_VALIDATION_REPORT.md` §10.x | ✅ live: circular 4/4, fan-in 1/1, drift 1/1, s2 3/4, 0 FP; victims weak/no role |
+| Perf: RingWatch scan 228→44 ms; reset re-warms intel | `f230e09` | ✅ |
+| Functional audit (Playwright on the real backend) | run record `runs/20261009-0013_claude1_v4-professional-ui.md` | ✅ 15 routes, 0 console/API errors; every control exercised |
+| Razorpay | `.env` | ⚠️ keys rejected → mock provider (needs fresh `rzp_test_` keys) |
+
+Demo note: payments made from Transaction Guard use the real clock, so after midnight Act 2 is Tier 3 (unusual-hour +0.05 crosses 0.42); during the day it is Tier 2. Scripted scenarios pin 14:00.
+
+## Status: v3 live platform — superseded by v4 (updated 2026-10-07 09:45 IST)
 
 User direction 2026-10-07 (`prompts/04_USER_refined_mule_repo_2026-10-07.md`): match/beat the refined money-mule repo's live 3D transaction universe, analytics and look, keeping every PRIMA feature.
 
@@ -103,3 +119,4 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-07 08:45–09:30 Claude 1 — v3: reviewed the refined repo (screenshots `docs/reference_refined/`), froze v3 contracts + plan + prompts (`9bbd08e`), launched Claude 2/3 v3 (08:59), world v3 (`d3bc3d3`), live backend (`0f8976a`), TaintTrace v3 (`5acf440`, 2,026 → 13 ms); server restarted 09:29:59.
 - 2026-10-07 ~09:30 — third session restart killed both v3 agents. 09:33 user: "continue" (`prompts/05_USER_continue_2026-10-07_0933.md`).
 - 2026-10-07 09:35–09:42 Claude 1 — recovered: Claude 3 WIP committed (`4f842af`, tsc ok) → `claude3/v3-run1-wip`; Claude 2 had no uncommitted work → `claude2/v3-run1-wip`; orphaned Vite :5181 stopped; worktrees removed; run records closed as INTERRUPTED; resume prompts saved; both relaunched as v3 run 2 (`6fb1b51`).
+- 2026-10-09 00:13–10:30 Claude 1 — v4 (alone; agents stopped by usage limit): recovered + merged v3 work, design system v4, Overview restructure, SHAP honesty fix, consensus-v2.2 detection fixes, RingWatch perf, Playwright functional audit. See `runs/20261009-0013_claude1_v4-professional-ui.md`.

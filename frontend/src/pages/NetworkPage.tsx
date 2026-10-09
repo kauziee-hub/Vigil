@@ -18,6 +18,7 @@ import { LiveUniverse3D, UniverseLegend, type UniverseInfo, type UniverseMode } 
 import { UniverseDrawer } from "../components/UniverseDrawer";
 import { formatINR, formatStamp, formatTime, handle } from "../lib/format";
 import { ROLE_SHAPE, SHAPE_ICON, evidenceFromScene, nodeStatus, roleKey, sceneFromEvidence } from "../lib/graphStyle";
+import { withChunkReload } from "../lib/chunks";
 import { useDebounced, useLoad } from "../lib/hooks";
 import { ROLE_LABEL, STATUS_HEX, STATUS_LABEL, scoreStatus, type Status } from "../lib/status";
 
@@ -28,7 +29,7 @@ const MODES: [Mode, string][] = [
 ];
 const MODEL_MODES = new Set<Mode>(["gnn", "rules", "ml"]);
 // The 2D fallback (Cytoscape) is only fetched when someone switches to 2D — the 3D page stays lighter.
-const EvidenceGraph = lazy(() => import("../components/EvidenceGraph").then((m) => ({ default: m.EvidenceGraph })));
+const EvidenceGraph = lazy(() => withChunkReload(() => import("../components/EvidenceGraph")).then((m) => ({ default: m.EvidenceGraph })));
 const CAPS = [40, 60, 100, 200, 400];
 
 // ── scene cache (module-level: survives navigation away and back) ─────────────

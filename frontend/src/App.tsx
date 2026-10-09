@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { Loading } from "./components/ui";
+import { withChunkReload } from "./lib/chunks";
 import { AccountPage } from "./pages/AccountPage";
 import { CasePage } from "./pages/CasePage";
 import { ContactPage } from "./pages/ContactPage";
@@ -17,8 +18,8 @@ import { RecordPage } from "./pages/RecordPage";
 import { ScenarioLabPage } from "./pages/ScenarioLabPage";
 
 // Network Intelligence carries three.js + Cytoscape: code-split so every other page stays light.
-const OverviewPage = lazy(() => import("./pages/OverviewPage").then((m) => ({ default: m.OverviewPage })));
-const NetworkPage = lazy(() => import("./pages/NetworkPage").then((m) => ({ default: m.NetworkPage })));
+const OverviewPage = lazy(() => withChunkReload(() => import("./pages/OverviewPage")).then((m) => ({ default: m.OverviewPage })));
+const NetworkPage = lazy(() => withChunkReload(() => import("./pages/NetworkPage")).then((m) => ({ default: m.NetworkPage })));
 
 /** Old v1 routes → their v2 homes (FINAL_PARALLEL_PLAN §1). */
 function Redirect({ to }: { to: (p: Record<string, string | undefined>) => string }) {

@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## v4 — professional UI + functional audit (2026-10-09, Claude 1)
+
+User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): not the green UI; professional, mature, neat; fully functional, nothing fake.
+
+- **Recovery:** both v3 run-2 agents were stopped by the account usage limit. Their work was recovered (`claude2/v3-run2-wip`, `claude3/v3-run2-wip`) and merged (`a8be146`, `99c4955`).
+- **Design system v4** (`8c10d32`): neutral graphite field, one steel-blue accent, IBM Plex Sans/Mono, flat hairline panels, 3–8 px radii, sentence case, icon navigation, a real light theme. No gradients, glow, blur, starfield or green. `docs/DESIGN_SYSTEM.md` §v4.
+- **Overview restructured:** compact header instead of a hero; one 8-metric strip instead of 12 tiles plus a band; the live transaction network above the fold beside "Needs attention"; attack results grouped with the command center; exact tier-mix counts instead of a rounded "100% zero-friction".
+- **Honesty fixes:** the SHAP category chart showed unsigned magnitudes as red "risk" bars, so a pensioner whose model score was pushed *down* read as "Value Risk". It now uses a signed `category_net` and a diverging chart (`85a6c73`). One heading per panel; no numbered crumbs.
+- **Detection (consensus-v2.2, `d071d56`):** structural route to live "flagged" (RingWatch ≥ 0.40 plus ≥ 2 intel families); model evidence needs onward money flow (victims are never corroborated, given roles or flagged). Live Scenario-lab runs: circular ring 0/4 → 4/4, fan-in 1/1, behavioural drift 1/1, 0 false positives. `docs/ML_VALIDATION_REPORT.md` §10.x.
+- **Performance** (`f230e09`): RingWatch population scan 228 → 44 ms on world v3, exact (equivalence over 561 accounts × 3 times). Demo reset re-warms intel, so the first payment after a reset takes 17 ms (was 675 ms).
+- **Functional audit (Playwright, real backend):** 15 routes with 0 console errors, 0 API errors and 0 crashes. Every control exercised end to end: payments (Act 1/2), reset, release, reject, Lab start/pause/resume/replay/compare, trusted-contact response, shadow ↔ active, pause/resume traffic.
+
 ## v2 — platform build (in progress, 2026-10-06/07)
 
 ### Claude 1 (lead)
