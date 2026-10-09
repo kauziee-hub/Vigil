@@ -167,7 +167,8 @@ def _rw(account_id: str) -> tuple[bool, bool]:
     try:
         from vigil.intel.consensus import FORWARDING_MIN, RINGWATCH_FLAG
         from vigil.risk import ringwatch, taint
-        key = (live.GRAPH.version, taint._cache_key())
+        # graph version restarts after every reseed: include the edge-store identity (new per reload)
+        key = (live.GRAPH.version, id(live.GRAPH.in_edges), taint._cache_key())
         if _STRUCT["key"] != key:
             _STRUCT["key"], _STRUCT["v"] = key, {}
         hit = _STRUCT["v"].get(account_id)

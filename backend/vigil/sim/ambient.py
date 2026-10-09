@@ -29,7 +29,8 @@ from vigil.sim.seed import VICTIMS
 
 EXCLUDE_ROLES = ("mule_collector", "mule_layer", "mule_downstream", "coercion_beneficiary", "known_mule")
 STATE = {"enabled": False, "task": None, "count": 0, "errors": 0, "skipped": 0}
-_rng = random.Random(7)
+RNG_SEED = 7
+_rng = random.Random(RNG_SEED)
 WINDOW_H = 72
 BASELINE_DAYS = 45
 CANDIDATES_PER_TICK = 8
@@ -66,6 +67,7 @@ def _people() -> list[str]:
     """Ordinary customers eligible to pay (cached per seed)."""
     epoch = db.get_meta("seeded_at")
     if _PEOPLE["epoch"] != epoch:
+        _rng.seed(RNG_SEED)          # a new world replays the same background stream (deterministic after reset)
         rows = db.q(
             "SELECT id FROM accounts WHERE kind = 'customer' AND is_demo_customer = 0 AND seed_role = 'legit' "
             "AND (persona IS NULL OR persona != 'merchant') ORDER BY id")
