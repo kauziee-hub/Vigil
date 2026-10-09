@@ -252,11 +252,13 @@ export function OverviewPage() {
       <div className="grid cols-2 align-start section-gap">
         <CommandCenter scenarios={scen.data} runs={runs.data} runsUnavailable={runs.unavailable} selected={scenarioId}
                        onSelect={setScenarioId} onChanged={() => { scen.reload(); }} />
-        <AttackSubgraph scenario={attackScenario} statusOf={statusOf} />
+        <div className="stack">
+          <AttackSubgraph scenario={attackScenario} statusOf={statusOf} />
+          <LastAttackResult runs={runs.data} unavailable={runs.unavailable} />
+        </div>
       </div>
 
-      <div className="grid cols-2 align-start section-gap">
-        <LastAttackResult runs={runs.data} unavailable={runs.unavailable} />
+      <div className="section-gap">
         <AttackHistory runs={runs.data} unavailable={runs.unavailable}
                        onPick={(r) => { setScenarioId(r.scenario_id); setFocus({ ids: r.injected, seq: Date.now() }); }} />
       </div>

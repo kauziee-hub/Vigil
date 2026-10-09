@@ -159,7 +159,11 @@ export function Shell({ children }: { children: ReactNode }) {
     try { localStorage.setItem("vigil-theme", theme); } catch { /* ignore */ }
   }, [theme]);
 
-  const gwBad = health?.gateway?.status === "auth_failed";
+  // any gateway problem is shown, not only rejected keys (a probe can also fail with HTTP 429 / be unreachable)
+  const gwStatus = health?.gateway?.status;
+  const gwBad = gwStatus === "auth_failed" || gwStatus === "error" || gwStatus === "unreachable";
+  const gwText = gwStatus === "auth_failed" ? "gateway keys rejected" : gwStatus === "unreachable" ? "gateway unreachable"
+    : `gateway check failed${health?.gateway?.detail ? ` (${health.gateway.detail})` : ""}`;
   const open = metrics?.open_interventions ?? 0;
   const shadow = mode?.mode === "shadow";
 
@@ -201,7 +205,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="strip-item" title={health?.payment_provider_label}>
               <span className="k">Payments</span>
               <span className="v">{health ? (health.payment_provider === "razorpay_test" ? "Razorpay TEST" : "Mock") : "…"}</span>
-              {gwBad && <span className="pill s-watch nodot" title={health?.gateway?.detail}>gateway keys rejected</span>}
+              {gwBad && <span className="pill s-watch nodot" title={health?.gateway?.detail}>{gwText}</span>}
             </div>
             <div className="strip-item" title="Realtime push channel (WebSocket)">
               <span className="k">Realtime</span>
