@@ -36,8 +36,29 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    _migrate(conn)
     _conn = conn
     return conn
+
+
+# v10: additive, nullable columns for databases created before overview-v10 (fresh DBs get them from schema.sql).
+V10_COLUMNS = {
+    "accounts": [("home_city", "TEXT"), ("home_lat", "REAL"), ("home_lng", "REAL"), ("opened_via", "TEXT"),
+                 ("opened_city", "TEXT")],
+    "transactions": [("geo_city", "TEXT"), ("geo_lat", "REAL"), ("geo_lng", "REAL"), ("geo_basis", "TEXT"),
+                     ("geo_accuracy_m", "INTEGER"), ("peer_geo_city", "TEXT"), ("peer_geo_lat", "REAL"),
+                     ("peer_geo_lng", "REAL")],
+}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, cols in V10_COLUMNS.items():
+        have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        for name, typ in cols:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_ts ON transactions(ts)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_tx_geo_city ON transactions(geo_city)")
 
 
 def conn() -> sqlite3.Connection:
@@ -125,7 +146,7 @@ def set_meta(key: str, value: str) -> None:
 
 
 ALL_TABLES = (
-    "watchlist", "intent_transitions", "circuit_breaker_events", "scoped_holds", "alerts",
+    "copilot_messages", "copilot_threads", "copilot_incidents", "watchlist", "intent_transitions", "circuit_breaker_events", "scoped_holds", "alerts",
     "risk_decisions", "payment_attempts", "transaction_intents", "fraud_labels",
     "taint_runs", "scenario_runs", "events", "payees", "account_devices",
     "trusted_contacts", "external_intel", "transactions", "accounts", "meta",

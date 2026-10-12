@@ -34,6 +34,16 @@ async def lifespan(_app: FastAPI):
     created = seed.ensure_seeded()
     if created:
         log.warning("Seeded demo database: %s", created)
+    # v10: simulated-location reference data + idempotent backfills; onboarding cohort for pre-v10 databases
+    from vigil import geo
+    from vigil.sim import cohort_v10
+    geo.load_reference()
+    if cohort_v10.ensure():
+        log.warning("Added the v10 onboarding cohort to an existing demo database")
+    geo.backfill_accounts()
+    stamped = geo.backfill_transactions()
+    if stamped:
+        log.warning("Stamped simulated locations on %s earlier postings", stamped)
     if INTEL_AVAILABLE:
         # load model artefacts + live feature cache once, on the event-loop thread (single-threaded
         # DB access), so the first payment's corroboration lookup is not the cold load

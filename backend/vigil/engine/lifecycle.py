@@ -135,7 +135,7 @@ def create(req: CreateIntentRequest, *, auto_pay: bool | None = None) -> tuple[T
         intent_id = db.next_id("INT")
         db.insert("transaction_intents", {
             "id": intent_id, "sender_id": req.sender_id, "recipient_id": req.recipient_id,
-            "amount_paise": req.amount_paise, "note": req.note, "channel": "upi",
+            "amount_paise": req.amount_paise, "note": req.note, "channel": req.channel,
             "device_id": req.device_id or sender["primary_device"], "source": req.source,
             "state": S.CREATED.value, "created_at": now, "updated_at": now,
         })
@@ -373,7 +373,8 @@ def _settle(intent_id: str, payment_ref: str | None, label: str) -> TransactionI
     before = ringwatch.score(before_signals)
     with db.tx():
         tx = ledger.post(sender_id=row["sender_id"], recipient_id=recipient, amount_paise=int(row["amount_paise"]),
-                         note=row["note"], intent_id=intent_id, source=row["source"], device_id=row["device_id"])
+                         note=row["note"], intent_id=intent_id, source=row["source"], device_id=row["device_id"],
+                         channel=row["channel"] or "upi")
         db.execute("UPDATE payment_attempts SET status='succeeded', provider_payment_id=COALESCE(provider_payment_id, ?), "
                    "updated_at=? WHERE intent_id=? AND status != 'failed'", (payment_ref, clock.now_iso(), intent_id))
         _transition(intent_id, S.PAYMENT_SUCCEEDED, "provider", f"{label}. Ledger posting {tx['id']} (seq {tx['seq']}).",

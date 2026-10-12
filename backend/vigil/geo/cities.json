@@ -1,0 +1,31 @@
+{
+  "note": "Reference city centres for SIMULATED locations (overview-v10). Coordinates are approximate city centres (WGS84, decimal degrees). Foreign points are neutral destinations for international wires only.",
+  "cities": [
+    {"city": "Mumbai",      "state": "Maharashtra",     "country": "IN", "lat": 19.076, "lng": 72.878, "tier": 1, "kind": "domestic", "land_bearing": [0, 110],  "radius_km": 4.0},
+    {"city": "Delhi",       "state": "Delhi",           "country": "IN", "lat": 28.614, "lng": 77.209, "tier": 1, "kind": "domestic"},
+    {"city": "Bengaluru",   "state": "Karnataka",       "country": "IN", "lat": 12.972, "lng": 77.594, "tier": 1, "kind": "domestic"},
+    {"city": "Chennai",     "state": "Tamil Nadu",      "country": "IN", "lat": 13.083, "lng": 80.270, "tier": 1, "kind": "domestic", "land_bearing": [180, 350], "radius_km": 5.0},
+    {"city": "Hyderabad",   "state": "Telangana",       "country": "IN", "lat": 17.385, "lng": 78.487, "tier": 1, "kind": "domestic"},
+    {"city": "Kolkata",     "state": "West Bengal",     "country": "IN", "lat": 22.573, "lng": 88.364, "tier": 1, "kind": "domestic"},
+    {"city": "Pune",        "state": "Maharashtra",     "country": "IN", "lat": 18.520, "lng": 73.857, "tier": 2, "kind": "domestic"},
+    {"city": "Ahmedabad",   "state": "Gujarat",         "country": "IN", "lat": 23.023, "lng": 72.572, "tier": 2, "kind": "domestic"},
+    {"city": "Jaipur",      "state": "Rajasthan",       "country": "IN", "lat": 26.912, "lng": 75.787, "tier": 2, "kind": "domestic"},
+    {"city": "Lucknow",     "state": "Uttar Pradesh",   "country": "IN", "lat": 26.847, "lng": 80.947, "tier": 2, "kind": "domestic"},
+    {"city": "Kochi",       "state": "Kerala",          "country": "IN", "lat": 9.932,  "lng": 76.267, "tier": 2, "kind": "domestic", "land_bearing": [20, 160],  "radius_km": 4.0},
+    {"city": "Coimbatore",  "state": "Tamil Nadu",      "country": "IN", "lat": 11.017, "lng": 76.956, "tier": 2, "kind": "domestic"},
+    {"city": "Surat",       "state": "Gujarat",         "country": "IN", "lat": 21.170, "lng": 72.831, "tier": 2, "kind": "domestic"},
+    {"city": "Nagpur",      "state": "Maharashtra",     "country": "IN", "lat": 21.146, "lng": 79.088, "tier": 2, "kind": "domestic"},
+    {"city": "Indore",      "state": "Madhya Pradesh",  "country": "IN", "lat": 22.720, "lng": 75.857, "tier": 3, "kind": "domestic"},
+    {"city": "Bhopal",      "state": "Madhya Pradesh",  "country": "IN", "lat": 23.259, "lng": 77.413, "tier": 3, "kind": "domestic"},
+    {"city": "Madurai",     "state": "Tamil Nadu",      "country": "IN", "lat": 9.925,  "lng": 78.120, "tier": 3, "kind": "domestic"},
+    {"city": "Vellore",     "state": "Tamil Nadu",      "country": "IN", "lat": 12.916, "lng": 79.133, "tier": 3, "kind": "domestic"},
+    {"city": "Patna",       "state": "Bihar",           "country": "IN", "lat": 25.594, "lng": 85.138, "tier": 3, "kind": "domestic"},
+    {"city": "Chandigarh",  "state": "Chandigarh",      "country": "IN", "lat": 30.733, "lng": 76.779, "tier": 3, "kind": "domestic"},
+    {"city": "Bhubaneswar", "state": "Odisha",          "country": "IN", "lat": 20.296, "lng": 85.825, "tier": 3, "kind": "domestic"},
+    {"city": "Guwahati",    "state": "Assam",           "country": "IN", "lat": 26.144, "lng": 91.736, "tier": 3, "kind": "domestic"},
+    {"city": "Dubai",       "state": "Dubai",           "country": "AE", "lat": 25.205, "lng": 55.271,  "tier": 0, "kind": "foreign"},
+    {"city": "Singapore",   "state": "Singapore",       "country": "SG", "lat": 1.352,  "lng": 103.820, "tier": 0, "kind": "foreign"},
+    {"city": "London",      "state": "England",         "country": "GB", "lat": 51.507, "lng": -0.128,  "tier": 0, "kind": "foreign"},
+    {"city": "Hong Kong",   "state": "Hong Kong",       "country": "HK", "lat": 22.320, "lng": 114.169, "tier": 0, "kind": "foreign"}
+  ]
+}

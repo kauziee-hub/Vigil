@@ -85,10 +85,12 @@ def seed(anchor: datetime | None = None) -> dict[str, Any]:
 
 
 def _seed(anchor: datetime | None = None) -> dict[str, Any]:
+    from vigil import geo
     rng = random.Random(SEED)
     anchor = anchor or clock.now()
     db.wipe()
     taint.invalidate()
+    geo.HINTS.clear()
 
     def at(**delta: float) -> str:
         return clock.iso(anchor - timedelta(**delta))
@@ -253,10 +255,17 @@ def _seed(anchor: datetime | None = None) -> dict[str, Any]:
         db.set_meta("seeded_at", clock.iso(anchor))
         db.set_meta("seed", str(SEED))
 
+    # v10: legitimate onboarding cohort + new external sink, appended after the main seed (own RNG, own ids)
+    from vigil import geo
+    from vigil.sim import cohort_v10
+    cohort = cohort_v10.build(anchor)
+    geo.backfill_accounts()
+
     GRAPH.load()
     taint.invalidate()
     return {"accounts": int(db.scalar("SELECT COUNT(*) FROM accounts")), "transactions": posted,
-            "skipped": skipped, "anchor": clock.iso(anchor), "system_total_paise": ledger.system_total()}
+            "skipped": skipped, "cohort_v10": cohort, "anchor": clock.iso(anchor),
+            "system_total_paise": ledger.system_total()}
 
 
 def ensure_seeded() -> dict[str, Any] | None:

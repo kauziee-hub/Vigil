@@ -60,6 +60,15 @@ def _within_routine(account_id: str, merchant: bool = False) -> bool:
     return current + 1 <= (busiest * MERCHANT_ALLOWANCE if merchant else busiest)
 
 
+def rail_for(account_id: str) -> str:
+    """v10: each customer pays shops over ONE habitual rail — UPI (70 %) or card (30 %) — chosen from a hash of the
+    account id, never from the seeded RNG. With the seeded history on UPI, no ordinary account or merchant ever
+    uses more than two rails, so the detectors' multi-channel signal (≥ 3 rails) cannot be triggered by this."""
+    import hashlib
+    h = int.from_bytes(hashlib.sha256(f"rail|{account_id}".encode()).digest()[:4], "big") / 2 ** 32
+    return "card" if h < 0.30 else "upi"
+
+
 _PEOPLE: dict[str, list[str]] = {"ids": [], "epoch": None}
 
 
@@ -71,7 +80,9 @@ def _people() -> list[str]:
         rows = db.q(
             "SELECT id FROM accounts WHERE kind = 'customer' AND is_demo_customer = 0 AND seed_role = 'legit' "
             "AND (persona IS NULL OR persona != 'merchant') ORDER BY id")
-        excluded = set(VICTIMS) | {"dormant.savings@vigil"}
+        from vigil.sim import cohort_v10
+        # the v10 cohort is not part of the background stream: the seeded stream replays exactly as before v10
+        excluded = set(VICTIMS) | {"dormant.savings@vigil"} | set(cohort_v10.account_ids())
         _PEOPLE.update(ids=[r["id"] for r in rows if r["id"] not in excluded], epoch=epoch)
     return _PEOPLE["ids"]
 
@@ -111,7 +122,7 @@ def _tick() -> None:
     amount = max(1_000, int((row["typical"] or 50_000) * _rng.uniform(0.75, 1.25)) // 100 * 100)
     try:
         lifecycle.create(CreateIntentRequest(sender_id=row["account_id"], recipient_id=row["payee_id"],
-                                             amount_paise=amount, source="ambient"))
+                                             amount_paise=amount, source="ambient", channel=rail_for(row["account_id"])))
         STATE["count"] += 1
     except VigilError:
         STATE["errors"] += 1

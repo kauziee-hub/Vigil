@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vigil import clock, db
+from vigil import clock, db, geo
 from vigil.engine import hooks
 from vigil.graph.pathgraph import GRAPH
 
@@ -75,6 +75,7 @@ def post(
             "source": source,
             "seed_attack": seed_attack,
         }
+        row.update(geo.stamp(row))          # v10: SIMULATED location + basis/accuracy (display only)
         db.insert("transactions", row)
         db.execute("UPDATE accounts SET balance_paise = balance_paise - ? WHERE id = ?", (amount_paise, sender_id))
         db.execute("UPDATE accounts SET balance_paise = balance_paise + ? WHERE id = ?", (amount_paise, recipient_id))

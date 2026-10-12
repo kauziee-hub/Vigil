@@ -17,7 +17,13 @@ CREATE TABLE IF NOT EXISTS accounts (
   persona TEXT,                        -- short description for the demo cast
   is_demo_customer INTEGER NOT NULL DEFAULT 0,
   -- SEED/GROUND-TRUTH ONLY. No scorer may read this column.
-  seed_role TEXT
+  seed_role TEXT,
+  -- v10 (display only, SIMULATED; never read by a scorer): hash-derived home + how the account was opened
+  home_city TEXT,
+  home_lat REAL,
+  home_lng REAL,
+  opened_via TEXT,                     -- branch | app | agent | kiosk (v10 onboarding cohort)
+  opened_city TEXT
 );
 
 CREATE TABLE IF NOT EXISTS account_devices (
@@ -48,9 +54,18 @@ CREATE TABLE IF NOT EXISTS transactions (
   note TEXT,
   ts TEXT NOT NULL,
   intent_id TEXT,
-  source TEXT NOT NULL DEFAULT 'seed',     -- seed | user | scenario | ambient
+  source TEXT NOT NULL DEFAULT 'seed',     -- seed | user | scenario | ambient | cohort_v10
   -- SEED/GROUND-TRUTH ONLY. No scorer may read this column.
-  seed_attack TEXT
+  seed_attack TEXT,
+  -- v10 SIMULATED location of the posting (display / investigation only; see vigil/geo)
+  geo_city TEXT,
+  geo_lat REAL,
+  geo_lng REAL,
+  geo_basis TEXT,                          -- atm_terminal | merchant_pos | device_gps | ip | kyc_home | branch
+  geo_accuracy_m INTEGER,
+  peer_geo_city TEXT,
+  peer_geo_lat REAL,
+  peer_geo_lng REAL
 );
 CREATE INDEX IF NOT EXISTS ix_tx_sender_ts ON transactions(sender_id, ts);
 CREATE INDEX IF NOT EXISTS ix_tx_recipient_ts ON transactions(recipient_id, ts);
@@ -225,6 +240,64 @@ CREATE TABLE IF NOT EXISTS scenario_runs (
 
 -- v8: close monitoring — accounts an analyst pinned for watching. Operator state about the current world,
 -- so a demo reset clears it like every other table. Watching never changes a status or a payment tier.
+-- v10: static reference data for SIMULATED locations (re-loaded idempotently at startup, not wiped by a reset).
+CREATE TABLE IF NOT EXISTS geo_cities (
+  city TEXT PRIMARY KEY,
+  state TEXT,
+  country TEXT,
+  lat REAL,
+  lng REAL,
+  tier INTEGER,
+  kind TEXT
+);
+
+CREATE TABLE IF NOT EXISTS atm_terminals (
+  terminal_id TEXT PRIMARY KEY,
+  city TEXT,
+  lat REAL,
+  lng REAL,
+  bank TEXT,
+  site TEXT
+);
+
+-- v10 Copilot: deterministic incidents + conversations. Operator state about the current world (cleared on reset).
+CREATE TABLE IF NOT EXISTS copilot_incidents (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  score REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',   -- open | acknowledged | dismissed | resolved
+  entity_ids TEXT NOT NULL,              -- JSON list of account ids
+  tx_ids TEXT NOT NULL DEFAULT '[]',     -- JSON list
+  title TEXT NOT NULL,
+  summary_json TEXT NOT NULL,            -- facts, score_parts, engine, cached brief
+  dedupe_key TEXT UNIQUE,
+  created_ts TEXT NOT NULL,
+  updated_ts TEXT NOT NULL,
+  opened_by TEXT NOT NULL DEFAULT 'engine',
+  llm_used INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_incidents_status ON copilot_incidents(status, score);
+
+CREATE TABLE IF NOT EXISTS copilot_threads (
+  id TEXT PRIMARY KEY,
+  incident_id TEXT,
+  title TEXT NOT NULL,
+  created_ts TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS copilot_messages (
+  id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL,
+  role TEXT NOT NULL,                    -- user | assistant
+  content TEXT NOT NULL,
+  tool_calls_json TEXT NOT NULL DEFAULT '[]',
+  ts TEXT NOT NULL,
+  tokens_in INTEGER NOT NULL DEFAULT 0,
+  tokens_out INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_messages_thread ON copilot_messages(thread_id, ts);
+
 CREATE TABLE IF NOT EXISTS watchlist (
   account_id TEXT PRIMARY KEY,
   note TEXT,

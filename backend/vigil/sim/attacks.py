@@ -34,7 +34,9 @@ def pool(scenario_id: str) -> list[str]:
     """Deterministic, disjoint slice of ordinary seeded customers for this attack."""
     rows = db.q("SELECT id FROM accounts WHERE kind = 'customer' AND is_demo_customer = 0 AND seed_role = 'legit' "
                 "AND (persona IS NULL OR persona != 'merchant') ORDER BY id")
-    ids = [r["id"] for r in rows if r["id"] not in _EXCLUDE and r["id"] != "dormant.savings@vigil"]
+    from vigil.sim import cohort_v10
+    v10 = set(cohort_v10.account_ids())        # v10 cohort never joins an attack: pools stay exactly as before v10
+    ids = [r["id"] for r in rows if r["id"] not in _EXCLUDE and r["id"] != "dormant.savings@vigil" and r["id"] not in v10]
     i = ATTACK_ORDER.index(scenario_id)
     return ids[i * POOL_SIZE:(i + 1) * POOL_SIZE]
 
@@ -51,6 +53,8 @@ def _account(aid: str, name: str, days_old: int, device: str) -> None:
         db.insert("account_devices", {"account_id": aid, "device_id": device, "first_seen": opened})
     GRAPH.add_account(row)
     GRAPH.add_device(aid, device)
+    from vigil import geo
+    geo.backfill_accounts()
     HUB.publish("console", "account.opened", {"account_id": aid, "label": name, "opened_at": opened})
 
 
@@ -71,6 +75,31 @@ def _credit(sid: str, recipient: str, amount: int) -> dict[str, Any]:
                      note="funds from another bank", source="scenario", seed_attack=sid, check_funds=False)
     HUB.publish("console", "ledger.posted", tx)
     return {"transaction_id": tx["id"], "source": "ext:other-bank", "target": recipient, "amount_paise": amount}
+
+
+def _move(account: str, city: str) -> None:
+    """SIMULATED: the account's phone is now in another city (display only — drives the impossible-travel story)."""
+    from vigil import geo
+    geo.HINTS[account] = city
+
+
+def geo_story(scenario_id: str) -> dict[str, str]:
+    """Where each attack's OWN injected postings happen (authored story, like the amounts — not ground truth).
+    Mule cash-outs concentrate in one city so the Overview can show a cash-out cluster; the cross-channel hub starts
+    in Delhi and is moved to Kolkata between steps (impossible travel). Locations are simulated and display-only."""
+    if scenario_id not in ATTACK_ORDER:
+        return {}
+    p = pool(scenario_id)
+    story = {
+        "atk_fan_in": {"swift.collect@vigil": "Kolkata"},
+        "atk_fan_out": {"bulk.payouts@vigil": "Hyderabad"},
+        "atk_velocity_chain": {p[4]: "Mumbai"} if len(p) > 4 else {},
+        "atk_cross_channel": {p[0]: "Delhi"} if p else {},
+        "atk_shared_device": {a: "Mumbai" for a in ("dc.one@vigil", "dc.two@vigil", "dc.three@vigil", "dc.four@vigil",
+                                                    "dc.hub@vigil")},
+        "atk_volume_spike": {"fresh.wallet@vigil": "Surat"},
+    }
+    return story.get(scenario_id, {})
 
 
 def _many(fns: list[Callable[[], Any]]) -> list[Any]:
@@ -147,8 +176,9 @@ def cross_channel() -> list[Step]:
         steps.append(Step("transaction", f"In via {ch.upper()}: {_h(f)} → {_h(hub)} ₹22,000", "Same hub, different rail.",
                           lambda f=f, ch=ch: _tx(sid, f, hub, 22_000_00, channel=ch, note="payment")))
     steps.append(Step("transaction", "Out across card / IMPS / UPI / NEFT", "Four rails within minutes.",
-                      lambda: _many([lambda o=o, ch=ch: _tx(sid, hub, o, 15_500_00, channel=ch, note="transfer")
-                                     for o, ch in zip(outs, ["card", "imps", "upi", "neft"])])))
+                      lambda: (_move(hub, "Kolkata"),
+                               _many([lambda o=o, ch=ch: _tx(sid, hub, o, 15_500_00, channel=ch, note="transfer")
+                                      for o, ch in zip(outs, ["card", "imps", "upi", "neft"])]))[1]))
     steps.append(Step("detect", "Detector comparison", "Channel diversity is a rule-engine feature; RingWatch sees pass-through.",
                       _ring_scan))
     return steps

@@ -56,7 +56,7 @@ export const api = {
   accountTransactions: (id: string) => request<LedgerTx[]>(`/api/accounts/${encodeURIComponent(id)}/transactions`),
 
   createIntent: (body: { sender_id: string; recipient_id: string; amount_paise: number; note?: string;
-                         context_text?: string; device_id?: string }) =>
+                         context_text?: string; device_id?: string; channel?: string }) =>
     post<IntentWithDecision>("/api/intents", { ...body, source: "user" }),
   intent: (id: string) => request<IntentWithDecision>(`/api/intents/${id}`),
   intents: (sender?: string) => request<TransactionIntent[]>(`/api/intents${sender ? `?sender_id=${encodeURIComponent(sender)}` : ""}`),

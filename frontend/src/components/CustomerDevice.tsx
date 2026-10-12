@@ -27,6 +27,7 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [rail, setRail] = useState<"upi" | "imps" | "neft" | "rtgs" | "card" | "wallet">("upi");
   const [ctxOpen, setCtxOpen] = useState(false);
   const [ctx, setCtx] = useState("");
   const [view, setView] = useState<View>("form");
@@ -83,7 +84,7 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
     const started = Date.now();
     try {
       const res = await api.createIntent({ sender_id: payer, recipient_id: to.trim(), amount_paise: paise,
-                                           note: note || undefined, context_text: ctx.trim() || undefined });
+                                           note: note || undefined, context_text: ctx.trim() || undefined, channel: rail });
       await new Promise((r) => setTimeout(r, Math.max(0, 900 - (Date.now() - started))));
       setIntent(res.intent); setDecision(res.decision); setView("result"); refreshAccount();
       if (res.intent.state === "APPROVED") await startPayment(res.intent.intent_id);
@@ -163,6 +164,12 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
             </label>
             <label className="field">Note (optional)
               <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What is this for?" />
+            </label>
+            <label className="field">Pay via
+              <select className="input" value={rail} onChange={(e) => setRail(e.target.value as typeof rail)} aria-label="Payment rail">
+                <option value="upi">UPI</option><option value="imps">IMPS</option><option value="neft">NEFT</option>
+                <option value="rtgs">RTGS (₹2 lakh +)</option><option value="card">Card</option><option value="wallet">Wallet</option>
+              </select>
             </label>
             <div>
               <button className="btn ghost sm" onClick={() => setCtxOpen(!ctxOpen)}>

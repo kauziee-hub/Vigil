@@ -186,6 +186,7 @@ class CreateIntentRequest(BaseModel):
     )
     device_id: Optional[str] = None
     source: Literal["user", "scenario", "ambient"] = "user"
+    channel: Literal["upi", "imps", "neft", "rtgs", "card", "atm", "wallet", "intl_wire"] = "upi"  # v10 rail
 
 
 class IntentWithDecision(BaseModel):

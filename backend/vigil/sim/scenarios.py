@@ -277,6 +277,11 @@ def start(scenario_id: str) -> dict[str, Any]:
     current = RUNS.get(scenario_id)
     if current and current.state in {"running", "paused"}:
         raise ledger.VigilError(409, "already_running", "This scenario is already running.")
+    from vigil import geo
+    from vigil.sim import attacks as attacks_mod
+    geo.HINTS.update(attacks_mod.geo_story(scenario_id) if scenario_id in attacks_mod.ATTACK_ORDER else
+                     {a: "Mumbai" for a in ("kiran.traders@vigil", "zenith.exports@vigil", "pooja.m@vigil", "rahul.m@vigil")}
+                     if scenario_id == "s2" else {})
     run = Run(scenario_id=scenario_id, run_id=db.next_id("RUN"), steps=scenario.steps())
     RUNS[scenario_id] = run
     runs_mod.begin(scenario_id, run.run_id, scenario.name, scenario.category, len(run.steps))
