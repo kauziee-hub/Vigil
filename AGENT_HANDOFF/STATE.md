@@ -9,6 +9,14 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
+## Status: v6 — identity, iPhone device, graph edge filter, overview architecture; on GitHub (updated 2026-10-12 22:50 IST)
+
+User direction (`prompts/08_USER_logo_iphone_graph_overview_push_2026-10-12.md`).
+
+* Repository: `https://github.com/kauziee-hub/Vigil.git`, branch **`main`** (the local `master` was renamed by the user on publish). Push fast-forward only; never push `.env`.
+* UI v6: logo + VIGIL wordmark, iPhone customer device, edge filter (Recent / Window / Risk only / All / Off), Overview KPI strip, detection performance, full account scoring (549). `docs/ui_v6/*`.
+* Before presenting: Test inputs → Reset demo world (or `run_demo.ps1 -Reset`). Backend unchanged (330/330).
+
 ## Status: v5 final-demo build — ready (updated 2026-10-12 22:15 IST)
 
 User direction (`prompts/07_USER_reference_ui_final_demo_2026-10-12.md`): UI like `docs/reference_v5/*`; all PRIMA + mule features ordered by priority; SHAP; minimal test inputs, not a simulation panel; demo tomorrow.
@@ -130,3 +138,4 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-07 09:35–09:42 Claude 1 — recovered: Claude 3 WIP committed (`4f842af`, tsc ok) → `claude3/v3-run1-wip`; Claude 2 had no uncommitted work → `claude2/v3-run1-wip`; orphaned Vite :5181 stopped; worktrees removed; run records closed as INTERRUPTED; resume prompts saved; both relaunched as v3 run 2 (`6fb1b51`).
 - 2026-10-09 00:13–10:30 Claude 1 — v4 (alone; agents stopped by usage limit): recovered + merged v3 work, design system v4, Overview restructure, SHAP honesty fix, consensus-v2.2 detection fixes, RingWatch perf, Playwright functional audit. See `runs/20261009-0013_claude1_v4-professional-ui.md`.
 - 2026-10-12 21:28–22:15 Claude 1 — v5: reference-style light UI, top pill nav, Operations center, Test inputs console, Detection runs section; full demo flow verified live; record `runs/20261012-2130_claude1_v5-final-demo.md`.
+- 2026-10-12 22:21–22:50 Claude 1 — v6: logo/wordmark, iPhone device, graph edge filter, overview re-architecture (KPI strip, detection performance, full account scoring), Payments policy primer; user published the repo (`f3b6329`), Claude 1 pushed the rest fast-forward; record `runs/20261012-2221_claude1_v6-identity-device-graph-overview.md`.

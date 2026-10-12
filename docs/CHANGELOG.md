@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v6 — identity, iPhone device, graph edge filter, overview architecture (2026-10-12, Claude 1)
+
+- **Identity:** the "watchful V" mark and a **VIGIL** wordmark in Sora; the same mark is the favicon.
+- **Customer device** drawn as an iPhone (bezel, Dynamic Island, live status bar, home indicator). The payment flow is unchanged.
+- **Graph edge filter:** Recent / Window / Risk only / All / Off on the Overview and Network pages. Finished flows no longer pile up; Risk only fades ordinary accounts but keeps the counterparties of risky flows visible.
+- **Overview** reordered: KPI strip → live network, accounts at risk, payments protected, detector families → needs attention, traffic → why accounts are flagged (SHAP, pattern memory, decisions) → **detection performance** (the mule-detection analytics: last attack result, runs by pattern, latency & recall, adaptive threshold, roles, channel mix, attack history) → live activity → **account scoring** (all 549 scored accounts, sortable and filterable; previously a short scroll box).
+- **Payments:** the empty assessment explains the live policy (dimension weights + tier ladder from `/api/policy`).
+- Published to `https://github.com/kauziee-hub/Vigil.git` (`main`).
+
 ## v5 — reference UI + final demo (2026-10-12, Claude 1)
 
 - **Light operations-center design** modelled on `docs/reference_v5/*`: white 20 px soft cards, pill top navigation with a mint active state, near-black primary buttons, a dark highlight card for the live network, Inter + IBM Plex Mono. Dark theme kept as a toggle.

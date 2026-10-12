@@ -1,4 +1,4 @@
-# Demo script — final demonstration (v5 UI, ~12 minutes)
+# Demo script — final demonstration (v6 UI, ~12 minutes)
 
 Every step below was run end to end on the live backend on 2026-10-12. The results shown are what the system produced, not mock-ups. The record is in `AGENT_HANDOFF/runs/20261012-2130_claude1_v5-final-demo.md`.
 
@@ -15,12 +15,13 @@ The product screens show no simulation controls. Everything you drive for the de
 ---
 
 ## 1. The operations center (1 min)
-**Say:** "This is the bank's fraud operations view: what needs action first, then how money is moving, then why accounts are flagged."
-**Point at:** the live transaction network (each node is an account, each live posting draws an edge), **Accounts at risk**, **Payments protected** (share of payments passed without friction, with exact counts), **Detector families**, **Needs attention**, **Transaction traffic**. Further down: **What drives the model** (SHAP), **Pattern memory & early warning**, **Pre-commit decisions by tier**, the live streams and the scoring tables.
+**Say:** "This is the bank's fraud operations view: what needs action first, then how money is moving, then why accounts are flagged, then how well detection performs."
+**Point at:** the **KPI strip** (payments assessed, postings, open interventions, last-run detection, models active, ledger integrity), the live transaction network (each node is an account, each live posting draws an edge), **Accounts at risk**, **Payments protected**, **Detector families**, **Needs attention**, **Transaction traffic**.
+**Edge filter** (top left of the network): **Recent** shows only the last two minutes, **Risk only** shows flows touching risky accounts, **All** adds the faint history. Further down: **What drives the model** (SHAP), **Pattern memory & early warning**, **Decisions by tier**, **Detection performance**, the live streams and **Account scoring**, which covers every scored account (549) and can be sorted by rules / Random Forest / GNN.
 
 ## 2. An everyday payment (1 min)
 **Do:** Test inputs → *Everyday · grocer ₹500* → **Open on customer device** → **Pay**.
-**See:** the phone shows **Paid ₹500**. On the right, the bank sees the full pre-commit assessment (sender, recipient, amount, relationship, device, behaviour, network, external intel (simulated), journey, context) → **Tier 0 · pass**, evaluated in milliseconds.
+**See:** the iPhone shows **Paid ₹500**. On the right, the bank sees the full pre-commit assessment (sender, recipient, amount, relationship, device, behaviour, network, external intel (simulated), journey, context) → **Tier 0 · pass**, evaluated in milliseconds.
 
 ## 3. A risky recipient (1.5 min)
 **Do:** Test inputs → *Risky recipient · ₹45,000* → **Open on customer device** → **Pay**.
@@ -29,7 +30,7 @@ The product screens show no simulation controls. Everything you drive for the de
 
 ## 4. A money-mule network forms (2 min)
 **Do:** Test inputs → *Inject a mule-network pattern* → **Money-mule network** → **Inject** (17 real ledger postings over about 20 s). Close the drawer and watch the Overview.
-**See:** the ring lights up in the network (Kiran Traders → Zenith Exports → Pooja M). **Accounts at risk** shows *action needed* and toasts appear. The console shows **detected 3 of 4 injected accounts, no false positives, about 27 ms after the closing posting** (simulator ground truth).
+**See:** the ring lights up in the network (Kiran Traders → Zenith Exports → Pooja M). Switch the edge filter to **Risk only** to see just the ring's flows; **Detection performance** fills in the run (detected / missed / first warning / latency). **Accounts at risk** shows *action needed* and toasts appear. The console shows **detected 3 of 4 injected accounts, no false positives, about 27 ms after the closing posting** (simulator ground truth).
 **Then:** Overview → **Needs attention** → *Kiran Traders* → the account page: why it is flagged (RingWatch rules in plain language), detector consensus **8 of 8 families agree**, role **collector**, SHAP per feature, drift baseline → current, pattern memory.
 
 ## 5. Confirm the scam, and the next payment is held (1.5 min)

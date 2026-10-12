@@ -1,5 +1,12 @@
 # Vigil design system
 
+## v6 additions (2026-10-12)
+* **Identity:** `components/Logo.tsx`. The mark is a 32 px tile, gradient `#6eedd2 → #1aa585`, rx 9.5, with a dark-mint eyelid arc, a white V (3.1 stroke, round caps) and a pupil dot. The wordmark is **VIGIL** in Sora 700, 18 px, letter-spacing 0.16 em, with a small grey tagline. Use the mark alone where space is tight; never recolour it.
+* **Customer device:** `.iphone` (60 px radius, titanium gradient bezel, side buttons) wraps `.phone` (47 px radius). It has an iOS status bar with the Dynamic Island and a home indicator. The device column is 396 px wide.
+* **Edge filter:** a `seg seg-dark` segmented control on dark stages (`.stage-filter`) with Recent / Window / Risk only / All / Off. Defaults: Recent on the Overview, Window on Network.
+* **KPI strip:** `.kpi-strip`, six hairline-divided figures under the page title, each with a value, label and sub-line. It replaces scattered tiles.
+* **Score cells:** `.score-cell`, a 64 px bar plus a mono value coloured by band. Sortable headers use `th.sortable` with an arrow.
+
 ## v5 — operations center (current, 2026-10-12)
 Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). References: `docs/reference_v5/*`. Implementation: `frontend/src/styles/tokens.css` (light tokens + `[data-theme="dark"]`) and `frontend/src/styles/v5.css` (loaded after `app.css`).
 * Field `#eef1f3` with a soft mint radial glow; cards white, 20 px radius, two-layer soft shadow, no borders; tiles 18 px.
