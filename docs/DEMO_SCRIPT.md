@@ -9,20 +9,20 @@ The product screens show no simulation controls. Everything you drive for the de
 1. `powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset` (or `./run_demo.sh --reset`). It prints the URLs.
 2. Browser at `http://localhost:8000/` (Operations center), full-screen, 1440–1920 px wide.
 3. Phone on the same Wi-Fi: the printed trusted-contact URL `http://<laptop-ip>:8000/contact/arjun` (fallback: a second browser tab).
-4. Top bar: the health icon has a green dot and the user chip says **Active mode · live**. The footer says **Payments: simulated rail (no real money)**. No keys or `.env` are needed.
+4. Top bar: the health icon has a green dot and the user chip says **Active mode · live**. The footer says **Payments: simulated rail (no real money)**. No keys or `.env` are needed; the Copilot runs offline on deterministic templates unless `GEMINI_API_KEY` is set in `.env`.
 5. If anything looks off: **Test inputs → Reset demo world** (about 5–20 s). Every step gives the same result after a reset.
 
 ---
 
-## 1. The operations center (1 min)
-**Say:** "This is the bank's fraud operations view: what is moving and what needs action, live."
+## 1. The operations center (1.5 min)
+**Say:** "This is the bank's fraud operations view: where money moves, what is moving right now, where fraud is, and how mule accounts are being built."
 **Point at, top to bottom:**
-- The **KPI strip**: postings and value moved in 10 minutes, accounts at risk, open interventions, new accounts in 30 days, and the last detection run (click it after an attack).
-- The full-width live transaction **network**.
-- **Needs attention** (each account with its reason, since when, and how many detector families agree) beside **Close monitoring** (pinned and suggested accounts one step before "flagged", with what they are doing and what would flag them next).
-- **Money moving now** (payments per 30 s: green everyday, blue customer, red injected) beside **New accounts** (fresh accounts and what flows into them).
+- The **KPI strip**: money moved, fraud-linked money, accounts at risk, stopped before paying, left the bank, new accounts (each against the previous window; click a tile to filter).
+- The **Copilot strip**: "No active incidents — Copilot is watching" in a fresh world.
+- The **money map** (simulated locations, India point-of-view boundary): city dots sized by value, arcs between cities, a spark for each new posting. Toggle **Globe** for a moment, then back to **Flat**.
+- The **live transaction tape** beside it: every posting with the rail and the city; red / amber rows are fraud-linked / early-warning.
+- Below: compact 3D network, **Needs attention**, **Situation brief**, **Close monitoring**, the **Mule pipeline** (new accounts: opened → funded → active → passing through → exited) and **Money by channel**.
 
-**Edge filter** (top left of the network): **Recent** shows the last two minutes. **Risk only** shows flows touching risky accounts. **All** adds the faint history.
 Analysis lives on its own pages: **Detection** (every chart explained, every run, full account scoring) and **Network** (lenses, live activity streams).
 
 ## 2. An everyday payment (1 min)
@@ -34,10 +34,13 @@ Analysis lives on its own pages: **Detection** (every chart explained, every run
 **See:** **Tier 2 · "Please confirm before you pay"**, with four plain questions for the customer. The bank side shows why: first-time payee, outlier amount, recipient linked to rapid pass-through, a registry report (simulated).
 **Note:** after midnight, an "unusual hour" signal (+0.05) lifts this payment to Tier 3. That is real policy behaviour, and the case page's counterfactuals show it.
 
-## 4. A money-mule network forms (2 min)
+## 4. A money-mule network forms — and the Copilot briefs you (2.5 min)
 **Do:** Test inputs → *Inject a mule-network pattern* → **Money-mule network** → **Inject** (17 real ledger postings over about 20 s). Close the drawer and watch the Overview.
-**See:** a red block in **Money moving now**, the ring lighting up in the network (Kiran Traders → Zenith Exports → Pooja M), **Accounts at risk** rising and toasts appearing. The **Last detection run** KPI shows **3 / 4**: 3 of 4 injected accounts flagged, the 4th at early warning, no false positives, first flag about 25 ms after the first posting (simulator ground truth). Click the KPI to switch the edges to **Risk only** and frame the ring.
-**Then:** Overview → **Needs attention** → *Kiran Traders* → the account page: why it is flagged (RingWatch rules in plain language), detector consensus **8 of 8 families agree**, role **collector**, SHAP per feature, drift baseline → current, pattern memory.
+**See:** red arcs converge on Mumbai on the money map, red rows on the tape, **Fraud-linked** and **Accounts at risk** rise, toasts appear. Within seconds the Copilot strip shows **CRITICAL · Ring formed** and **HIGH · Kiran Traders flagged**.
+**Do:** click the **CRITICAL** chip. The dock opens and the briefing is already there (no typing): what happened, why it matters, severity with its rubric breakdown ("why?"), confidence, what to do (buttons: Show in network, Open connections, Watch — the last one asks you to confirm).
+**Do:** Chat tab → *Which rings are active?* → then click a red tape row (Pooja M → ATM): the connections drawer shows the cash-out at an ATM in Mumbai (±25 m, simulated), funded by Zenith Exports ← Kiran Traders.
+**Say:** "Vigil never saw the answer key. The incident engine is deterministic; the Copilot only explains it — read-only, and every location is labelled simulated."
+**Then:** Needs attention → *Kiran Traders* → the account page: why it is flagged, detector consensus, role **collector**, SHAP, drift, pattern memory. (Detection → section 2 shows the graded run: 3 of 4 flagged, the 4th at early warning, 0 false positives.)
 
 ## 5. Confirm the scam, and the next payment is held (1.5 min)
 **Do:** Test inputs → *Report a confirmed scam* → **Find ring source** → **Report as confirmed scam**.

@@ -50,6 +50,37 @@ Every component of the demo falls in exactly one of four buckets.
 * PatternMemory (similarity to known ring shapes) — roadmap; the old implementation read ground truth and was not ported.
 * Cross-institution tracing (value leaving the bank is reported as "left perimeter").
 
+## Added in v10 (Overview money map + Copilot) — what is real, simulated, unvalidated
+
+* **Locations are SIMULATED.** Every account home, device position, ATM terminal and posting location is generated from
+  hashes of ids (never from ground-truth labels) and shown with a *basis* and an *accuracy*: "Simulated location · ATM
+  terminal · ±25 m". "Exact" in the UI means precise within the stated basis of the simulation, not a real place. Locations
+  are display / investigation context only: no detector, score or payment tier reads them.
+* **Attack scenarios have authored cities** for their own injected postings (e.g. the money-mule ring cashes out at ATMs
+  in Mumbai; the cross-channel hub is moved from Delhi to Kolkata mid-attack so impossible travel can be shown). These
+  are part of the scripted story, like the amounts.
+* **Rails.** Historical seed postings keep their stored `upi`; ATM and international sinks are only *displayed* as ATM /
+  international wire. New background payments use one hash-derived rail per customer (UPI or card); customers can pick a
+  rail on the phone (UPI, IMPS, NEFT, RTGS, card, wallet). Per-rail limits are not enforced.
+* **Onboarding cohort.** 40 legitimate new accounts (students, salaried, freelancers, shop owners) were appended after the
+  main seed so the mule pipeline has ordinary new customers in it. One of them gets a high Random Forest score (new and
+  active) and is never flagged because no second family agrees — see `AGENT_HANDOFF/regression_v10.md`.
+* **Derived signals** (cash-out cluster, impossible travel, collection point, mule pipeline "suspicious path") are display
+  heuristics in `config/copilot_policy.yaml`. They never change a status or a payment tier.
+* **Incident severity is a hand-set rubric** (base by kind + ₹ at stake + accounts + confirmed + recency − contained). It is
+  explainable (the UI shows each component) but **not validated on real data**. Confidence is shown separately.
+* **The Copilot can be wrong.** Without a key it is deterministic (templates + the same read-only tools). With
+  `GEMINI_API_KEY` set, briefings and chat come from Google's Gemini API and are labelled "AI-generated · verify before
+  acting". It is read-only: it cannot hold, release, freeze, approve or watch anything; "watch" is a proposal the analyst
+  confirms. Severity always comes from the deterministic engine, never from the model.
+* **Enabling the Copilot sends incident facts off the machine** (synthetic data) to Google's API. `COPILOT_ENABLED=false`
+  or no key keeps everything local. Rate limit 20 messages / minute per client, daily token cap, 2,000-character messages.
+* **Attack injections bypass the payment gate**; incidents they raise come from the network watcher, and each briefing
+  states which engine raised the signal.
+* **India boundary.** The map uses Natural Earth's India point-of-view boundary (verified: Aksai Chin, Gilgit-Baltistan
+  and Arunachal Pradesh fall inside India's outline). A production system should use a Survey of India–approved dataset.
+  See `docs/THIRD_PARTY_DATA.md`.
+
 ## Other honest caveats
 
 * Single process, single SQLite file; designed for one demo laptop.

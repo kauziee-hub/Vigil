@@ -9,6 +9,15 @@
 - **Fixes:** live status changes keep their reason on the Overview; positioning no longer says the model layer is "in progress"; recipient risk-evolution title; toast link to the attack history.
 - **Functional guide** (beginner level, 67 screenshots, demo script, live attack-check table): a Claude Doc; screenshots in `docs/guide/img/`.
 
+## v10 — Overview money map, live tape, mule pipeline, Copilot (2026-10-13, Claude 1, branch `overview-v10`)
+
+Plan: `AGENT_HANDOFF/prompts/10_OVERVIEW_V10_MASTER_PLAN.md`. Baseline and regression numbers: `AGENT_HANDOFF/baseline_v10.md`, `regression_v10.md`.
+- **Data (P1):** simulated locations on every posting (basis + accuracy), hash-derived homes in 22 cities, 172 generated ATM terminals, rails (UPI / IMPS / NEFT / RTGS / card / ATM / wallet / international wire; a rail selector on the phone), a 40-account legitimate onboarding cohort and an `ext:intl-wire` sink — all appended after the main seed (world digest unchanged; 0 status changes; 11/11 attacks, 0 FP).
+- **APIs (P2):** money map, tape, connections, KPIs, rings, pipeline, exits, channels, brief, attention, signals; all read-only, worst cold call 21 ms.
+- **Overview (P3–P6, P9):** money map (flat + lazy globe, India point-of-view Natural Earth boundary, bundled offline), virtualised live tape + connections drawer, shared selection, compact 3D network, KPI strip with deltas and sparklines, needs attention with ₹ in / out, situation brief, mule pipeline, money by channel, incident mode, collection points.
+- **Copilot (P7–P8):** deterministic incident engine (9 kinds, hand-set severity rubric with its components), structured briefings (Gemini JSON when a key is set, validated; deterministic template otherwise), read-only tool chat over SSE, strip + dock UI, safe markdown, whitelisted UI actions, offline mode.
+- **Tests:** world digest, geo / rails / cohort (12), overview APIs (6), Copilot (18), frontend checks (18, `node scripts/frontend_checks.mjs`).
+
 ## v7 — no Razorpay, focused Overview, verified attacks (2026-10-13, Claude 1)
 
 - **Razorpay removed.** Payments settle on a simulated rail behind the provider port. Gone: gateway probe, keys, checkout, confirm/fallback routes, `-Mock` flag.

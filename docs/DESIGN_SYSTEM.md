@@ -1,5 +1,28 @@
 # Vigil design system
 
+## v10 additions (2026-10-13) — Overview operations center
+* **Layout** (≥ 1280 px): header (window 15m/1h/24h/7d · rail · incident mode · find) → KPI strip (6 clickable tiles,
+  delta vs previous window, 12-bucket sparkline) → Copilot incident strip → **money map (2fr) | live tape (1fr)** →
+  compact 3D network | needs attention | situation brief → close monitoring | mule pipeline → money by channel. Copilot
+  dock bottom-right. Tablet / phone: one column.
+* **Money map** (`components/map/*`): dark canvas card. Land from the bundled India point-of-view Natural Earth file
+  (SVG); arcs, moving postings and pulses on canvas. Arc thickness = value; colour = risk (mint normal, amber early
+  warning, red fraud-linked). City dot size = value. ATM = small square (red when a risky withdrawal used it); cash-out
+  cluster = red ring with count; collection point = amber / red diamond. Foreign destinations clamp to the map edge
+  with "→ City". Flat | Globe toggle (globe lazy-loaded, three.js, texture drawn from the same GeoJSON). Every location
+  carries the dashed amber **Simulated locations** badge and "Simulated location · basis · ±accuracy".
+* **Live tape** (`components/tape/LiveTape.tsx`): 60 px virtualised rows (≤ 300 in memory); red / amber left bar + tint
+  for fraud-linked / early-warning; rail badge colours per rail; "N new" pill while paused on hover; fresh rows flash.
+* **Connections drawer**: right slide-over (Esc closes): posting header with location label, From / To cards, Linked by
+  chips, upstream / downstream grouped by hop, Show on map · Show in network · Open recipient · Ask Copilot.
+* **Mule pipeline**: five-stage horizontal funnel (mint → amber for Passing through → red for Exited); suspicious-path
+  rows tinted red; benign shared-device pairs tagged "family / shop pattern".
+* **Money by channel**: per rail, a grey bar (share of value) over a red bar (share of fraud-linked value).
+* **Copilot**: strip chips = severity dot + SEVERITY label + kind glyph + title + ₹ + age (colour is never the only
+  signal); dock 360–760 px, resizable, focus-trapped; Briefing (severity "why?" breakdown, confidence, action cards with
+  whitelisted buttons, evidence chips) and Chat (streaming, expandable tool-call chips, suggestion chips, Stop, copy,
+  retry). Model text renders through `lib/safeMarkdown.tsx` only (no raw HTML).
+
 ## v6 additions (2026-10-12)
 * **Identity:** `components/Logo.tsx`. The mark is a 32 px tile, gradient `#6eedd2 → #1aa585`, rx 9.5, with a dark-mint eyelid arc, a white V (3.1 stroke, round caps) and a pupil dot. The wordmark is **VIGIL** in Sora 700, 18 px, letter-spacing 0.16 em, with a small grey tagline. Use the mark alone where space is tight; never recolour it.
 * **Customer device:** `.iphone` (60 px radius, titanium gradient bezel, side buttons) wraps `.phone` (47 px radius). It has an iOS status bar with the Dynamic Island and a home indicator. The device column is 396 px wide.

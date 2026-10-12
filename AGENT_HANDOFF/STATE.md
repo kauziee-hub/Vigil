@@ -20,6 +20,17 @@ User direction (`prompts/10_USER_functional_guide_overview_watchlist_2026-10-13.
 * Live attack check: 11/11 detected, 0 FP (s2 3/4, velocity 3/5, rest full; circular 4/4 in a fresh world).
 * Next (user): the technical guide. Not committed yet.
 
+## Status: v10 — Overview money map, live tape, mule pipeline, Copilot (updated 2026-10-13 ~06:30 IST)
+
+Plan `prompts/10_OVERVIEW_V10_MASTER_PLAN.md`, implemented on branch **`overview-v10`** (not merged into `main`, not pushed). Baseline / regression: `AGENT_HANDOFF/baseline_v10.md`, `regression_v10.md`. Record: `runs/20261013-0330_claude1_v10-overview-money-map-copilot.md`.
+
+* Overview = KPI strip → Copilot strip → money map (flat / globe, simulated locations, India point-of-view boundary) | live tape → compact 3D | needs attention | brief → close monitoring | mule pipeline → money by channel; Copilot dock.
+* Copilot: deterministic incident engine + briefings + read-only chat; offline by default; `GEMINI_API_KEY` in `.env` enables Gemini (sends synthetic incident facts to Google).
+* Key facts not to break: world digest (`tests/test_world_digest.py`); cohort excluded from attack pools and the background stream; locations never feed a score / tier; Copilot has no write tools and never reads `seed_*`.
+* Gates: pytest 374/374, smoke 8/8, 11/11 attacks 0 FP, tsc + build green, frontend checks 18/18 (`node scripts/frontend_checks.mjs`).
+* Functional guide v10: `docs/guide/VIGIL_FUNCTIONAL_GUIDE.md` (images in `docs/guide/img/v10_*`).
+* Screenshots via Playwright: use `http://127.0.0.1:8000` (the profile has a saved 33 % zoom for `localhost`).
+
 ## Status: v7 — no Razorpay, focused Overview, attacks verified (updated 2026-10-13 00:40 IST)
 
 User direction (`prompts/09_USER_fix_remove_razorpay_cleanup_overview_2026-10-12.md`).
@@ -162,3 +173,4 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-12 22:21–22:50 Claude 1 — v6: logo/wordmark, iPhone device, graph edge filter, overview re-architecture (KPI strip, detection performance, full account scoring), Payments policy primer; user published the repo (`f3b6329`), Claude 1 pushed the rest fast-forward; record `runs/20261012-2221_claude1_v6-identity-device-graph-overview.md`.
 - 2026-10-12 23:55 – 2026-10-13 00:40 Claude 1 — v7: Razorpay removed; Overview trimmed; all 11 attacks verified live; circular-ring originator fix; docs archived; record `runs/20261013-0000_claude1_v7-razorpay-removal-cleanup-overview-attacks.md`.
 - 2026-10-13 00:50–03:30 Claude 1 — v8: Overview rebuilt around live activity (network full width, reasons in Needs attention, close monitoring, money moving now, new accounts); Detection captioned; watchlist / new-accounts / traffic APIs; functional guide (Claude Doc, 67 screenshots). Record `runs/20261013-0050_claude1_v8-operations-center-watchlist-guide.md`.
+- 2026-10-13 03:30–06:30 Claude 1 — v10: plan 10 P0–P10 on `overview-v10` (v8 work committed as its base); P1 regression found (cohort leaked into attack pools) and fixed without tuning; guide v10. Record `runs/20261013-0330_claude1_v10-overview-money-map-copilot.md`.

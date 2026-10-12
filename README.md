@@ -25,7 +25,7 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 
 | Screen | URL | What it is for |
 |---|---|---|
-| Overview | `/` | Live operations center: KPIs, full-width live network (edge filter), needs attention (with reasons), close monitoring (watchlist), money moving now, new accounts |
+| Overview | `/` | Operations center: KPI strip, Copilot incident strip, money map (flat / globe, simulated locations), live transaction tape + connections drawer, compact 3D network, needs attention (₹ in / out), situation brief, close monitoring, mule pipeline, money by channel |
 | Payments | `/guard` | The customer's phone beside the bank's pre-commit assessment; customer-only kiosk at `/pay?as=ramesh@vigil` |
 | Network | `/network` | Live 3D universe with lenses and edge filter, evidence scenes, live activity streams |
 | Detection | `/detection` | Models (synthetic validation), live detection runs, rules, early warning, roles, full account scoring, pattern memory |
@@ -37,6 +37,14 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 **Test inputs** (top bar or Alt + T) is a small drawer of demo-only inputs: a customer payment, inject one of eleven mule-network patterns, a coerced journey, report a confirmed scam, traffic / mode / reset. Product screens carry no simulation controls. Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 Payments settle on a **simulated payment rail** behind a provider port (a bank plugs its own rail in there). No real money moves and no gateway keys are needed.
+
+### Vigil Copilot (optional AI)
+
+The Overview's Copilot watches for incidents with a **deterministic** engine (rings, flagged accounts, cash-out clusters,
+impossible travel, held payments, coercion, fast pass-through new accounts, device farms, traced scam money) and briefs
+the analyst. It is **read-only**. With no key it runs offline on templates and the same read-only tools. To use Google's
+Gemini, put `GEMINI_API_KEY=...` in `.env` (git-ignored; see `.env.example`) and restart: this sends incident facts
+(synthetic data) to Google's API. Details: `docs/KNOWN_LIMITATIONS.md`, `config/copilot_policy.yaml`.
 
 ## Repository
 
