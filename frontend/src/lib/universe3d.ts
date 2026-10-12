@@ -519,7 +519,7 @@ export class UniverseEngine {
   private pk(key: string, color: THREE.Color, scale: number) { this.pkKey = key; this.pkColor = color; this.pkScale = scale; }
 
   /** Colour + base scale for a node under the current mode → pkKey / pkColor / pkScale. */
-  private paintKey(s: NState, cutoff: number) {
+  private paintKey(s: NState, cutoff: number, i: number) {
     switch (this.mode) {
       case "risk": {
         const c = s.group === "external" ? STATUS_COLOR.external : band(s.risk) ?? DIM;
@@ -538,7 +538,10 @@ export class UniverseEngine {
         return s.taint > 0 ? this.pk("taint", TAINT, 1.4 + Math.min(1.4, Math.log10(1 + s.taint / 100) / 4)) : this.pk("tdim", DIM, 0.6);
       default: {
         const vs = this.visualStatus(s, cutoff);
-        if (this.edgeView === "risk" && !RISKY.has(vs)) return this.pk("dim-" + vs, DIM, 0.55);
+        // risk view: ordinary accounts fade, except the counterparties a drawn risky edge reaches (so every red line ends on a node)
+        if (this.edgeView === "risk" && !RISKY.has(vs)) {
+          return this.riskNbr.has(i) ? this.pk("nbr-" + vs, STATUS_COLOR[vs] ?? STATUS_COLOR.normal, 0.85) : this.pk("dim-" + vs, DIM, 0.55);
+        }
         return this.pk(vs, STATUS_COLOR[vs] ?? STATUS_COLOR.normal, STATUS_SCALE[vs] ?? 1);
       }
     }
@@ -573,6 +576,7 @@ export class UniverseEngine {
   // drawn subsets, rebuilt only when something changed (posting, status, view, once-a-second age tick)
   private drawn: Pair[] = [];
   private drawnHist: { i: number; j: number }[] = [];
+  private riskNbr = new Set<number>();                       // endpoints of drawn edges in the risk view
 
   private writeEdges(now: number) {
     if (this.pairs.size > this.edgeCap) this.initEdges(Math.max(this.edgeCap * 2, this.pairs.size));
@@ -623,6 +627,10 @@ export class UniverseEngine {
         else { hc[o] = hc[o + 3] = 0.24; hc[o + 1] = hc[o + 4] = 0.29; hc[o + 2] = hc[o + 5] = 0.36; }                // faint constellation
       }
       m++;
+    }
+    if (histRepaint) {
+      this.riskNbr.clear();
+      if (view === "risk") for (const e of [...this.drawn, ...this.drawnHist]) { this.riskNbr.add(e.i); this.riskNbr.add(e.j); }
     }
     this.hist.geometry.setDrawRange(0, m * 2);
     this.hist.geometry.attributes.position.needsUpdate = true;
@@ -703,7 +711,7 @@ export class UniverseEngine {
       this.cur[o] = this.base[o] + Math.sin(t * 0.6 + s.phase) * drift;
       this.cur[o + 1] = this.base[o + 1] + Math.cos(t * 0.55 + s.phase) * drift;
       this.cur[o + 2] = this.base[o + 2] + Math.sin(t * 0.5 + s.phase * 1.3) * drift;
-      this.paintKey(s, cutoff);
+      this.paintKey(s, cutoff, i);
       if (this.pkKey !== s.painted) {
         s.painted = this.pkKey;
         this.core.setColorAt(i, this.pkColor);
