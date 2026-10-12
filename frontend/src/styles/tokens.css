@@ -1,113 +1,115 @@
-/* Vigil design tokens v4 — "institutional" (docs/DESIGN_SYSTEM.md §v4).
-   Neutral graphite field, flat surfaces with hairline borders, one restrained blue accent for interaction,
-   IBM Plex Sans (UI) + IBM Plex Mono (identifiers and figures). Hue encodes STATUS only; the accent never means "safe".
-   No gradients, glow, translucency or blur. */
+/* Vigil design tokens v5 — "operations center" (docs/DESIGN_SYSTEM.md §v5, references docs/reference_v5/*).
+   Light field, white soft cards (20 px radius, soft shadow), pill navigation and buttons, near-black primary,
+   mint/aqua accent for active states, dark highlight cards for the live network. Hue still encodes STATUS;
+   the mint accent never means "safe". Inter (UI) + IBM Plex Mono (identifiers and figures). */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
   /* field + surfaces */
-  --bg-0: #0d1015;
-  --bg-1: #0f1218;
-  --bg-2: #12161d;
+  --bg-0: #eef1f3;
+  --bg-1: #f3f5f7;
+  --bg-2: #e6eaee;
   --bg: var(--bg-0);
-  --bg-side: #0a0d11;
-  --surface: #141920;
-  --surface-2: #181e26;
-  --surface-3: #1e252f;
-  --surface-hi: #1b2433;
-  --surface-strong: #111519;
-  --surface-deep: #0a0d11;
-  --line: #222932;
-  --line-2: #2c3440;
-  --line-3: #3a4554;
+  --bg-side: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --surface-3: #eceff3;
+  --surface-hi: #e8f8f4;
+  --surface-strong: #f6f8fa;
+  --surface-deep: #0f1418;
+  --line: #e6e9ee;
+  --line-2: #d9dee5;
+  --line-3: #c3cad3;
 
   /* ink */
-  --ink: #e4e7ec;
-  --ink-2: #b3bbc7;
-  --ink-3: #8790a0;
-  --ink-4: #5d6676;
+  --ink: #0f1419;
+  --ink-2: #3c4652;
+  --ink-3: #69737f;
+  --ink-4: #9aa3ae;
 
-  /* interaction accent (steel blue) */
-  --accent: #5b93f0;
-  --accent-strong: #3f7be0;
+  /* interaction: near-black primary (reference pills), mint for active / selected */
+  --accent: #0f1419;
+  --accent-strong: #0f1419;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(91, 147, 240, 0.12);
-  --accent-line: rgba(91, 147, 240, 0.42);
-  --focus: #7aa8f5;
-  --warning: #d6a23f;
-  --danger: #e2564e;
-  --ok: #4fa77a;
+  --mint: #4fd6b8;
+  --mint-2: #8fe9d5;
+  --mint-soft: #e3f8f2;
+  --mint-ink: #0b3d33;
+  --accent-soft: #e3f8f2;
+  --accent-line: #8fe9d5;
+  --link: #127a66;
+  --focus: #2fbfa0;
+  --warning: #c98a0e;
+  --danger: #e0473d;
+  --ok: #1f9f7f;
 
   /* risk / decision status scale (pills, bars, tiers) */
-  --st-normal: #8593a8;
-  --st-watch: #d6a23f;
-  --st-high: #dd7a3e;
-  --st-critical: #e2564e;
-  --st-held: #9283d6;
-  --st-fraud: #c8344d;
-  --st-normal-bg: rgba(133, 147, 168, 0.12);
-  --st-watch-bg: rgba(214, 162, 63, 0.12);
-  --st-high-bg: rgba(221, 122, 62, 0.12);
-  --st-critical-bg: rgba(226, 86, 78, 0.12);
-  --st-held-bg: rgba(146, 131, 214, 0.13);
-  --st-fraud-bg: rgba(200, 52, 77, 0.16);
-  --st-unknown: #6b7383;
+  --st-normal: #6b7a8f;
+  --st-watch: #d1950f;
+  --st-high: #e0742c;
+  --st-critical: #e0473d;
+  --st-held: #7a6be0;
+  --st-fraud: #c22a45;
+  --st-normal-bg: #eef1f5;
+  --st-watch-bg: #fdf3dc;
+  --st-high-bg: #fdebe0;
+  --st-critical-bg: #fde6e4;
+  --st-held-bg: #efedfc;
+  --st-fraud-bg: #fbe3e8;
+  --st-unknown: #8a939e;
 
   /* live account status scale (3D universe, streams) */
   --as-normal: #5f86b8;
-  --as-idle: #34445a;
-  --as-new: #5fb0d6;
-  --as-early: #d6a23f;
-  --as-flagged: #e2564e;
-  --as-held: #9283d6;
-  --as-fraud: #c8344d;
-  --as-external: #6f7787;
+  --as-idle: #9aa6b4;
+  --as-new: #34b5d6;
+  --as-early: #d1950f;
+  --as-flagged: #e0473d;
+  --as-held: #7a6be0;
+  --as-fraud: #c22a45;
+  --as-external: #8a939e;
 
   /* charts */
-  --ch-teal: rgba(95, 176, 214, 0.85);
-  --ch-amber: rgba(214, 162, 63, 0.85);
-  --ch-red: rgba(226, 86, 78, 0.85);
-  --ch-magenta: rgba(146, 131, 214, 0.85);
-  --ch-blue: rgba(91, 147, 240, 0.85);
-  --ch-grey: rgba(133, 147, 168, 0.6);
+  --ch-teal: rgba(47, 191, 160, 0.9);
+  --ch-amber: rgba(209, 149, 15, 0.9);
+  --ch-red: rgba(224, 71, 61, 0.9);
+  --ch-magenta: rgba(122, 107, 224, 0.9);
+  --ch-blue: rgba(52, 140, 230, 0.9);
+  --ch-grey: rgba(107, 122, 143, 0.55);
 
   /* typography */
-  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-ui: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --fs-xs: 11px;
   --fs-sm: 12px;
   --fs-md: 13px;
-  --fs-base: 13px;
-  --fs-lg: 15px;
-  --fs-xl: 20px;
-  --fs-num: 20px;
+  --fs-base: 13.5px;
+  --fs-lg: 16px;
+  --fs-xl: 30px;
+  --fs-num: 26px;
 
   /* spacing, radii, depth */
   --s1: 2px; --s2: 4px; --s3: 6px; --s4: 8px; --s5: 12px; --s6: 16px; --s7: 20px; --s8: 28px;
-  --row-h: 32px;
-  --r1: 3px; --r2: 4px; --r3: 6px; --r4: 6px; --r5: 8px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --row-h: 40px;
+  --r1: 8px; --r2: 10px; --r3: 14px; --r4: 20px; --r5: 24px;
+  --shadow: 0 1px 2px rgba(15, 20, 25, 0.04), 0 6px 18px rgba(15, 20, 25, 0.05);
+  --shadow-pop: 0 18px 48px rgba(15, 20, 25, 0.16);
   --glow: none;
-  --side-w: 224px;
-  --strip-h: 40px;
-  --canvas: #0a0d12;
+  --side-w: 0px;
+  --strip-h: 64px;
+  --canvas: #0c1115;
 }
 
-/* Light variant — paper field, same structure. Status hues darkened for contrast on white. */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg-0: #f3f4f6; --bg-1: #f6f7f9; --bg-2: #eceef2; --bg: var(--bg-0);
-  --bg-side: #ffffff;
-  --surface: #ffffff; --surface-2: #f6f7f9; --surface-3: #eef0f4; --surface-hi: #eaf1fd;
-  --surface-strong: #f8f9fb; --surface-deep: #0d1015;
-  --line: #e1e4ea; --line-2: #d3d8e0; --line-3: #b9c0cc;
-  --ink: #161b24; --ink-2: #3b4454; --ink-3: #626c7d; --ink-4: #8d95a3;
-  --accent: #2f6bd6; --accent-strong: #2459b8; --accent-ink: #ffffff;
-  --accent-soft: rgba(47, 107, 214, 0.09); --accent-line: rgba(47, 107, 214, 0.38); --focus: #2f6bd6;
-  --warning: #9a6a00; --danger: #c0352d; --ok: #2c7a52;
-  --st-normal: #586579; --st-watch: #96660a; --st-high: #b0531c; --st-critical: #c0352d; --st-held: #5d4bb0; --st-fraud: #a51f38;
-  --st-normal-bg: #eef0f4; --st-watch-bg: #f8f0dc; --st-high-bg: #fbeadf; --st-critical-bg: #fae4e2; --st-held-bg: #eeebf9; --st-fraud-bg: #f9e0e5;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
-  --shadow-pop: 0 12px 32px rgba(16, 24, 40, 0.14);
+/* Dark variant (toggle) — same structure on a graphite field. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-0: #0d1015; --bg-1: #0f1218; --bg-2: #12161d; --bg: var(--bg-0); --bg-side: #12161d;
+  --surface: #161b22; --surface-2: #1b212a; --surface-3: #222a34; --surface-hi: #15302a;
+  --surface-strong: #131820; --surface-deep: #0a0d11;
+  --line: #242b35; --line-2: #2e3743; --line-3: #3c4757;
+  --ink: #e6e9ee; --ink-2: #b6bec9; --ink-3: #8891a0; --ink-4: #5f6878;
+  --accent: #e6e9ee; --accent-strong: #e6e9ee; --accent-ink: #0d1015;
+  --mint-soft: #15302a; --mint-ink: #c4f5e8; --accent-soft: #15302a; --accent-line: #2b6d5e; --link: #6fe0c6;
+  --st-normal-bg: rgba(133, 147, 168, 0.14); --st-watch-bg: rgba(209, 149, 15, 0.16); --st-high-bg: rgba(224, 116, 44, 0.16);
+  --st-critical-bg: rgba(224, 71, 61, 0.16); --st-held-bg: rgba(122, 107, 224, 0.18); --st-fraud-bg: rgba(194, 42, 69, 0.2);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3); --shadow-pop: 0 18px 48px rgba(0, 0, 0, 0.5);
 }

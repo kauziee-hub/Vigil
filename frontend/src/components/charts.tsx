@@ -9,10 +9,10 @@ function loadChart() {
   if (!lib) {
     lib = withChunkReload(() => import("chart.js")).then((m) => {
       m.Chart.register(...m.registerables);
-      m.Chart.defaults.font.family = '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';
+      m.Chart.defaults.font.family = '"Inter", "Segoe UI", system-ui, sans-serif';
       m.Chart.defaults.font.size = 11;
-      m.Chart.defaults.color = "#8790a0";
-      m.Chart.defaults.borderColor = "rgba(160,170,185,0.08)";
+      m.Chart.defaults.color = "#69737f";
+      m.Chart.defaults.borderColor = "rgba(15,20,25,0.06)";
       return m;
     });
   }
@@ -20,27 +20,29 @@ function loadChart() {
 }
 
 export const CH = {
-  teal: "rgba(95, 176, 214, 0.85)",
-  amber: "rgba(214, 162, 63, 0.85)",
-  red: "rgba(226, 86, 78, 0.85)",
-  magenta: "rgba(197, 111, 176, 0.85)",
-  blue: "rgba(95, 134, 184, 0.85)",
-  grey: "rgba(133, 147, 168, 0.6)",
-  violet: "rgba(146, 131, 214, 0.85)",
-  orange: "rgba(221, 122, 62, 0.85)",
-  mint: "rgba(91, 147, 240, 0.85)",
+  teal: "rgba(47, 191, 160, 0.9)",
+  amber: "rgba(209, 149, 15, 0.9)",
+  red: "rgba(224, 71, 61, 0.9)",
+  magenta: "rgba(197, 111, 176, 0.9)",
+  blue: "rgba(52, 140, 230, 0.9)",
+  grey: "rgba(107, 122, 143, 0.55)",
+  violet: "rgba(122, 107, 224, 0.9)",
+  orange: "rgba(224, 116, 44, 0.9)",
+  mint: "rgba(79, 214, 184, 0.9)",
+  slate: "rgba(107, 122, 143, 0.85)",
 };
-export const TIER_COLORS = [CH.blue, CH.amber, CH.orange, CH.violet, CH.red];
+export const TIER_COLORS = [CH.slate, CH.amber, CH.orange, CH.violet, CH.red];
 
 export function baseOptions(extra: Record<string, unknown> = {}): ChartOptions {
   return {
     responsive: true,
     maintainAspectRatio: false,
     animation: false,
-    plugins: { legend: { labels: { color: "#8790a0", boxWidth: 12, boxHeight: 12 } }, tooltip: { backgroundColor: "rgba(14,18,23,0.95)", borderColor: "rgba(91,147,240,0.3)", borderWidth: 1 } },
+    plugins: { legend: { labels: { color: "#69737f", boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: "rectRounded" } },
+               tooltip: { backgroundColor: "rgba(15,20,25,0.94)", borderColor: "rgba(79,214,184,0.4)", borderWidth: 1, padding: 10, cornerRadius: 10 } },
     scales: {
-      x: { ticks: { color: "#8790a0", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: "rgba(160,170,185,0.05)" } },
-      y: { ticks: { color: "#8790a0" }, grid: { color: "rgba(160,170,185,0.08)" }, beginAtZero: true },
+      x: { ticks: { color: "#8a939e", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false }, border: { display: false } },
+      y: { ticks: { color: "#8a939e" }, grid: { color: "rgba(15,20,25,0.06)" }, border: { display: false }, beginAtZero: true },
     },
     ...extra,
   } as ChartOptions;

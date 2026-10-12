@@ -6,7 +6,8 @@ import type { AccountStatusChange, AttackRun, Health, Metrics, ModeView, SystemH
 import { handle } from "../lib/format";
 import { useDebounced } from "../lib/hooks";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK } from "../lib/status";
-import { ErrorBoundary, Sim } from "./ui";
+import { TestConsole } from "./TestConsole";
+import { ErrorBoundary } from "./ui";
 
 type Listener = (e: WsEnvelope<any>) => void;
 interface Toast { id: number; kind: "danger" | "held" | "warn" | "ok"; title: string; body: string; link?: string }
@@ -38,43 +39,15 @@ export function usePlatform() {
   return useContext(ConsoleBus);
 }
 
-export const NAV: { to: string; label: string; end?: boolean; group?: string }[] = [
-  { to: "/", label: "Live operations", end: true, group: "Operate" },
-  { to: "/guard", label: "Transaction guard" },
-  { to: "/network", label: "Network intelligence", group: "Intelligence" },
-  { to: "/detection", label: "Detection & models" },
-  { to: "/investigations", label: "Investigations" },
-  { to: "/interventions", label: "Interventions" },
-  { to: "/governance", label: "Governance & audit", group: "Control" },
-  { to: "/lab", label: "Scenario lab" },
-  { to: "/health", label: "System health" },
-];
-
-/** 16px stroke icons for the primary navigation (one per area; no numbering). */
-const NAV_ICON: Record<string, ReactNode> = {
-  "/": <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
-  "/guard": <><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M9 12l2 2 4-4" /></>,
-  "/network": <><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="7" r="2.2" /><circle cx="12" cy="18" r="2.2" /><path d="M8 7l8 0M7 8l4 8M17 9l-4 7" /></>,
-  "/detection": <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
-  "/investigations": <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></>,
-  "/interventions": <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>,
-  "/governance": <><path d="M4 9h16M6 9v9M10 9v9M14 9v9M18 9v9M3 20h18M12 3l9 4H3z" /></>,
-  "/lab": <><path d="M9 3h6M10 3v6L4.5 18.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3" /></>,
-  "/health": <><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M8 20h8M12 16v4" /></>,
-};
-function NavIcon({ to }: { to: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {NAV_ICON[to]}
-    </svg>
-  );
-}
-
-function Clock() {
-  const [t, setT] = useState(() => new Date());
-  useEffect(() => { const i = window.setInterval(() => setT(new Date()), 1000); return () => window.clearInterval(i); }, []);
-  return <span className="v">{t.toLocaleTimeString("en-IN", { hour12: false })} IST</span>;
-}
+export const NAV: { to: string; label: string; title: string; end?: boolean }[] = [
+  { to: "/", label: "Overview", title: "Operations overview", end: true },
+  { to: "/guard", label: "Payments", title: "Transaction guard — pre-commit assessment of each payment" },
+  { to: "/network", label: "Network", title: "Live transaction network and evidence scenes" },
+  { to: "/detection", label: "Detection", title: "Detectors, models (SYNTHETIC VALIDATION), SHAP, drift, pattern memory" },
+  { to: "/investigations", label: "Cases", title: "Investigations — decisions and accounts" },
+  { to: "/interventions", label: "Interventions", title: "Holds, confirmations and trusted-contact alerts" },
+  { to: "/governance", label: "Governance", title: "Mode, policy, models, decision records" },
+]
 
 export function Shell({ children }: { children: ReactNode }) {
   const listeners = useRef(new Set<Listener>());
@@ -150,14 +123,23 @@ export function Shell({ children }: { children: ReactNode }) {
     loadHealth(); refreshMode(); api.metrics().then(setMetrics).catch(() => undefined);
   }, [conn, loadHealth, refreshMode]);
 
+  // light is the default (v5); "dark" is the alternative
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("vigil-theme") ?? ""; } catch { return ""; }
+    try { const t = localStorage.getItem("vigil-theme"); return t === "dark" ? "dark" : ""; } catch { return ""; }
   });
   useEffect(() => {
     if (theme) document.documentElement.dataset.theme = theme;
     else delete document.documentElement.dataset.theme;
     try { localStorage.setItem("vigil-theme", theme); } catch { /* ignore */ }
   }, [theme]);
+
+  // demo-only test inputs (PRIMA /ops style), opened from the top bar or with Alt+T
+  const [testOpen, setTestOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.altKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); setTestOpen((v) => !v); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // any gateway problem is shown, not only rejected keys (a probe can also fail with HTTP 429 / be unreachable)
   const gwStatus = health?.gateway?.status;
@@ -166,84 +148,70 @@ export function Shell({ children }: { children: ReactNode }) {
     : `gateway check failed${health?.gateway?.detail ? ` (${health.gateway.detail})` : ""}`;
   const open = metrics?.open_interventions ?? 0;
   const shadow = mode?.mode === "shadow";
+  const provider = health ? (health.payment_provider === "razorpay_test" ? "Razorpay TEST" : "Mock provider") : "…";
+  const healthy = conn === "open" && !gwBad && intelAvailable !== false;
+  const statusTitle = [
+    `Mode: ${mode ? mode.mode.toUpperCase() : "…"}`, `Payments: ${provider}${gwBad ? ` (${gwText})` : ""}`,
+    `Realtime: ${conn === "open" ? "live" : conn}`, `Policy: ${health?.policy_version ?? "…"}`,
+    `Detection intelligence: ${intelAvailable === null ? "…" : intelAvailable ? "available" : "not available"}`,
+    "External intelligence: SIMULATED", `Background traffic: ${health ? (health.ambient ? "on" : "off") : "…"}`,
+  ].join("\n");
 
   return (
     <ConsoleBus.Provider value={{ subscribe, conn, health, system, metrics, mode, modeAvailable, intelAvailable, refreshMode }}>
       <div className="shell">
-        <aside className="side" aria-label="Primary">
-          <NavLink to="/" className="side-brand">
-            <span className="mark">V</span>
-            <span className="txt">
-              <div className="name">VIGIL</div>
-              <div className="sub">Payment risk &amp; mule intelligence</div>
-            </span>
-          </NavLink>
-          <nav className="side-nav">
-            {NAV.map((n) => (
-              <div key={n.to} style={{ display: "contents" }}>
-                {n.group && <div className="side-group">{n.group}</div>}
-                <NavLink to={n.to} end={n.end} title={n.label}>
-                  <span className="idx"><NavIcon to={n.to} /></span>
-                  <span className="lbl">{n.label}</span>
-                  {n.to === "/interventions" && open > 0 ? <span className="badge hot">{open}</span> : <span />}
-                </NavLink>
-              </div>
-            ))}
-          </nav>
-          <div className="side-foot">
-            <span>PRIMA architecture · prototype on synthetic data.</span>
-            <span>Not connected to any regulator, payment network or bank system.</span>
-          </div>
-        </aside>
         <div className="main">
-          <div className="strip" role="status" aria-label="Platform status">
-            <div className="strip-item" title={mode?.note || "Operating mode"}>
-              <span className="k">Mode</span>
-              {mode ? <span className={`pill nodot ${shadow ? "s-watch" : "s-normal"}`}>{shadow ? "SHADOW" : "ACTIVE"}</span>
-                : <span className="v muted">{modeAvailable === false ? "n/a" : "…"}</span>}
+          <header className="topbar">
+            <NavLink to="/" className="brand" aria-label="Vigil — overview">
+              <span className="mark">V</span>
+              <span>Vigil<small>Fraud operations</small></span>
+            </NavLink>
+            <nav className="topnav" aria-label="Primary">
+              {NAV.map((n) => (
+                <NavLink key={n.to} to={n.to} end={n.end} title={n.title}>
+                  {n.label}{n.to === "/interventions" && open > 0 && <span className="badge">{open}</span>}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="tb-right">
+              <button className="test-btn" onClick={() => setTestOpen(true)} title="Demo-only test inputs (Alt+T)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M10 3v6L4.5 18.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3" /></svg>
+                <span>Test inputs</span>
+              </button>
+              <Link className={`icon-btn ${healthy ? "ok" : "warn"}`} to="/health" title={statusTitle} aria-label="System health">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>
+                <span className="dot-n" />
+              </Link>
+              <Link className="icon-btn" to="/interventions" title={`${open} open intervention${open === 1 ? "" : "s"}`} aria-label="Open interventions">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg>
+                {open > 0 && <span className="dot-n" />}
+              </Link>
+              <button className="icon-btn" aria-label="Toggle colour theme" title={theme === "dark" ? "Light theme" : "Dark theme"}
+                      onClick={() => setTheme(theme === "dark" ? "" : "dark")}>
+                {theme === "dark"
+                  ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+                  : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>}
+              </button>
+              <div className="user-chip" title={statusTitle}>
+                <span className="av">FO</span>
+                <span className="who">Fraud operations<small>{shadow ? "Shadow mode" : "Active mode"} · {conn === "open" ? "live" : conn}</small></span>
+              </div>
             </div>
-            <div className="strip-item" title={health?.payment_provider_label}>
-              <span className="k">Payments</span>
-              <span className="v">{health ? (health.payment_provider === "razorpay_test" ? "Razorpay TEST" : "Mock") : "…"}</span>
-              {gwBad && <span className="pill s-watch nodot" title={health?.gateway?.detail}>{gwText}</span>}
-            </div>
-            <div className="strip-item" title="Realtime push channel (WebSocket)">
-              <span className="k">Realtime</span>
-              <span className={`dot ${conn === "open" ? "ok" : conn === "connecting" ? "warn" : "bad"}`} />
-              <span className="v">{conn === "open" ? "live" : conn}</span>
-            </div>
-            <div className="strip-item" title="Risk policy version applied to new decisions">
-              <span className="k">Policy</span>
-              <span className="v">{health?.policy_version ?? "…"}</span>
-            </div>
-            <div className="strip-item" title="Detection intelligence layer (RF / GNN / drift / pattern memory) — /api/intel/*">
-              <span className="k">Intel</span>
-              <span className={`dot ${intelAvailable ? "ok" : intelAvailable === false ? "" : "warn"}`} />
-              <span className="v">{intelAvailable === null ? "…" : intelAvailable ? "available" : "not available"}</span>
-            </div>
-            <div className="strip-item" title={health?.external_intel_provider}>
-              <span className="k">Ext. intel</span>
-              <Sim />
-            </div>
-            <div className="strip-item" title="Background (ambient) transaction stream">
-              <span className="k">Stream</span>
-              <span className="v">{health ? (health.ambient ? "on" : "off") : "…"}</span>
-            </div>
-            <div className="strip-item end">
-              <Clock />
-              <button aria-label="Toggle colour theme" title="Theme"
-                      onClick={() => setTheme(theme === "light" ? "" : "light")}>{theme === "light" ? "◑" : "◐"}</button>
-            </div>
-          </div>
+          </header>
           {shadow && (
             <div className="shadow-band" role="note">
-              <b>SHADOW MODE</b> — Vigil evaluates every payment and records its recommendation, but does not intervene. The bank's baseline decision is applied.
+              <b>Shadow mode</b> — Vigil evaluates every payment and records its recommendation, but does not intervene. The bank's baseline decision is applied.
               <Link to="/governance">Governance →</Link>
             </div>
           )}
           <main className="page"><ErrorBoundary resetKey={loc.pathname}>{children}</ErrorBoundary></main>
+          <footer className="xs dim center" style={{ padding: "0 28px 28px" }}>
+            Vigil · PRIMA architecture · prototype on synthetic data — not connected to any bank, regulator or payment network.
+            {" "}Payments: {provider}{gwBad ? ` (${gwText})` : ""} · external intelligence simulated.
+          </footer>
         </div>
       </div>
+      {testOpen && <TestConsole onClose={() => setTestOpen(false)} />}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.kind}`}>

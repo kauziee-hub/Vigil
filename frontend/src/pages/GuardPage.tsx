@@ -2,7 +2,7 @@
 // on the right: sender · recipient · amount · relationship · device · behaviour · network · external ·
 // journey · context → decision → intervention → provider / ledger / monitoring outcome.
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { AccountSummary, DecisionRecord, RiskDecision, TransactionIntent } from "../api/types";
 import { AssessmentTable, CaseLinks, CaseMeta, InterventionShown, Outcome } from "../components/Assessment";
@@ -12,17 +12,6 @@ import { Metric, PageHead, Panel, StatePill, TierPill } from "../components/ui";
 import { formatINR, formatTime, handle, pct } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
 
-const QUICK: Record<string, { label: string; to: string; amount: string; note: string }[]> = {
-  "ramesh@vigil": [
-    { label: "Act 1 · Grocer ₹500", to: "meena.grocer@vigil", amount: "500", note: "groceries" },
-    { label: "Act 2 · Kiran Traders ₹45,000", to: "kiran.traders@vigil", amount: "45000", note: "advance for goods" },
-    { label: "Control · Landlord ₹1,20,000", to: "landlord.iyer@vigil", amount: "120000", note: "deposit + October rent" },
-  ],
-  "sunita@vigil": [
-    { label: "Pharmacy ₹2,000", to: "medplus.pharma@vigil", amount: "2000", note: "medicines" },
-  ],
-};
-
 export function GuardPage() {
   const [params, setParams] = useSearchParams();
   const payer = params.get("as") || "ramesh@vigil";
@@ -30,12 +19,19 @@ export function GuardPage() {
   const [device, setDevice] = useState<DeviceState>({ intent: null, decision: null });
   const [picked, setPicked] = useState<{ intent: TransactionIntent; decision: RiskDecision | null } | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
   const { metrics: m, mode, health } = usePlatform();
   const recent = useLoad<TransactionIntent[]>(() => api.intents(payer), [payer]);
   const refreshRecent = useDebounced(() => recent.reload(), 800);
 
   useEffect(() => { setPicked(null); }, [payer]);
+  // prefill from the test console (/guard?as=&to=&amount=&note=&context=), then drop those params
+  useEffect(() => {
+    const to = params.get("to");
+    if (!to) return;
+    setPrefill({ to, amount: params.get("amount") ?? "", note: params.get("note") ?? "", context: params.get("context") ?? undefined, nonce: Date.now() });
+    setParams({ as: payer }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.get("to")]);
   // the device always wins: a new payment on the phone replaces a historical selection
   useEffect(() => { if (device.intent) setPicked(null); }, [device.intent?.intent_id]);
 
@@ -55,11 +51,6 @@ export function GuardPage() {
     try { const r = await api.intent(id); setPicked({ intent: r.intent, decision: r.decision }); }
     catch (e) { setErr(e instanceof ApiError ? e.message : String(e)); }
   };
-  const runScenario = async (id: string) => {
-    setBusy(id); setErr(null);
-    try { await api.scenarioStart(id); } catch (e) { setErr(e instanceof ApiError ? e.message : String(e)); }
-    finally { setBusy(null); }
-  };
 
   return (
     <>
@@ -69,22 +60,6 @@ export function GuardPage() {
       <div className="guard">
         <div className="stack">
           <CustomerDevice payer={payer} onPayerChange={(p) => setParams({ as: p })} onChange={setDevice} prefill={prefill} />
-          <Panel title="Demo inputs" q="prefill the device" className="demo-inputs">
-            <div className="stack tight">
-              {(QUICK[payer] ?? []).map((q) => (
-                <button key={q.label} className="btn sm" style={{ justifyContent: "flex-start" }}
-                        onClick={() => setPrefill({ to: q.to, amount: q.amount, note: q.note, nonce: Date.now() })}>{q.label}</button>
-              ))}
-              {payer === "sunita@vigil" && (
-                <>
-                  <button className="btn sm" style={{ justifyContent: "flex-start" }} disabled={busy === "s3"} onClick={() => runScenario("s3")}>
-                    {busy === "s3" ? "Starting…" : "Act 4 · run coerced-payment scenario"}</button>
-                  <div className="xs muted">The scenario's payment appears on this phone live; Arjun's phone (<a href="/contact/arjun" target="_blank" rel="noreferrer">/contact/arjun</a>) receives the CircuitBreaker alert.</div>
-                </>
-              )}
-              {payer === "ramesh@vigil" && <div className="xs muted">Act 3 (mule network) runs in the <Link to="/lab">Scenario Lab</Link>; afterwards pay Kiran Traders again to see the network evidence carried into the next decision.</div>}
-            </div>
-          </Panel>
         </div>
 
         <div className="stack loose" style={{ minWidth: 0 }}>

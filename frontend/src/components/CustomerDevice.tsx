@@ -14,7 +14,7 @@ declare global {
 export const DEMO_PAYERS = ["ramesh@vigil", "sunita@vigil"];
 export const COERCION_SCRIPT = "Inspector Sharma, cyber police: a warrant has been issued in your name. You are under digital arrest. Do not tell anyone, not even your family. Transfer immediately to the RBI verification account.";
 
-export interface Prefill { to: string; amount: string; note: string; nonce: number }
+export interface Prefill { to: string; amount: string; note: string; context?: string; nonce: number }
 export interface DeviceState { intent: TransactionIntent | null; decision: RiskDecision | null }
 
 function loadRazorpay(): Promise<boolean> {
@@ -61,6 +61,7 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
   useEffect(() => {
     if (!prefill) return;
     resetForm(); setTo(prefill.to); setAmount(prefill.amount); setNote(prefill.note);
+    setCtx(prefill.context ?? ""); setCtxOpen(!!prefill.context);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill?.nonce]);
 
