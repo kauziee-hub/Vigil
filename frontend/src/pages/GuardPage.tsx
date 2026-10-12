@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { AccountSummary, DecisionRecord, RiskDecision, TransactionIntent } from "../api/types";
+import type { AccountSummary, DecisionRecord, PolicyView, RiskDecision, TransactionIntent } from "../api/types";
 import { AssessmentTable, CaseLinks, CaseMeta, InterventionShown, Outcome } from "../components/Assessment";
 import { CustomerDevice, type DeviceState, type Prefill } from "../components/CustomerDevice";
 import { useConsoleEvents, usePlatform } from "../components/Shell";
@@ -75,8 +75,8 @@ export function GuardPage() {
             <CaseView intent={intent} decision={decision} historical={!device.intent && !!picked} />
           ) : (
             <Panel kicker="Pre-commit assessment" title="No payment under assessment"
-                   q={`Submit a payment on ${handle(payer)}'s device, use a demo input, or open a recent intent.`}>
-              <div className="empty">The assessment appears here the moment the intent is evaluated — before any money moves.</div>
+                   q={`Submit a payment on ${handle(payer)}'s phone, or open a recent intent below.`}>
+              <PolicyPrimer />
             </Panel>
           )}
           <Panel kicker="History" title={`Recent intents · ${handle(payer)}`} flush>
@@ -150,5 +150,49 @@ function CaseView({ intent, decision, historical }: { intent: TransactionIntent;
         <Panel kicker="Outcome" title="Provider · ledger · monitoring"><Outcome intent={intent} record={record} /></Panel>
       </div>
     </>
+  );
+}
+
+/** What Vigil checks before money moves — read live from the versioned policy (no hard-coded weights). */
+function PolicyPrimer() {
+  const policy = useLoad<PolicyView>(api.policy);
+  const p = policy.data;
+  const DIM: Record<string, [string, string]> = {
+    external: ["External intelligence", "registry / consortium reports on the recipient (simulated)"],
+    network: ["Network (RingWatch)", "fan-in, pass-through, chains, rings, confirmed-scam neighbours, traced value"],
+    sequence: ["Journey (TrailScore)", "new device → payee added → limit raised before this payment"],
+    behaviour: ["Behaviour", "amount vs the customer's own history, first-time payee, balance drain, hour"],
+    context: ["Context (ContextFlag)", "urgency / secrecy / authority cues in call or message context (simulated)"],
+  };
+  return (
+    <div className="primer">
+      <div className="ksub">The assessment appears here the moment the intent is evaluated — before any money moves. Every payment is scored on five dimensions:</div>
+      {!p ? <div className="ksub">{policy.loading ? "Loading policy…" : "Policy unavailable."}</div> : (
+        <div className="grid cols-2 align-start" style={{ gap: 18, marginTop: 10 }}>
+          <div className="stack tight" style={{ gap: 10 }}>
+            {Object.entries(p.weights).sort((x, y) => y[1] - x[1]).map(([k, w]) => (
+              <div key={k} className="primer-row">
+                <div className="spread"><b>{DIM[k]?.[0] ?? k}</b><span className="mono sm">{Math.round(w * 100)}%</span></div>
+                <div className="bar"><i style={{ width: `${w * 100 * 3}%`, background: "var(--mint)" }} /></div>
+                <div className="xs muted">{DIM[k]?.[1]}</div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div className="xs muted" style={{ marginBottom: 6 }}>Proportionate response · policy {p.version.split("+")[0]}</div>
+            <div className="stack tight" style={{ gap: 6 }}>
+              {p.ladder.map((t, i) => (
+                <div key={t.tier} className="row" style={{ gap: 10 }}>
+                  <TierPill tier={t.tier} />
+                  <span className="grow sm"><b>{t.title}</b></span>
+                  <span className="mono xs muted">{i === 0 ? "<" : "≥"} {i === 0 ? t.below.toFixed(2) : p.ladder[i - 1].below.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="xs muted" style={{ marginTop: 10 }}>{p.note}</div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

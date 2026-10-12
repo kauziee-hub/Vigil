@@ -53,8 +53,9 @@ export function DetectionPerformance({ stats, runs, runsUnavailable }: { stats: 
                y: { beginAtZero: true, grid: { color: "rgba(15,20,25,0.06)" }, border: { display: false }, ticks: { color: "#8a939e" } } };
   return (
     <>
-      <div className="oc-grid3" style={{ marginTop: 0 }}>
+      <div className="oc-grid2" style={{ marginTop: 0, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
         <LastAttackResult runs={runs} unavailable={runsUnavailable} emptyText={noRuns} />
+        <div className="oc-col">
         <div className="kcard">
           <div className="kcard-h"><span>Runs by pattern</span><span className="act"><span className="sim gt">simulator ground truth</span></span></div>
           <div className="ksub">How many injected patterns were detected (≥ 1 injected account flagged)</div>
@@ -62,7 +63,8 @@ export function DetectionPerformance({ stats, runs, runsUnavailable }: { stats: 
             data={{ labels: byType.map((r) => r.name), datasets: [
               { label: "Runs", data: byType.map((r) => r.runs), backgroundColor: "rgba(107,122,143,0.35)", borderRadius: 6, maxBarThickness: 22 },
               { label: "Detected", data: byType.map((r) => r.detected_runs), backgroundColor: CH.mint, borderRadius: 6, maxBarThickness: 22 },
-            ] }} options={baseOptions({ scales: ax, plugins: { legend: { position: "bottom" } } }) as never} />
+            ] }} options={baseOptions({ scales: { ...ax, y: { ...ax.y, suggestedMax: 2, ticks: { ...ax.y.ticks, precision: 0, stepSize: 1 } } },
+              plugins: { legend: { position: "bottom" } } }) as never} />
         </div>
         <div className="kcard">
           <div className="kcard-h"><span>Latency & recall per run</span></div>
@@ -73,6 +75,7 @@ export function DetectionPerformance({ stats, runs, runsUnavailable }: { stats: 
               { type: "line", label: "Recall", data: done.map((r) => r.recall ?? 0), borderColor: CH.red, backgroundColor: CH.red, tension: 0.3, pointRadius: 3, yAxisID: "y1" },
             ] as never }} options={baseOptions({ plugins: { legend: { position: "bottom" } },
               scales: { ...ax, y1: { position: "right", min: 0, max: 1, grid: { display: false }, border: { display: false }, ticks: { color: "#8a939e" } } } }) as never} />
+        </div>
         </div>
       </div>
       <div className="oc-grid3">

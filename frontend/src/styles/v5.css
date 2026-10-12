@@ -284,4 +284,6 @@ table.dt th.sortable { cursor: pointer; user-select: none; }
 table.dt th.sortable:hover, table.dt th.sortable.on { color: var(--ink); }
 @media (max-width: 1360px) { .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } .kpi:nth-child(4) { border-left: 0; } }
 @media (max-width: 760px) { .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.primer-row { display: grid; gap: 4px; }
+.primer-row .bar { height: 6px; }
 
