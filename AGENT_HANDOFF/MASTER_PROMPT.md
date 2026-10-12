@@ -12,5 +12,6 @@ The user's prompts, verbatim, in order. Later prompts override earlier ones wher
 | v3.r | 2026-10-07 09:33 | `prompts/05_USER_continue_2026-10-07_0933.md` | "continue" after the 3rd session restart — continue v3 unchanged; relaunch the killed v3 agents. |
 | v4 | 2026-10-09 00:13 | `prompts/06_USER_professional_ui_2026-10-09.md` | Not the green UI — professional, mature, neat; fully functional, nothing fake. |
 | v5 | 2026-10-12 21:28 | `prompts/07_USER_reference_ui_final_demo_2026-10-12.md` | UI like two reference images (light, soft cards); all PRIMA + mule features ordered by priority; SHAP; minimal test inputs instead of a simulation panel; end-to-end for tomorrow's final demo. |
+| v6 | 2026-10-12 | `prompts/08_USER_logo_iphone_graph_overview_push_2026-10-12.md` | Logo + wordmark; iPhone-style payment device; graph edge filters / scale; re-architect Overview with everything (validated); push to github.com/kauziee-hub/Vigil. |
 
 Role prompts issued to agents are stored inside each run record in `runs/` (and the latest copies in `prompts/`).
