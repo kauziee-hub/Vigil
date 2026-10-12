@@ -6,7 +6,7 @@
 | Timestamp | 2026-10-09 00:13 IST → in progress |
 | Objective | User prompt v4 (`prompts/06_USER_professional_ui_2026-10-09.md`): not the green UI; professional, mature, neat; fully functional, nothing fake |
 | Exact Prompt | `prompts/06_USER_professional_ui_2026-10-09.md` (verbatim user message) |
-| Status | IN PROGRESS |
+| Status | DONE — full suite 330/330 pass (2026-10-09); superseded by user prompt v5 (2026-10-12) |
 
 ## Agent Output / Summary
 1. Recovery: v3 run-2 agents had been stopped by the usage limit (HTTP 429) on 10-07 ~10:30. Claude 3's work (M5 + self-review + DESIGN_SYSTEM v3) committed as WIP `510a3c1` → `claude3/v3-run2-wip`; Claude 2's M4a/M4c + uncommitted v3.0 artefacts → `claude2/v3-run2-wip` `1c9f7fa`. Lead's uncommitted RingWatch perf work committed `f230e09`.
@@ -19,7 +19,7 @@
 (see commits) `frontend/src/**`, `frontend/index.html`, `backend/vigil/{contracts.py,intel/service.py,intel/stream.py,risk/ringwatch.py,graph/pathgraph.py,api/routes.py}`, `backend/tests/{test_intel_shap_signed.py,test_vigil_live.py}`, `docs/DESIGN_SYSTEM.md`, `docs/BENCHMARK_RESULTS.md`, `scripts/benchmark_demo.py`, `AGENT_HANDOFF/**`.
 
 ## Tests Run / Test Results
-_(in progress — full suite after the structural-route change)_
+Final full backend suite (all commits through `64e2b30`): **330 passed, 0 failed**. Frontend `tsc --noEmit` + `vite build` green. Playwright audit: 15 routes, 0 console/API errors.
 
 ## Screenshots / Artifacts
 `.playwright-mcp/v4_*.png` (local, git-ignored): overview, network, case, account, guard, detection, contact (390 px), lab, governance, interventions.
@@ -33,7 +33,7 @@ _(in progress — full suite after the structural-route change)_
 - No subagents this round (usage-limit history).
 
 ## Remaining Work
-_(to be completed at the end of the run)_
+Superseded by prompt v5: light reference-style UI, test console instead of a simulation panel, final demo.
 
 ## Git Commit / Diff Reference
 `f230e09` perf · `a8be146` merge Claude 3 · `8c10d32` ui v4 · `85a6c73` SHAP honesty · `97437db` ui · `99c4955` merge Claude 2 · (pending) structural flagged route.
