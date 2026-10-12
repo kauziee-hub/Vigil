@@ -10,7 +10,8 @@ import { ApiError, api } from "../api/client";
 import type { AccountStatus, AccountStatusChange, LedgerTx, LiveUniverse, TxScored, UniverseAccount } from "../api/types";
 import { formatINR, handle } from "../lib/format";
 import { ACCOUNT_STATUS_HEX, ACCOUNT_STATUS_LABEL, ROLE_LABEL } from "../lib/status";
-import { UniverseEngine, type UEdge, type UStats, type UniverseMode } from "../lib/universe3d";
+import { UniverseEngine, type EdgeView, type UEdge, type UStats, type UniverseMode } from "../lib/universe3d";
+export type { EdgeView } from "../lib/universe3d";
 import { useConsoleEvents } from "./Shell";
 
 export type { UniverseMode, UStats } from "../lib/universe3d";
@@ -82,6 +83,8 @@ async function fallbackUniverse(): Promise<LiveUniverse> {
 export interface LiveUniverse3DProps {
   mode?: UniverseMode;
   groundTruth?: boolean;
+  /** which edges to draw (default "recent") */
+  edgeView?: EdgeView;
   autoRotate?: boolean;
   size?: "hero" | "full" | "compact";
   selected?: string | null;
@@ -163,6 +166,7 @@ export function LiveUniverse3D(p: LiveUniverse3DProps) {
 
   useEffect(() => { eng.current?.setMode(p.mode ?? "live"); }, [p.mode]);
   useEffect(() => { eng.current?.setGroundTruth(!!p.groundTruth); }, [p.groundTruth]);
+  useEffect(() => { eng.current?.setEdgeView(p.edgeView ?? "recent"); }, [p.edgeView]);
   useEffect(() => { eng.current?.setAutoRotate(!!p.autoRotate); }, [p.autoRotate]);
   useEffect(() => { eng.current?.setSelected(p.selected ?? null); }, [p.selected]);
   useEffect(() => { if (p.taint) eng.current?.setTaint(p.taint); }, [p.taint]);
@@ -280,4 +284,20 @@ export function UniverseLegend({ mode = "live", groundTruth }: { mode?: Universe
 
 export function formatPostingLine(tx: { sender_id: string; recipient_id: string; amount_paise: number }) {
   return `${handle(tx.sender_id)} → ${handle(tx.recipient_id)} · ${formatINR(tx.amount_paise)}`;
+}
+
+const EDGE_VIEWS: [EdgeView, string, string][] = [
+  ["recent", "Recent", "Postings from the last 2 minutes, fading out"],
+  ["window", "Window", "Every posting in the live window"],
+  ["risk", "Risk only", "Edges touching early-warning, flagged, held or confirmed accounts (incl. older history); ordinary accounts dimmed"],
+  ["all", "All", "Live window plus a sample of older history"],
+  ["none", "Off", "Accounts only"],
+];
+/** Edge filter for the live network (segmented control, dark-card styling). */
+export function EdgeViewSeg({ value, onChange }: { value: EdgeView; onChange: (v: EdgeView) => void }) {
+  return (
+    <div className="seg seg-dark" role="group" aria-label="Edges shown">
+      {EDGE_VIEWS.map(([v, l, t]) => <button key={v} className={value === v ? "on" : ""} title={t} onClick={() => onChange(v)}>{l}</button>)}
+    </div>
+  );
 }

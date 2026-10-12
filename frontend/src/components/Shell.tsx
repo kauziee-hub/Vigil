@@ -6,6 +6,7 @@ import type { AccountStatusChange, AttackRun, Health, Metrics, ModeView, SystemH
 import { handle } from "../lib/format";
 import { useDebounced } from "../lib/hooks";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK } from "../lib/status";
+import { Logo } from "./Logo";
 import { TestConsole } from "./TestConsole";
 import { ErrorBoundary } from "./ui";
 
@@ -162,10 +163,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="shell">
         <div className="main">
           <header className="topbar">
-            <NavLink to="/" className="brand" aria-label="Vigil — overview">
-              <span className="mark">V</span>
-              <span>Vigil<small>Fraud operations</small></span>
-            </NavLink>
+            <NavLink to="/" className="brand" aria-label="Vigil — overview"><Logo /></NavLink>
             <nav className="topnav" aria-label="Primary">
               {NAV.map((n) => (
                 <NavLink key={n.to} to={n.to} end={n.end} title={n.title}>

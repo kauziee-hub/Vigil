@@ -1,5 +1,6 @@
 // Trusted contact's phone (CircuitBreaker). Light consumer variant of the design system, mobile-first.
 // Alerts arrive over WebSocket — no refresh, no polling. Responses are real calls to /api/contact/{token}/respond.
+import { Logo } from "../components/Logo";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
@@ -45,7 +46,7 @@ export function ContactPage() {
     <div className="contact-wrap">
       <div className="contact">
         <div className="c-head">
-          <div className="c-brand"><span className="mark">V</span><span><b>Vigil</b><span className="c-sub">Trusted contact</span></span></div>
+          <div className="c-brand"><Logo tagline="Trusted contact" size={30} /></div>
           <span className="c-live"><span className={`dot ${conn === "open" ? "ok" : "warn"}`} />{conn === "open" ? "live" : "connecting"}</span>
         </div>
         {view.error && <div className="c-note err">{view.error.code === "unknown_token" ? "This link is not valid." : view.error.message}</div>}

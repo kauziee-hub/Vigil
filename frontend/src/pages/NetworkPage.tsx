@@ -14,7 +14,7 @@ import { AccountIntelBlock, RoleIcon } from "../components/intel";
 import { MoneyTrace } from "../components/MoneyTrace";
 import { useConsoleEvents } from "../components/Shell";
 import { KV, PageHead, Panel, Pill, Seg, Sim, Tabs } from "../components/ui";
-import { LiveUniverse3D, UniverseLegend, type UniverseInfo, type UniverseMode } from "../components/LiveUniverse3D";
+import { EdgeViewSeg, LiveUniverse3D, UniverseLegend, type EdgeView, type UniverseInfo, type UniverseMode } from "../components/LiveUniverse3D";
 import { UniverseDrawer } from "../components/UniverseDrawer";
 import { formatINR, formatStamp, formatTime, handle } from "../lib/format";
 import { ROLE_SHAPE, SHAPE_ICON, evidenceFromScene, nodeStatus, roleKey, sceneFromEvidence } from "../lib/graphStyle";
@@ -555,6 +555,7 @@ function LiveUniverseView() {
   const [sel, setSel] = useState<{ id: string; acct: UniverseAccount | null } | null>(null);
   const [orbit, setOrbit] = useState(false);
   const [gt, setGt] = useState(false);
+  const [edgeView, setEdgeView] = useState<EdgeView>("window");
   const [focus, setFocus] = useState<{ ids: string[]; seq: number } | null>(null);
   const onSelect = useCallback((id: string | null, acct: UniverseAccount | null) => setSel(id ? { id, acct } : null), []);
   const setLens = (m: UniverseMode) => {
@@ -590,8 +591,10 @@ function LiveUniverseView() {
           <div><div className="t">Live transaction network · {UMODES.find((m) => m[0] === mode)?.[1]?.toLowerCase()}</div></div>
           <UniverseLegend mode={mode} groundTruth={gt} />
         </div>
+        <div className="stage-filter"><span>Edges</span><EdgeViewSeg value={edgeView} onChange={setEdgeView} />
+          <span>{edgeView === "risk" ? "ordinary accounts dimmed; older flows into risky accounts included" : edgeView === "recent" ? "last 2 minutes, fading" : edgeView === "all" ? "live window + older history" : edgeView === "none" ? "accounts only" : "every posting in the live window"}</span></div>
         <div style={{ position: "relative" }}>
-          <LiveUniverse3D mode={mode} groundTruth={gt} autoRotate={orbit && !sel} size="full" selected={sel?.id ?? null} onSelect={onSelect}
+          <LiveUniverse3D mode={mode} groundTruth={gt} edgeView={edgeView} autoRotate={orbit && !sel} size="full" selected={sel?.id ?? null} onSelect={onSelect}
                           onInfo={onInfo} taint={taintMap} focus={focus} />
           {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} taint={taint.data ? taintMap.get(sel.id) ?? 0 : undefined}
                                   onClose={() => setSel(null)} onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}

@@ -9,14 +9,15 @@ import type { AccountStatus, DetectorFamily, IntelOverview, UniverseAccount } fr
 import { CH, ChartCanvas, TIER_COLORS, baseOptions } from "../components/charts";
 import { RoleIcon } from "../components/intel";
 import { LiveStreams } from "../components/live/LiveStreams";
-import { ScoreTables } from "../components/live/ScoreTables";
-import { LiveUniverse3D, UniverseLegend, type UStats, type UniverseInfo } from "../components/LiveUniverse3D";
+import { AttackHistory } from "../components/live/AttackResults";
+import { AccountScoring, DetectionPerformance, KpiStrip } from "../components/OverviewAnalytics";
+import { EdgeViewSeg, LiveUniverse3D, UniverseLegend, type EdgeView, type UStats, type UniverseInfo } from "../components/LiveUniverse3D";
 import { useConsoleEvents, usePlatform } from "../components/Shell";
 import { StatePill, TierPill } from "../components/ui";
 import { UniverseDrawer } from "../components/UniverseDrawer";
 import { duration, formatINR, formatPaiseShort, handle } from "../lib/format";
 import { useDebounced, useLoad, useNow } from "../lib/hooks";
-import { useLiveStats } from "../lib/live";
+import { useAttackRuns, useLiveStats } from "../lib/live";
 import { rowAge, useInterventionQueue } from "../lib/queue";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK, FAMILY, ROLE_LABEL, isAlarm, isRisky } from "../lib/status";
 
@@ -348,6 +349,8 @@ function PatternsCard() {
 // ── page ──────────────────────────────────────────────────────────────────
 export function OverviewPage() {
   const stats = useLiveStats(5000);
+  const runs = useAttackRuns();
+  const [edgeView, setEdgeView] = useState<EdgeView>("recent");
   const accounts = useRef(new Map<string, UniverseAccount>());
   const [by, setBy] = useState<Record<string, number> | null>(null);
   const [lists, setLists] = useState<{ risky: UniverseAccount[]; top: UniverseAccount[] }>({ risky: [], top: [] });
@@ -377,6 +380,7 @@ export function OverviewPage() {
   return (
     <>
       <Header suggest={lists.risky.length ? [...lists.risky, ...lists.top] : [...accounts.current.values()].filter((a) => a.kind === "customer").slice(0, 40)} />
+      <KpiStrip stats={stats.data} runs={runs.data} />
 
       <div className="oc-grid">
         <section className="stage">
@@ -390,8 +394,9 @@ export function OverviewPage() {
               <Link className="btn xs on" to="/network">Open</Link>
             </div>
           </div>
+          <div className="stage-filter"><span>Edges</span><EdgeViewSeg value={edgeView} onChange={setEdgeView} /></div>
           <div style={{ position: "relative" }}>
-            <LiveUniverse3D mode="live" autoRotate={!sel} size="compact" selected={sel?.id ?? null}
+            <LiveUniverse3D mode="live" edgeView={edgeView} autoRotate={!sel} size="compact" selected={sel?.id ?? null}
                             onSelect={onSelect} onInfo={onInfo} onStats={onStats} focus={focus} />
             {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} onClose={() => setSel(null)}
                                     onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
@@ -416,11 +421,16 @@ export function OverviewPage() {
         <DecisionsCard stats={stats} />
       </div>
 
+      <div className="oc-section"><h2>Detection performance</h2><span>every injected pattern evaluated against the simulator's ground truth — the mule-detection analytics</span></div>
+      <DetectionPerformance stats={stats.data} runs={runs.data} runsUnavailable={runs.unavailable} />
+      <div className="section-gap"><AttackHistory runs={runs.data} unavailable={runs.unavailable}
+        onPick={(r) => { setEdgeView("risk"); setFocus({ ids: r.injected, seq: Date.now() }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /></div>
+
       <div className="oc-section"><h2>Live activity</h2><span>every posting scored as it lands</span></div>
       <LiveStreams statusOf={statusOf} recent={recent} />
 
-      <div className="oc-section"><h2>Scoring</h2><span>transparent rules beside the corroborating models</span></div>
-      <ScoreTables key={uniVersion > 0 ? "u" : "n"} statusOf={statusOf} />
+      <div className="oc-section"><h2>Account scoring</h2><span>{"rules · Random Forest · GNN · drift · early warning · role — every scored account"}</span></div>
+      <AccountScoring key={uniVersion > 0 ? "u" : "n"} statusOf={statusOf} />
     </>
   );
 }

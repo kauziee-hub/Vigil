@@ -13,6 +13,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AccountStatus } from "../api/types";
 
 export type UniverseMode = "live" | "risk" | "model" | "roles" | "taint";
+/** Which edges are drawn: recent postings (default), the whole live window, only edges touching risky accounts
+ *  (incl. older history, ordinary nodes dimmed), window + history constellation, or none. */
+export type EdgeView = "recent" | "window" | "risk" | "all" | "none";
 
 export interface UNode {
   id: string;
@@ -68,6 +71,7 @@ function band(v: number | null | undefined): THREE.Color | null {
 }
 
 const ALARM = new Set(["flagged", "held", "confirmed_fraud"]);
+const RISKY = new Set(["early_warning", "flagged", "held", "confirmed_fraud"]);
 const ROLE_NONE = new Set(["", "normal", "unclassified", "victim"]);
 
 interface NState {
@@ -107,6 +111,8 @@ export class UniverseEngine {
   private histDirty = true;
   private mode: UniverseMode = "live";
   private groundTruth = false;
+  private edgeView: EdgeView = "recent";
+  private recentMs = 2 * 60 * 1000;
   private selected = -1;
   private hover = -1;
   private mouse = new THREE.Vector2(2, 2);
@@ -411,6 +417,12 @@ export class UniverseEngine {
   }
 
   setGroundTruth(on: boolean) { this.groundTruth = on; this.colorsDirty = true; }
+  setEdgeView(v: EdgeView) {
+    if (v === this.edgeView) return;
+    this.edgeView = v;
+    this.nodes.forEach((s) => { s.painted = ""; });
+    this.colorsDirty = true; this.histDirty = true;
+  }
   setAutoRotate(on: boolean) { this.controls.autoRotate = on; }
 
   /** Add one posting: aggregates per (sender, recipient) pair in the live window. */
@@ -526,6 +538,7 @@ export class UniverseEngine {
         return s.taint > 0 ? this.pk("taint", TAINT, 1.4 + Math.min(1.4, Math.log10(1 + s.taint / 100) / 4)) : this.pk("tdim", DIM, 0.6);
       default: {
         const vs = this.visualStatus(s, cutoff);
+        if (this.edgeView === "risk" && !RISKY.has(vs)) return this.pk("dim-" + vs, DIM, 0.55);
         return this.pk(vs, STATUS_COLOR[vs] ?? STATUS_COLOR.normal, STATUS_SCALE[vs] ?? 1);
       }
     }
@@ -541,46 +554,79 @@ export class UniverseEngine {
     } else if (this.mode === "taint") {
       if (this.nodes[p.i].taint > 0 && this.nodes[p.j].taint > 0) return out.copy(TAINT).multiplyScalar(0.9);
     }
-    const age = Math.max(0, now - p.last) / this.windowMs;          // 0 = just now, 1 = leaving the window
+    const span = this.edgeView === "recent" ? this.recentMs : this.windowMs;
+    const age = Math.max(0, now - p.last) / span;                   // 0 = just now, 1 = leaving the view
     // ordinary flows stay quiet (additive blending piles up at busy merchants) so alarm edges read first
     const k = Math.min(0.4, 0.12 + p.count * 0.05) * (1 - 0.7 * Math.min(1, age));
     return out.copy(EDGE).multiplyScalar(this.mode === "live" ? k : k * 0.55);
   }
 
+  /** An edge touching an early-warning / flagged / held / confirmed account (or tagged by the simulator when
+   *  ground truth is shown, or traced value in the taint lens). */
+  private riskyPair(i: number, j: number, gt: boolean): boolean {
+    const a = this.nodes[i], b = this.nodes[j];
+    if (RISKY.has(a.status) || RISKY.has(b.status)) return true;
+    if (this.groundTruth && gt) return true;
+    return this.mode === "taint" && a.taint > 0 && b.taint > 0;
+  }
+
+  // drawn subsets, rebuilt only when something changed (posting, status, view, once-a-second age tick)
+  private drawn: Pair[] = [];
+  private drawnHist: { i: number; j: number }[] = [];
+
   private writeEdges(now: number) {
     if (this.pairs.size > this.edgeCap) this.initEdges(Math.max(this.edgeCap * 2, this.pairs.size));
+    const view = this.edgeView;
+    const repaint = this.colorsDirty;
+    if (repaint) {
+      this.drawn = [];
+      if (view !== "none") {
+        this.pairs.forEach((p) => {
+          if (view === "recent" && now - p.last > this.recentMs) return;
+          if (view === "risk" && !this.riskyPair(p.i, p.j, p.gt)) return;
+          this.drawn.push(p);
+        });
+      }
+    }
     const pos = this.lines.geometry.attributes.position.array as Float32Array;
     const col = this.lines.geometry.attributes.color.array as Float32Array;
     let n = 0;
-    const paint = this.colorsDirty;
-    this.pairs.forEach((p) => {
+    for (const p of this.drawn) {
       const a = p.i * 3, b = p.j * 3, o = n * 6;
       pos[o] = this.cur[a]; pos[o + 1] = this.cur[a + 1]; pos[o + 2] = this.cur[a + 2];
       pos[o + 3] = this.cur[b]; pos[o + 4] = this.cur[b + 1]; pos[o + 5] = this.cur[b + 2];
-      if (paint) {
+      if (repaint) {
         this.edgeColor(p, now, this.col);
         col[o] = col[o + 3] = this.col.r; col[o + 1] = col[o + 4] = this.col.g; col[o + 2] = col[o + 5] = this.col.b;
       }
       n++;
-    });
+    }
     this.lines.geometry.setDrawRange(0, n * 2);
     this.lines.geometry.attributes.position.needsUpdate = true;
-    if (paint) this.lines.geometry.attributes.color.needsUpdate = true;
+    if (repaint) this.lines.geometry.attributes.color.needsUpdate = true;
 
-    // history constellation: positions follow the (slow) drift; colour fixed and faint
+    // history: faint constellation ("all"), or older flows touching risky accounts ("risk"); positions follow the drift
+    const histRepaint = repaint || this.histDirty;
+    if (histRepaint) {
+      this.drawnHist = view === "all" ? this.histPairs
+        : view === "risk" ? this.histPairs.filter((h) => this.riskyPair(h.i, h.j, false)) : [];
+    }
     const hp = this.hist.geometry.attributes.position.array as Float32Array;
     const hc = this.hist.geometry.attributes.color.array as Float32Array;
     let m = 0;
-    for (const h of this.histPairs) {
+    for (const h of this.drawnHist) {
       const a = h.i * 3, b = h.j * 3, o = m * 6;
       hp[o] = this.cur[a]; hp[o + 1] = this.cur[a + 1]; hp[o + 2] = this.cur[a + 2];
       hp[o + 3] = this.cur[b]; hp[o + 4] = this.cur[b + 1]; hp[o + 5] = this.cur[b + 2];
-      if (this.histDirty) { hc[o] = hc[o + 3] = 0.24; hc[o + 1] = hc[o + 4] = 0.29; hc[o + 2] = hc[o + 5] = 0.36; }   // faint: live postings must read first
+      if (histRepaint) {
+        if (view === "risk") { hc[o] = hc[o + 3] = 0.55; hc[o + 1] = hc[o + 4] = 0.22; hc[o + 2] = hc[o + 5] = 0.2; }   // older flows into risk
+        else { hc[o] = hc[o + 3] = 0.24; hc[o + 1] = hc[o + 4] = 0.29; hc[o + 2] = hc[o + 5] = 0.36; }                // faint constellation
+      }
       m++;
     }
     this.hist.geometry.setDrawRange(0, m * 2);
     this.hist.geometry.attributes.position.needsUpdate = true;
-    if (this.histDirty) this.hist.geometry.attributes.color.needsUpdate = true;
+    if (histRepaint) this.hist.geometry.attributes.color.needsUpdate = true;
     this.histDirty = false;
     this.colorsDirty = false;
   }

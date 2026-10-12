@@ -167,7 +167,10 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
   const amtPaise = rupeesToPaise(amount);
 
   return (
+    <div className="iphone">
+      <span className="iphone-btn l1" /><span className="iphone-btn l2" /><span className="iphone-btn l3" /><span className="iphone-btn r1" />
     <div className="phone" aria-live="polite">
+      <IosStatusBar />
       <div className="ph-head">
         <div className="spread">
           <div>
@@ -236,6 +239,25 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
                        onPay={(p) => startPayment(intent.intent_id, p)} />
         )}
       </div>
+      <div className="ios-home" aria-hidden="true" />
+    </div>
+    </div>
+  );
+}
+
+/** iOS-style status bar with the Dynamic Island (decorative; the clock is the real local time). */
+function IosStatusBar() {
+  const [t, setT] = useState(() => new Date());
+  useEffect(() => { const i = window.setInterval(() => setT(new Date()), 15000); return () => window.clearInterval(i); }, []);
+  return (
+    <div className="ios-status" aria-hidden="true">
+      <span className="ios-time">{t.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: false })}</span>
+      <span className="ios-island" />
+      <span className="ios-icons">
+        <svg viewBox="0 0 18 12" width="17" height="11"><rect x="0" y="8" width="3" height="4" rx="1" /><rect x="5" y="5.5" width="3" height="6.5" rx="1" /><rect x="10" y="3" width="3" height="9" rx="1" /><rect x="15" y="0" width="3" height="12" rx="1" /></svg>
+        <svg viewBox="0 0 16 12" width="15" height="11"><path d="M8 11.2 5.6 8.6a3.4 3.4 0 0 1 4.8 0zM3.4 6.4a6.5 6.5 0 0 1 9.2 0l-1.4 1.5a4.5 4.5 0 0 0-6.4 0zM1 4a9.9 9.9 0 0 1 14 0l-1.4 1.5a7.9 7.9 0 0 0-11.2 0z" /></svg>
+        <svg viewBox="0 0 27 12" width="25" height="12"><rect x="0.5" y="0.5" width="22" height="11" rx="3.2" fill="none" stroke="currentColor" opacity="0.4" /><rect x="2" y="2" width="16.5" height="8" rx="2" /><rect x="24" y="4" width="2" height="4" rx="1" opacity="0.45" /></svg>
+      </span>
     </div>
   );
 }
