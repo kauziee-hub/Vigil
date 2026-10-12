@@ -1,33 +1,31 @@
-// OPERATIONS CENTER (Overview v5) — reference layout (docs/archive/references/reference_v5): what needs action first, then how money is
-// moving, then why the models flag accounts (SHAP) and how detection is performing. Every number is read from the
-// Vigil backend; live state arrives over the Shell's console WebSocket (no polling); the 3D canvas is imperative.
-// Demo-only controls live in the Test inputs console (top bar), never on this page.
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+// OPERATIONS CENTER (Overview v9) — the live view of the bank's payment network, and nothing that has a home elsewhere:
+//   KPI strip → live transaction network (full width) → needs attention · close monitoring → money moving now · new accounts.
+// Analysis lives on its own pages: detector scores, SHAP and model metrics on Detection; payment decisions by tier on
+// Governance; live streams on Network. Every number is read from the Vigil backend; live state arrives over the Shell's
+// console WebSocket (no polling); the 3D canvas is imperative. Demo-only controls live in Test inputs (top bar).
+import { useCallback, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { AccountStatus, DetectorFamily, IntelOverview, UniverseAccount } from "../api/types";
+import type { AccountStatus, AttackRun, LedgerTx, NewAccount, UniverseAccount } from "../api/types";
 import { CH, ChartCanvas, baseOptions } from "../components/charts";
 import { RoleIcon } from "../components/intel";
-import { LastAttackResult } from "../components/live/AttackResults";
 import { KpiStrip } from "../components/OverviewAnalytics";
 import { EdgeViewSeg, LiveUniverse3D, UniverseLegend, type EdgeView, type UStats, type UniverseInfo } from "../components/LiveUniverse3D";
 import { useConsoleEvents, usePlatform } from "../components/Shell";
 import { StatePill, TierPill } from "../components/ui";
 import { UniverseDrawer } from "../components/UniverseDrawer";
-import { duration, formatINR, handle } from "../lib/format";
+import { WatchlistCard } from "../components/Watchlist";
+import { duration, formatINR, formatPaiseShort, formatTime, handle } from "../lib/format";
 import { useDebounced, useLoad, useNow } from "../lib/hooks";
 import { useAttackRuns, useLiveStats } from "../lib/live";
 import { rowAge, useInterventionQueue } from "../lib/queue";
-import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK, FAMILY, ROLE_LABEL, isAlarm, isRisky } from "../lib/status";
+import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK, ROLE_LABEL, isAlarm, isRisky } from "../lib/status";
 
 const I = {
-  pulse: <path d="M3 12h4l3-8 4 16 3-8h4" />,
-  shield: <><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M9 12l2 2 4-4" /></>,
-  grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
   alert: <><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4M12 17.5v.5" /></>,
   bars: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
-  brain: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /></>,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>,
+  userPlus: <><circle cx="10" cy="8" r="4" /><path d="M2 21c1.5-4 4.5-6 8-6 1.6 0 3.1.4 4.4 1.2M19 14v6M16 17h6" /></>,
   pay: <><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M3 10h18M7 15h3" /></>,
 };
 function Icon({ k }: { k: keyof typeof I }) {
@@ -42,6 +40,14 @@ function RiskBar({ value, status }: { value: number; status: AccountStatus }) {
   const cls = status === "held" ? "held" : status === "flagged" || status === "confirmed_fraud" ? "crit" : "";
   return <span className={`riskbar ${cls}`} title={`risk ${value.toFixed(2)}`}>{Array.from({ length: 10 }, (_, i) => <i key={i} className={i < on ? "on" : ""} />)}</span>;
 }
+
+const EDGE_HELP: Record<EdgeView, string> = {
+  recent: "Lines = payments in the last 2 minutes; they fade as they age.",
+  window: "Lines = every payment in the last 10 minutes.",
+  risk: "Only payments touching an account at early warning or worse (incl. older history); ordinary accounts dimmed.",
+  all: "Last 10 minutes plus a faint sample of older history: how the economy is connected.",
+  none: "Accounts only, no payment lines.",
+};
 
 // ── header ────────────────────────────────────────────────────────────────
 function Header({ suggest }: { suggest: UniverseAccount[] }) {
@@ -63,46 +69,11 @@ function Header({ suggest }: { suggest: UniverseAccount[] }) {
       <span className="spacer" />
       <span className="chip live" title="Realtime push channel"><span className={`dot ${conn === "open" ? "ok pulse" : conn === "connecting" ? "warn" : "bad"}`} />{conn === "open" ? "Live" : conn}</span>
       <span className="chip" title={mode?.note}>{mode?.mode === "shadow" ? "Shadow mode" : "Active mode"}</span>
-      <Link className="btn" to="/network">Network view</Link>
     </div>
   );
 }
 
-// ── cards ─────────────────────────────────────────────────────────────────
-function DetectorsCard() {
-  const intel = useLoad<IntelOverview>(api.intelOverview);
-  const refresh = useDebounced(() => intel.reload(), 1500);
-  useConsoleEvents((e) => { if (e.type === "intel.updated" || e.type === "demo.reset" || e.type === "attack.run_updated") refresh(); });
-  const d = intel.data;
-  const rows = d ? Object.entries(d.detector_agreement).sort((a, b) => b[1] - a[1]) : [];
-  const max = Math.max(1, ...rows.map(([, n]) => n));
-  return (
-    <div className="kcard">
-      <KHead icon="grid" title="Detector families" act={<Link className="btn xs" to="/detection">Details</Link>} />
-      <div className="ksub">Accounts each independent family flags right now</div>
-      {!d ? <div className="ksub">{intel.unavailable ? "Detection intelligence not available." : "Loading…"}</div> : (
-        <div className="heat" style={{ gridTemplateColumns: "minmax(100px, auto) 1fr 28px", marginTop: 6 }}>
-          {rows.map(([fam, n]) => (
-            <div key={fam} style={{ display: "contents" }}>
-              <span className="lbl">{FAMILY[fam as DetectorFamily]?.label ?? fam}</span>
-              <span className="cell" style={{ position: "relative", overflow: "hidden" }}>
-                <i style={{ position: "absolute", inset: 0, width: `${(n / max) * 100}%`, background: n ? "linear-gradient(90deg, #bdf3e6, #4fd6b8)" : "transparent", borderRadius: 6 }} />
-              </span>
-              <span className="mono" style={{ textAlign: "right", color: "var(--ink)" }}>{n}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {d && Object.keys(d.role_counts).length > 0 && (
-        <div className="row wrap tight" style={{ marginTop: 8 }}>
-          {Object.entries(d.role_counts).map(([r, n]) => <span key={r} className="tag"><RoleIcon role={r} size={11} />&nbsp;{ROLE_LABEL[r] ?? r} {n}</span>)}
-        </div>
-      )}
-      <div className="row wrap tight" style={{ marginTop: 6 }}><span className="stamp-sv">Synthetic validation</span><span className="ksub">models corroborate; rules decide</span></div>
-    </div>
-  );
-}
-
+// ── needs attention ───────────────────────────────────────────────────────
 function AttentionCard({ risky }: { risky: UniverseAccount[] }) {
   const nav = useNavigate();
   const [tab, setTab] = useState<"accounts" | "payments">("accounts");
@@ -113,44 +84,120 @@ function AttentionCard({ risky }: { risky: UniverseAccount[] }) {
     if ((e.type === "decision.created" && ((e.data as { tier?: number })?.tier ?? 0) >= 2) || e.type === "intent.updated" || e.type.startsWith("breaker.") || e.type === "demo.reset") refresh();
   });
   const payments = q.all.filter((r) => r.tier >= 2);
+  const n = (k: AccountStatus) => risky.filter((a) => a.status === k).length;
   return (
-    <div className="kcard" style={{ paddingBottom: 10 }}>
+    <div className="kcard attn-card">
       <KHead icon="alert" title="Needs attention" act={
         <div className="seg">
           <button className={tab === "accounts" ? "on" : ""} onClick={() => setTab("accounts")}>Accounts · {risky.length}</button>
           <button className={tab === "payments" ? "on" : ""} onClick={() => setTab("payments")}>Payments · {payments.length}</button>
         </div>} />
+      <div className="ksub">{tab === "accounts"
+        ? "Accounts flagged, held, confirmed as fraud or at early warning right now, and why. Click a row to investigate."
+        : "Payments held or waiting for the customer to confirm. Click a row for the case; release or reject in Interventions."}</div>
       {tab === "accounts" ? (
-        risky.length === 0 ? <div className="empty">No account is flagged, held or under early warning. Statuses update live as postings are scored.</div> : (
-          <table className="dt" style={{ marginTop: 6 }}>
-            <thead><tr><th>Account</th><th>Status</th><th>Risk</th><th>Role</th></tr></thead>
+        risky.length === 0 ? <div className="empty">No account is flagged, held or under early warning. Statuses update live as payments are scored.</div> : (
+          <div className="attn-scroll">
+            <table className="dt attn">
+              <thead><tr><th>Account · why</th><th>Status</th><th title="Strongest of the network score (RingWatch) and model evidence">Risk</th><th className="num" title="Independent detector families flagging the account">Agree</th><th>Role</th></tr></thead>
+              <tbody>
+                {risky.map((a) => (
+                  <tr key={a.id} className="click" onClick={() => nav(`/investigations/account/${encodeURIComponent(a.id)}`)}>
+                    <td><div className="row tight"><span className={`av-ic ${a.status === "held" ? "held" : isAlarm(a.status) ? "crit" : "warn"}`}><Icon k="user" /></span>
+                      <span className="cell-2l"><b>{a.label}</b><small className="why" title={a.reason ?? a.id}>{a.reason || a.id}</small></span></div></td>
+                    <td><span className={`pill as-${a.status}`}>{ACCOUNT_STATUS_LABEL[a.status]}</span>
+                      {a.status_since && <small className="since">since {formatTime(a.status_since).slice(0, 5)}</small>}</td>
+                    <td><RiskBar value={Math.max(a.risk ?? 0, a.model_risk ?? 0)} status={a.status} /></td>
+                    <td className="num mono">{a.families_flagging ? a.families_flagging : <span className="dim">—</span>}</td>
+                    <td className="sm">{a.role ? <span className="row tight"><RoleIcon role={a.role} size={12} />{ROLE_LABEL[a.role] ?? a.role}</span> : <span className="dim">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : payments.length === 0 ? <div className="empty">No payment is held or awaiting confirmation. Holds appear here the moment they are decided.</div> : (
+        <div className="attn-scroll">
+          <table className="dt attn">
+            <thead><tr><th>Payment</th><th className="num">Amount</th><th>Tier</th><th>State</th><th className="num">Age</th></tr></thead>
             <tbody>
-              {risky.slice(0, 7).map((a) => (
-                <tr key={a.id} className="click" onClick={() => nav(`/investigations/account/${encodeURIComponent(a.id)}`)}>
-                  <td><div className="row tight"><span className={`av-ic ${a.status === "held" ? "held" : isAlarm(a.status) ? "crit" : "warn"}`}><Icon k="user" /></span>
-                    <span className="cell-2l"><b>{a.label}</b><small>{a.id}</small></span></div></td>
-                  <td><span className={`pill as-${a.status}`}>{ACCOUNT_STATUS_LABEL[a.status]}</span></td>
-                  <td><RiskBar value={Math.max(a.risk ?? 0, a.model_risk ?? 0)} status={a.status} /></td>
-                  <td className="sm">{a.role ? <span className="row tight"><RoleIcon role={a.role} size={12} />{ROLE_LABEL[a.role] ?? a.role}</span> : <span className="dim">—</span>}</td>
+              {payments.map((r) => (
+                <tr key={r.decision_id} className="click" onClick={() => nav(`/investigations/decision/${r.decision_id}`)}>
+                  <td><div className="row tight"><span className={`av-ic ${r.tier >= 3 ? "held" : "warn"}`}><Icon k="pay" /></span>
+                    <span className="cell-2l"><b>{handle(r.sender_id)} → {handle(r.recipient_id)}</b><small className="why">{r.decision_id} · {r.headline}</small></span></div></td>
+                  <td className="num">{formatINR(r.amount_paise)}</td>
+                  <td><TierPill tier={r.tier} /></td>
+                  <td><StatePill state={r.state} /></td>
+                  <td className="num xs">{duration(rowAge(r, now, q.fetchedAt))}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )
-      ) : payments.length === 0 ? <div className="empty">No payment is held or awaiting confirmation. Holds appear here the moment they are decided.</div> : (
-        <table className="dt" style={{ marginTop: 6 }}>
-          <thead><tr><th>Payment</th><th className="num">Amount</th><th>Tier</th><th>State</th><th className="num">Age</th></tr></thead>
+        </div>
+      )}
+      {tab === "accounts" && risky.length > 0 && (
+        <div className="attn-foot">
+          <span><i style={{ background: "var(--as-flagged)" }} />{n("flagged")} flagged</span>
+          <span><i style={{ background: "var(--as-held)" }} />{n("held")} held</span>
+          <span><i style={{ background: "var(--as-fraud)" }} />{n("confirmed_fraud")} confirmed</span>
+          <span><i style={{ background: "var(--as-early)" }} />{n("early_warning")} early warning</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── money moving now ──────────────────────────────────────────────────────
+const ORIGIN_LABEL = { everyday: "Everyday", customer: "Customer", injected: "Injected" } as const;
+const ORIGIN_COLOR = { everyday: CH.teal, customer: CH.blue, injected: CH.red } as const;
+
+function MoneyCard({ stats, statusOf }: { stats: ReturnType<typeof useLiveStats>; statusOf: (id: string) => AccountStatus | null }) {
+  const t = stats.data?.traffic;
+  const b = t?.buckets ?? [];
+  const labels = b.map((p) => new Date(p.t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }));
+  const channels = Object.entries(t?.channels ?? {});
+  const chTotal = channels.reduce((a, [, v]) => a + v, 0);
+  const ds = (k: keyof typeof ORIGIN_LABEL) => ({
+    label: ORIGIN_LABEL[k], data: b.map((p) => p[k]), backgroundColor: ORIGIN_COLOR[k], borderRadius: 3, stack: "s", maxBarThickness: 24,
+  });
+  return (
+    <div className="kcard">
+      <KHead icon="bars" title="Money moving now" act={<span className="row tight wrap">
+        <span className="legend-dot"><i style={{ background: CH.teal }} />Everyday economy</span>
+        <span className="legend-dot"><i style={{ background: CH.blue }} />Customer payments</span>
+        <span className="legend-dot"><i style={{ background: CH.red }} />Test injections</span></span>} />
+      <div className="mstrip dense money-strip">
+        <div className="m"><div className="k">Payments · 10 min</div><div className="v">{t ? t.postings.toLocaleString("en-IN") : "—"}</div><div className="d">{stats.data ? `${stats.data.throughput_tps.toFixed(2)} per second now` : ""}</div></div>
+        <div className="m"><div className="k">Value moved</div><div className="v">{t ? formatPaiseShort(t.value_paise) : "—"}</div><div className="d">{t && t.postings ? `average payment ${formatPaiseShort(t.avg_paise)}` : "no payments yet"}</div></div>
+        <div className="m"><div className="k">Touching risky accounts</div><div className="v" style={{ color: t?.risky_postings ? "var(--st-high)" : undefined }}>{t ? t.risky_postings : "—"}</div><div className="d">sender or recipient at early warning+</div></div>
+        <div className="m"><div className="k">Channels</div><div className="v">{channels.length ? channels.map(([c]) => c.toUpperCase()).slice(0, 3).join(" · ") : "—"}</div><div className="d">{channels.length ? channels.map(([c, v]) => `${c.toUpperCase()} ${Math.round((v / Math.max(1, chTotal)) * 100)}%`).join(" · ") : ""}</div></div>
+      </div>
+      <ChartCanvas type="bar" height={210} empty={stats.unavailable ? "Live statistics not available." : "Collecting live payments…"}
+        data={{ labels, datasets: [ds("everyday"), ds("customer"), ds("injected")] }}
+        options={baseOptions({ plugins: { legend: { display: false }, tooltip: { callbacks: {
+            footer: (items: { dataIndex: number }[]) => (items.length ? `value ${formatINR(b[items[0].dataIndex]?.value_paise ?? 0)}` : "") } } },
+          interaction: { mode: "index", intersect: false },
+          scales: { x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: "#8a939e", maxTicksLimit: 6, maxRotation: 0 } },
+                    y: { stacked: true, beginAtZero: true, grid: { color: "rgba(15,20,25,0.06)" }, border: { display: false }, ticks: { color: "#8a939e", precision: 0 },
+                         title: { display: true, text: "payments per 30 s", color: "#8a939e", font: { size: 10.5 } } } } }) as never} />
+      <div className="ksub how"><b>How to read:</b> each bar counts every payment posted to the ledger in 30 seconds, over the last 10 minutes. <b>Everyday</b> is the simulated economy running in the background (groceries, bills, rent). <b>Customer</b> is a payment made on the customer's phone (Payments page). <b>Injected</b> is an attack pattern started from Test inputs, so a red block appearing out of nowhere is an attack arriving.</div>
+      <div className="sect-t" style={{ marginTop: 6 }}>Largest payments in the last 10 minutes</div>
+      {!t || t.largest.length === 0 ? <div className="ksub">No payment yet.</div> : (
+        <table className="dt compact money-top">
           <tbody>
-            {payments.slice(0, 7).map((r) => (
-              <tr key={r.decision_id} className="click" onClick={() => nav(`/investigations/decision/${r.decision_id}`)}>
-                <td><div className="row tight"><span className={`av-ic ${r.tier >= 3 ? "held" : "warn"}`}><Icon k="pay" /></span>
-                  <span className="cell-2l"><b>{handle(r.sender_id)} → {handle(r.recipient_id)}</b><small>{r.decision_id} · {r.headline}</small></span></div></td>
-                <td className="num">{formatINR(r.amount_paise)}</td>
-                <td><TierPill tier={r.tier} /></td>
-                <td><StatePill state={r.state} /></td>
-                <td className="num xs">{duration(rowAge(r, now, q.fetchedAt))}</td>
-              </tr>
-            ))}
+            {t.largest.map((x) => {
+              const st = statusOf(x.recipient_id);
+              return (
+                <tr key={x.id}>
+                  <td className="mono xs dim">{formatTime(x.ts)}</td>
+                  <td className="xs"><Link to={`/investigations/account/${encodeURIComponent(x.sender_id)}`}>{handle(x.sender_id)}</Link> → <Link to={`/investigations/account/${encodeURIComponent(x.recipient_id)}`}>{handle(x.recipient_id)}</Link>
+                    {st && isRisky(st) && <span className={`pill as-${st}`} style={{ marginLeft: 6 }}>{ACCOUNT_STATUS_LABEL[st]}</span>}</td>
+                  <td className="xs"><span className="tag" style={{ color: ORIGIN_COLOR[x.origin] }}>{ORIGIN_LABEL[x.origin]}</span></td>
+                  <td className="xs mono dim">{x.channel.toUpperCase()}</td>
+                  <td className="num mono">{formatINR(x.amount_paise)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -158,144 +205,133 @@ function AttentionCard({ risky }: { risky: UniverseAccount[] }) {
   );
 }
 
-function TrafficCard({ stats }: { stats: ReturnType<typeof useLiveStats> }) {
-  const v = stats.data?.volume ?? [];
-  const labels = v.map((p) => new Date(p.t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }));
-  const total = v.reduce((a, p) => a + p.normal + p.attack, 0);
-  const injected = v.reduce((a, p) => a + p.attack, 0);
-  return (
-    <div className="kcard">
-      <KHead icon="bars" title="Transaction traffic" act={<span className="row tight"><span className="legend-dot"><i style={{ background: CH.teal }} />Postings</span><span className="legend-dot"><i style={{ background: CH.red }} />Test injections</span></span>} />
-      <div className="kbig">
-        <span className="n">{stats.data ? total.toLocaleString("en-IN") : "—"}</span>
-        <span className="unit">postings in the window</span>
-        {stats.data && <span className="delta flat">{stats.data.throughput_tps.toFixed(2)} tx/s</span>}
-        {injected > 0 && <span className="delta bad">{injected} injected</span>}
-      </div>
-      <ChartCanvas type="line" height={232} empty={stats.unavailable ? "Live statistics not available." : "Collecting live postings…"}
-        data={{ labels, datasets: [
-          { label: "Postings", data: v.map((p) => p.normal), borderColor: CH.teal, backgroundColor: "rgba(79,214,184,0.16)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
-          { label: "Test injections", data: v.map((p) => p.attack), borderColor: CH.red, backgroundColor: "rgba(224,71,61,0.08)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
-        ] }}
-        options={baseOptions({ plugins: { legend: { display: false } }, interaction: { mode: "index", intersect: false } }) as never} />
-    </div>
-  );
+// ── new accounts ──────────────────────────────────────────────────────────
+function useNewAccounts() {
+  const l = useLoad<NewAccount[]>(() => api.newAccounts(30));
+  const refresh = useDebounced(() => l.reload(), 1500);
+  const ids = useRef(new Set<string>());
+  ids.current = new Set((l.data ?? []).map((a) => a.id));
+  useConsoleEvents((e) => {
+    if (["account.opened", "demo.reset", "intel.account_status"].includes(e.type)) refresh();
+    else if (e.type === "ledger.posted") {
+      const tx = e.data as LedgerTx;
+      if (tx && (ids.current.has(tx.sender_id) || ids.current.has(tx.recipient_id))) refresh();
+    }
+  });
+  return l;
 }
 
-/** Model drivers: signed SHAP by category, summed over the accounts that are flagged / warned right now. */
-function DriversCard({ risky, top }: { risky: UniverseAccount[]; top: UniverseAccount[] }) {
-  const subjects = (risky.length ? risky : top).slice(0, 5);
-  const key = subjects.map((a) => `${a.id}:${a.status}`).join("|");
-  const [agg, setAgg] = useState<{ cats: [string, number][]; n: number; ids: string[] } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
-    if (!subjects.length) { setAgg(null); return; }
-    let alive = true;
-    const t = window.setTimeout(() => {
-      Promise.all(subjects.map((a) => api.intelAccount(a.id).catch(() => null))).then((res) => {
-        if (!alive) return;
-        const sum: Record<string, number> = {};
-        let n = 0;
-        res.forEach((x) => {
-          const net = x?.shap?.category_net;
-          if (!net) return;
-          n++;
-          Object.entries(net).forEach(([c, v]) => { sum[c] = (sum[c] ?? 0) + v; });
-        });
-        setErr(n ? null : "No SHAP explanation available for these accounts.");
-        setAgg({ cats: Object.entries(sum).filter(([, v]) => Math.abs(v) >= 0.001).sort((p, q) => Math.abs(q[1]) - Math.abs(p[1])).slice(0, 7), n, ids: subjects.map((a) => a.id) });
-      });
-    }, 600);
-    return () => { alive = false; window.clearTimeout(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+function NewAccountsCard({ load }: { load: ReturnType<typeof useNewAccounts> }) {
+  const nav = useNavigate();
+  const rows = load.data ?? [];
   return (
     <div className="kcard">
-      <KHead icon="brain" title="What drives the model" act={<span className="stamp-sv">SHAP</span>} />
-      <div className="ksub">{risky.length ? `Signed SHAP by category, summed over the ${subjects.length} highest-risk flagged / warned accounts` : `No account is flagged — showing the ${subjects.length} highest model scores`}. Explains the Random Forest, not the payment decision.</div>
-      {err ? <div className="ksub">{err}</div> : !agg ? <div className="ksub">Loading…</div> : (
-        <ChartCanvas type="bar" height={210} empty="No category moved the score."
-          data={{ labels: agg.cats.map(([c]) => c), datasets: [{ label: "SHAP (signed)", data: agg.cats.map(([, v]) => v),
-            backgroundColor: agg.cats.map(([, v]) => (v >= 0 ? CH.red : CH.blue)), borderRadius: 6, barThickness: 14 }] }}
-          options={baseOptions({ indexAxis: "y", plugins: { legend: { display: false } },
-            scales: { x: { grid: { color: "rgba(15,20,25,0.06)" }, border: { display: false }, ticks: { color: "#8a939e" } }, y: { grid: { display: false }, border: { display: false }, ticks: { color: "#3c4652" } } } }) as never} />
+      <KHead icon="userPlus" title="New accounts" act={<span className="chip mute">opened in the last 30 days</span>} />
+      <div className="ksub">Mule accounts are often freshly opened and start receiving money from many people within days. Every recently opened account, and what has flowed through it since it was opened.</div>
+      {!load.data ? <div className="ksub">{load.unavailable ? "Not available on this server." : "Loading…"}</div> : rows.length === 0 ? <div className="empty">No account opened in the last 30 days.</div> : (
+        <div className="new-list">
+          {rows.map((a) => (
+            <div key={a.id} className="new-row" role="link" tabIndex={0} onClick={() => nav(`/investigations/account/${encodeURIComponent(a.id)}`)}>
+              <div className="row tight" style={{ alignItems: "flex-start" }}>
+                <span className="cell-2l grow"><b>{a.label}</b><small>{handle(a.id)} · opened {a.age_days < 1 ? `${Math.max(1, Math.round(a.age_days * 24))} h` : `${a.age_days.toFixed(a.age_days < 10 ? 1 : 0)} days`} ago</small></span>
+                <span className={`pill as-${a.status}`}>{ACCOUNT_STATUS_LABEL[a.status]}</span>
+              </div>
+              <div className="watch-act">
+                <span>In <b>{formatPaiseShort(a.in_paise)}</b>{a.senders ? ` from ${a.senders} sender${a.senders === 1 ? "" : "s"}` : ""}</span>
+                <span>Out <b>{formatPaiseShort(a.out_paise)}</b></span>
+                {a.first_inflow_at && <span className="dim">first money received {formatTime(a.first_inflow_at).slice(0, 5)}</span>}
+              </div>
+              {(a.large_inflow_rule || a.shared_device_accounts > 0) && (
+                <div className="row tight wrap">
+                  {a.large_inflow_rule && <span className="tag danger" title="Policy rule network.new_account_inflow: opened under 14 days ago and received at least ₹50,000">large inflow while new</span>}
+                  {a.shared_device_accounts > 0 && <span className="tag warn" title="Other accounts registered on the same device">device shared with {a.shared_device_accounts} other account{a.shared_device_accounts === 1 ? "" : "s"}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
-      {agg && <div className="row wrap tight">{agg.ids.map((id) => <Link key={id} className="tag mono" to={`/investigations/account/${encodeURIComponent(id)}`}>{handle(id)}</Link>)}</div>}
-      <div className="ksub"><span style={{ color: CH.red }}>■</span> raised the score · <span style={{ color: CH.blue }}>■</span> lowered it</div>
     </div>
   );
 }
 
 // ── page ──────────────────────────────────────────────────────────────────
 export function OverviewPage() {
-  const stats = useLiveStats(5000);
+  const stats = useLiveStats(4000);
   const runs = useAttackRuns();
+  const fresh = useNewAccounts();
   const [edgeView, setEdgeView] = useState<EdgeView>("recent");
   const accounts = useRef(new Map<string, UniverseAccount>());
   const [by, setBy] = useState<Record<string, number> | null>(null);
-  const [lists, setLists] = useState<{ risky: UniverseAccount[]; top: UniverseAccount[] }>({ risky: [], top: [] });
+  const [risky, setRisky] = useState<UniverseAccount[]>([]);
   const [sel, setSel] = useState<{ id: string; acct: UniverseAccount | null } | null>(null);
   const [focus, setFocus] = useState<{ ids: string[]; seq: number } | null>(null);
+  const netRef = useRef<HTMLElement>(null);
 
   const recompute = useCallback(() => {
-    const all = [...accounts.current.values()].filter((a) => a.kind === "customer");
-    const risky = all.filter((a) => isRisky(a.status))
+    const list = [...accounts.current.values()].filter((a) => a.kind === "customer" && isRisky(a.status))
       .sort((p, q) => ACCOUNT_STATUS_RANK[q.status] - ACCOUNT_STATUS_RANK[p.status] || Math.max(q.risk, q.model_risk ?? 0) - Math.max(p.risk, p.model_risk ?? 0));
-    const top = [...all].sort((p, q) => (q.model_risk ?? 0) - (p.model_risk ?? 0)).slice(0, 3);
-    setLists((prev) => {
-      const k = (xs: UniverseAccount[]) => xs.map((a) => `${a.id}:${a.status}`).join("|");
-      return k(prev.risky) === k(risky) && k(prev.top) === k(top) ? prev : { risky, top };
+    setRisky((prev) => {
+      const k = (xs: UniverseAccount[]) => xs.map((a) => `${a.id}:${a.status}:${a.reason ?? ""}`).join("|");
+      return k(prev) === k(list) ? prev : list;
     });
   }, []);
   const onInfo = useCallback((i: UniverseInfo) => { accounts.current = i.accounts; recompute(); }, [recompute]);
   const onStats = useCallback((s: UStats) => { setBy(s.byStatus); recompute(); }, [recompute]);
   const onSelect = useCallback((id: string | null, acct: UniverseAccount | null) => setSel(id ? { id, acct } : null), []);
+  const statusOf = useCallback((id: string): AccountStatus | null => accounts.current.get(id)?.status ?? null, []);
   const counts = stats.data?.counts;
-  const lastRun = (runs.data ?? []).find((r) => r.status === "completed") ?? null;
-  const byStatus = by ?? (counts ? { flagged: counts.flagged ?? 0, held: counts.held ?? 0, confirmed_fraud: counts.confirmed ?? 0, early_warning: counts.warnings ?? 0 } : null);
+  const byStatus = by ?? (counts ? { flagged: counts.flagged ?? 0, held: counts.held ?? 0, confirmed_fraud: counts.confirmed_fraud ?? 0, early_warning: counts.early_warning ?? 0 } : null);
+  const showRun = useCallback((r: AttackRun) => {
+    setEdgeView("risk");
+    setFocus({ ids: r.injected, seq: Date.now() });
+    const el = netRef.current;
+    if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 84, behavior: "smooth" });
+  }, []);
+  const suggest = useMemo(() => (risky.length ? risky : [...accounts.current.values()].filter((a) => a.kind === "customer").slice(0, 40)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [risky, by]);
 
   return (
     <>
-      <Header suggest={lists.risky.length ? [...lists.risky, ...lists.top] : [...accounts.current.values()].filter((a) => a.kind === "customer").slice(0, 40)} />
-      <KpiStrip stats={stats.data} runs={runs.data} by={byStatus} />
+      <Header suggest={suggest} />
+      <KpiStrip stats={stats.data} runs={runs.data} by={byStatus} fresh={fresh.data} onRun={showRun} />
 
-      <div className="oc-hero">
-        <section className="stage">
-          <div className="stage-h">
-            <div>
-              <div className="t">Live transaction network</div>
-              <UniverseLegend />
-            </div>
-            <div className="row tight">
-              <button className="btn xs" onClick={() => setFocus({ ids: [...accounts.current.keys()], seq: Date.now() })}>Reset view</button>
-              <Link className="btn xs on" to="/network">Open</Link>
-            </div>
+      <section className="stage oc-net" ref={netRef}>
+        <div className="stage-h">
+          <div>
+            <div className="t">Live transaction network</div>
+            <div className="net-help">Every dot is an account and every line a payment, drawn the moment it is posted. Colour = the account's live status; labelled dots need attention. Click a dot to inspect it, drag to rotate, scroll to zoom.</div>
           </div>
-          <div className="stage-filter"><span>Edges</span><EdgeViewSeg value={edgeView} onChange={setEdgeView} /></div>
-          <div style={{ position: "relative" }}>
-            <LiveUniverse3D mode="live" edgeView={edgeView} autoRotate={!sel} size="compact" selected={sel?.id ?? null}
-                            onSelect={onSelect} onInfo={onInfo} onStats={onStats} focus={focus} />
-            {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} onClose={() => setSel(null)}
-                                    onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
+          <div className="row tight">
+            <button className="btn xs" onClick={() => setFocus({ ids: [...accounts.current.keys()], seq: Date.now() })}>Reset view</button>
+            {risky.length > 0 && <button className="btn xs" onClick={() => { setEdgeView("risk"); setFocus({ ids: risky.map((a) => a.id), seq: Date.now() }); }}>Zoom to {risky.length} at risk</button>}
+            <Link className="btn xs on" to="/network">Full network view</Link>
           </div>
-        </section>
-        <AttentionCard risky={lists.risky} />
+        </div>
+        <div className="stage-filter">
+          <span>Edges</span><EdgeViewSeg value={edgeView} onChange={setEdgeView} />
+          <span className="edge-help">{EDGE_HELP[edgeView]}</span>
+          <span className="spacer" />
+          <UniverseLegend />
+        </div>
+        <div style={{ position: "relative" }}>
+          <LiveUniverse3D mode="live" edgeView={edgeView} autoRotate={!sel} size="hero" selected={sel?.id ?? null}
+                          onSelect={onSelect} onInfo={onInfo} onStats={onStats} focus={focus} />
+          {sel && <UniverseDrawer id={sel.id} acct={accounts.current.get(sel.id) ?? sel.acct} onClose={() => setSel(null)}
+                                  onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
+        </div>
+      </section>
+
+      <div className="oc-pair">
+        <AttentionCard risky={risky} />
+        <WatchlistCard />
       </div>
 
-      <div className="oc-section"><h2>Why accounts are flagged</h2><span>model drivers, detector agreement and the latest detection run — live</span></div>
-      <div className="oc-grid3" style={{ marginTop: 0 }}>
-        <DriversCard risky={lists.risky} top={lists.top} />
-        <DetectorsCard />
-        <LastAttackResult runs={runs.data} unavailable={runs.unavailable} compact
-          emptyText="No pattern injected since the last reset. Test inputs → Inject a mule-network pattern."
-          footer={<div className="row tight wrap" style={{ marginTop: 12 }}>
-            {lastRun && <button className="btn sm" onClick={() => { setEdgeView("risk"); setFocus({ ids: lastRun.injected, seq: Date.now() }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-              Show in network</button>}
-            <Link className="btn sm ghost" to="/detection">All runs</Link>
-          </div>} />
+      <div className="oc-split">
+        <MoneyCard stats={stats} statusOf={statusOf} />
+        <NewAccountsCard load={fresh} />
       </div>
-
-      <div className="section-gap"><TrafficCard stats={stats} /></div>
     </>
   );
 }

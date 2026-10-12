@@ -593,6 +593,8 @@ export interface UniverseAccount {
   group: "customer" | "merchant" | "demo" | "mule_attack" | "external";
   status: AccountStatus; risk: number; model_risk: number | null; role: string | null;
   opened_at: string; balance_paise: number; last_active: string | null;
+  /** v8 (additive): why the account has its status, which detector families flag it, and since when. */
+  reason?: string | null; families_flagging?: number; families?: string[]; status_since?: string | null;
 }
 export interface UniverseEdge {
   id: string; source: string; target: string; amount_paise: number; ts: string; channel: string; kind: string;
@@ -633,4 +635,33 @@ export interface LiveStats {
   roles_flagged: Record<string, number>;
   threshold_history: { t: string; value: number; reason: string }[];
   counts: Record<string, number>;
+  /** v8 (additive): last 10 minutes of ledger traffic by origin. */
+  traffic?: Traffic;
 }
+export interface TrafficPosting { id: string; ts: string; sender_id: string; recipient_id: string; amount_paise: number; channel: string; origin: "everyday" | "customer" | "injected" }
+export interface Traffic {
+  bucket_seconds: number;
+  buckets: { t: string; everyday: number; customer: number; injected: number; value_paise: number }[];
+  postings: number; value_paise: number; avg_paise: number; risky_postings: number;
+  channels: Record<string, number>; largest: TrafficPosting[];
+}
+export interface NewAccount {
+  id: string; label: string; opened_at: string; age_days: number; status: AccountStatus; reason: string | null;
+  in_paise: number; out_paise: number; inflows: number; senders: number; first_inflow_at: string | null;
+  shared_device_accounts: number; large_inflow_rule: boolean;
+}
+
+// ══ v8 close monitoring (watchlist) — mirror of backend/vigil/contracts.py ══
+export interface WatchActivity {
+  window: string; in_paise: number; out_paise: number; forwarded_fraction: number; counterparties: number;
+  new_counterparty_ratio: number; tx_count: number;
+}
+export type WatchSource = "pinned" | "early_warning" | "model_only" | "pattern_memory";
+export interface WatchEntry {
+  account_id: string; label: string; pinned: boolean; sources: WatchSource[]; note: string | null; added_at: string | null;
+  status: AccountStatus; status_since: string | null; reason: string | null; families_flagging: number; families: string[];
+  network_risk: number; model_risk: number | null; model_threshold: number | null; role: string | null;
+  early_warning_signals: string[]; pattern: { name: string; similarity: number } | null;
+  activity: WatchActivity | null; last_active: string | null; next_step: string;
+}
+export interface Watchlist { as_of: string; model_threshold: number | null; pinned: number; suggested: number; entries: WatchEntry[] }

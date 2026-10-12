@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v8 — operations center, close monitoring, explained Detection, functional guide (2026-10-13, Claude 1)
+
+- **Overview = live activity only**, nothing duplicated elsewhere: KPI strip (postings, value moved, accounts at risk, open interventions, new accounts, last detection run: click to frame the attack in the network) → **full-width, taller live network** → Needs attention (each account with its reason, status-since time and how many families agree) beside **Close monitoring** → **Money moving now** (payments per 30 s by origin, value, risky postings, channels, largest payments) beside **New accounts** (opened in the last 30 days, inflow since opening, large-inflow and shared-device flags). SHAP and detector families moved to Detection; decisions by tier stay on Governance / Health.
+- **Close monitoring (watchlist):** pin any account (Watch on the account page or the network drawer, optional note); live suggestions for early warning, uncorroborated model evidence and pattern matches; 72 h activity and "what would flag it next". `GET/POST/DELETE /api/watchlist`, cleared by a demo reset.
+- **Detection explained:** four numbered sections, and every chart has a Shows / How to read / Right now caption with live takeaways. Duplicated charts removed (volume, channels, decisions by tier).
+- **Backend (additive):** universe accounts carry `reason`, `families`, `families_flagging`, `status_since`; `LiveStats.traffic`; `GET /api/live/new-accounts`; `account.opened` and `watchlist.updated` events.
+- **Fixes:** live status changes keep their reason on the Overview; positioning no longer says the model layer is "in progress"; recipient risk-evolution title; toast link to the attack history.
+- **Functional guide** (beginner level, 67 screenshots, demo script, live attack-check table): a Claude Doc; screenshots in `docs/guide/img/`.
+
 ## v7 — no Razorpay, focused Overview, verified attacks (2026-10-13, Claude 1)
 
 - **Razorpay removed.** Payments settle on a simulated rail behind the provider port. Gone: gateway probe, keys, checkout, confirm/fallback routes, `-Mock` flag.

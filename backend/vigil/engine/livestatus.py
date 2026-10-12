@@ -23,6 +23,13 @@ PRECEDENCE = ["idle", "normal", "new", "early_warning", "flagged", "held", "conf
 RANK = {s: i for i, s in enumerate(PRECEDENCE)}
 NEW_DAYS = 7
 LIVE_WINDOW_MIN = 10
+# reasons when the intelligence layer is absent or Vigil's own state overrides its status
+REASON = {
+    "confirmed_fraud": "Recipient of a bank-confirmed fraud label",
+    "held": "Active scoped hold on an outgoing payment",
+    "new": f"Account opened less than {NEW_DAYS} days ago",
+    "idle": f"No posting in the last {LIVE_WINDOW_MIN} min",
+}
 
 
 def _intel_map() -> dict[str, dict[str, Any]] | None:
@@ -54,7 +61,8 @@ def statuses(ids: Iterable[str] | None = None) -> dict[str, dict[str, Any]]:
     for aid in wanted:
         meta = accounts.get(aid) or {}
         if meta.get("kind") == "external":
-            out[aid] = {"status": "external", "risk": 0.0, "model_risk": None, "role": None, "families_flagging": 0}
+            out[aid] = {"status": "external", "risk": 0.0, "model_risk": None, "role": None, "families_flagging": 0,
+                        "reason": "External counterparty outside the bank's perimeter", "families": [], "since": None}
             continue
         row = scan.get(aid)
         risk = row["score"] if row else 0.0
@@ -78,9 +86,14 @@ def statuses(ids: Iterable[str] | None = None) -> dict[str, dict[str, Any]]:
             status = _stronger("held", status)
         if aid in labelled:
             status = "confirmed_fraud"
+        reason = im.get("reason") if im.get("status") == status else None
+        if not reason:
+            reason = REASON.get(status) or (", ".join(row["labels"]) if row and row.get("labels") else None)
         out[aid] = {"status": status, "risk": risk, "model_risk": im.get("model_risk"),
                     "role": im.get("role") or (row["role"] if row else None),
-                    "families_flagging": int(im.get("families_flagging") or 0)}
+                    "families_flagging": int(im.get("families_flagging") or 0),
+                    "reason": reason, "families": list(im.get("families") or []),
+                    "since": im.get("since") if im.get("status") == status else None}
     return out
 
 

@@ -81,6 +81,7 @@ class _State:
     def __init__(self) -> None:
         self.epoch: Any = None
         self.statuses: dict[str, str] = {}
+        self.since: dict[str, str] = {}             # account -> when its current status was first seen (ISO)
         self.last_t: dict[str, float] = {}          # last posting time per account
         self.n_edges: dict[str, int] = {}           # edge count when last_t was measured
         self.threshold, rule = _initial_threshold()
@@ -103,7 +104,7 @@ class _State:
     def reset(self, epoch: Any) -> None:
         """New demo world (reset / reload): forget statuses and restore the initial threshold."""
         self.epoch = epoch
-        self.statuses, self.last_t, self.n_edges = {}, {}, {}
+        self.statuses, self.since, self.last_t, self.n_edges = {}, {}, {}, {}
         self.threshold, rule = _initial_threshold()
         self.initial = self.threshold
         self.evaluated_runs = set()
@@ -447,6 +448,10 @@ def _sync(snap: live.Snapshot, publish: bool) -> tuple[dict[str, dict[str, Any]]
                 changes.append(AccountStatusChange(account_id=a, status=v["status"], previous=prev, risk=v["model_risk"],
                                                    role=v["role"], families_flagging=v["families_flagging"],
                                                    reason=_reason(snap, a, v, held, confirmed), ts=ts))
+    ts_now = clock.now_iso()
+    for a, v in view.items():                      # status since: first time the current status was seen
+        if STATE.statuses.get(a) != v["status"] or a not in STATE.since:
+            STATE.since[a] = ts_now
     STATE.statuses = {a: v["status"] for a, v in view.items()}
     STATE.view_key, STATE.view = key, view
     STATE.view_ctx = (snap, held, confirmed)
@@ -507,7 +512,10 @@ def register() -> None:
 
 # ── public read functions (Claude 1: /api/live/universe, /api/live/stats, attack-run evaluation) ──
 def status_map() -> dict[str, dict[str, Any]]:
-    """account_id -> {status, risk, model_risk, role, families_flagging, reason} for every account.
+    """account_id -> {status, risk, model_risk, role, families_flagging, reason, families, since} for every account.
+
+    `families` names the detector families flagging the account; `since` is when its current status was first
+    seen by this process (the world load / reset time for statuses that have not changed since).
 
     Cached per graph state, threshold, Vigil hold/label state and 5 s of wall time (idle depends on time).
     `risk` and `model_risk` are both the strongest calibrated model-evidence value (RF / GNN; corroborating
@@ -523,7 +531,8 @@ def status_map() -> dict[str, dict[str, Any]]:
         if cached is None or cached[0] is not view:
             vsnap, held, confirmed = STATE.view_ctx
             out = {a: {"status": v["status"], "risk": v["risk"], "model_risk": v["model_risk"], "role": v["role"],
-                       "families_flagging": v["families_flagging"], "reason": _reason(vsnap, a, v, held, confirmed)}
+                       "families_flagging": v["families_flagging"], "reason": _reason(vsnap, a, v, held, confirmed),
+                       "families": list(v.get("_flagging") or []), "since": STATE.since.get(a)}
                    for a, v in view.items()}
             STATE.view_out = cached = (view, out)
         return dict(cached[1])

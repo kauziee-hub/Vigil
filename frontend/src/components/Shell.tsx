@@ -103,7 +103,7 @@ export function Shell({ children }: { children: ReactNode }) {
       const r = e.data as AttackRun;
       if (r?.status === "completed" && !announced.current.has(r.run_id)) {
         announced.current.add(r.run_id);
-        pushToast({ kind: r.detected.length ? "ok" : "warn", link: "/#attack-history", title: `${r.run_id} · ${r.name} completed`,
+        pushToast({ kind: r.detected.length ? "ok" : "warn", link: "/detection#attack-history", title: `${r.run_id} · ${r.name} completed`,
           body: `Detected ${r.detected.length} of ${r.injected.length} injected mules (simulator ground truth)` });
       }
     }

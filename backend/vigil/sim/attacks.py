@@ -51,6 +51,7 @@ def _account(aid: str, name: str, days_old: int, device: str) -> None:
         db.insert("account_devices", {"account_id": aid, "device_id": device, "first_seen": opened})
     GRAPH.add_account(row)
     GRAPH.add_device(aid, device)
+    HUB.publish("console", "account.opened", {"account_id": aid, "label": name, "opened_at": opened})
 
 
 def _tx(sid: str, sender: str, recipient: str, amount: int, *, channel: str = "upi", note: str = "",

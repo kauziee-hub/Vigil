@@ -8,6 +8,7 @@ import { useLoad } from "../lib/hooks";
 import { ACCOUNT_STATUS_LABEL, ROLE_LABEL, STATUS_HEX, scoreStatus } from "../lib/status";
 import { AccountIntelBlock, RoleIcon } from "./intel";
 import { KV, Sim } from "./ui";
+import { WatchButton, useWatched } from "./Watchlist";
 
 export function AccountStatusPill({ status }: { status: UniverseAccount["status"] }) {
   return <span className={`pill as-${status}`}>{ACCOUNT_STATUS_LABEL[status]}</span>;
@@ -20,6 +21,7 @@ export function UniverseDrawer({ id, acct, taint, onClose, onFocus }: {
   const summary = useLoad<AccountSummary | null>(() => (ext ? Promise.resolve(null) : api.account(id)), [id]);
   const txs = useLoad<LedgerTx[]>(() => (ext ? Promise.resolve([]) : api.accountTransactions(id)), [id]);
   const a = summary.data;
+  const watched = useWatched(id);
   return (
     <aside className="drawer" aria-label="Account investigation drawer">
       <div className="drawer-h">
@@ -63,6 +65,7 @@ export function UniverseDrawer({ id, acct, taint, onClose, onFocus }: {
           <div className="row wrap" style={{ marginTop: 12 }}>
             {onFocus && <button className="btn sm" onClick={onFocus}>Focus camera</button>}
             {!ext && <Link className="btn sm primary" to={`/investigations/account/${encodeURIComponent(id)}`}>Open account</Link>}
+            {!ext && watched.available && <WatchButton accountId={id} pinned={watched.pinned} onChange={() => watched.reload()} />}
             {!ext && <Link className="btn sm ghost" to={`/network?view=scene&focus=${encodeURIComponent(id)}&hops=1`}>Evidence scene</Link>}
           </div>
         </div>

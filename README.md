@@ -25,7 +25,7 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 
 | Screen | URL | What it is for |
 |---|---|---|
-| Overview | `/` | What needs action now and why: KPIs, live network (edge filter), needs attention, SHAP drivers, detector agreement, last detection run, traffic |
+| Overview | `/` | Live operations center: KPIs, full-width live network (edge filter), needs attention (with reasons), close monitoring (watchlist), money moving now, new accounts |
 | Payments | `/guard` | The customer's phone beside the bank's pre-commit assessment; customer-only kiosk at `/pay?as=ramesh@vigil` |
 | Network | `/network` | Live 3D universe with lenses and edge filter, evidence scenes, live activity streams |
 | Detection | `/detection` | Models (synthetic validation), live detection runs, rules, early warning, roles, full account scoring, pattern memory |

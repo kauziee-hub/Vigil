@@ -287,7 +287,8 @@ const LAYERS: [string, string, string, string][] = [
   ["Pass / explain / challenge / hold / escalate", "Interrupt ladder. Holds are scoped to the payment amount; no account freeze exists.", "Built", "normal"],
   ["Payment provider / rail", "Called only after approval. Simulated rail behind a provider port: a bank plugs its own rail in here. No real money moves.", "Built (simulated)", "normal"],
   ["Post-transaction monitoring", "Ledger + incremental graph; RingWatch re-scores; TaintTrace attributes value from confirmed scams (LIBR / pro rata).", "Built", "normal"],
-  ["Model intelligence (RF · GNN · drift · pattern memory)", "Corroborating evidence beside the decision; never fused into the tier. Validated on synthetic data only.", "In progress (intelligence layer)", "watch"],
+  ["Model intelligence (RF · GNN · drift · early warning · pattern memory)", "Corroborating evidence beside the decision and the live account status; never fused into the payment tier. Validated on synthetic data only.", "Built (synthetic validation)", "normal"],
+  ["Close monitoring", "Analyst watchlist plus live suggestions (early warning, uncorroborated model evidence, pattern matches) with activity and what would escalate each account.", "Built", "normal"],
 ];
 const LIFECYCLE: [string, string][] = [
   ["Intent", "Customer presses Pay. No money moves."],

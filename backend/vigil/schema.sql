@@ -222,3 +222,12 @@ CREATE TABLE IF NOT EXISTS scenario_runs (
   started_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- v8: close monitoring — accounts an analyst pinned for watching. Operator state about the current world,
+-- so a demo reset clears it like every other table. Watching never changes a status or a payment tier.
+CREATE TABLE IF NOT EXISTS watchlist (
+  account_id TEXT PRIMARY KEY,
+  note TEXT,
+  added_by TEXT NOT NULL DEFAULT 'operator',
+  added_at TEXT NOT NULL
+);

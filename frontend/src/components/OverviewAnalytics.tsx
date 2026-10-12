@@ -1,43 +1,48 @@
-// Analytics blocks: the Overview KPI strip and the full account scoring table (Detection page).
+// Analytics blocks: the operations-center KPI strip (Overview) and the full account scoring table (Detection page).
 // Every value comes from the backend (metrics, live stats, attack runs, intel scores / models); nothing is fabricated.
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { AccountStatus, AttackRun, IntelScores, LiveStats } from "../api/types";
+import type { AccountStatus, AttackRun, IntelScores, LiveStats, NewAccount } from "../api/types";
 import { RoleIcon } from "./intel";
 import { useConsoleEvents, usePlatform } from "./Shell";
 import { formatPaiseShort, handle } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
-import { msLabel } from "../lib/live";
 import { ACCOUNT_STATUS_LABEL, ROLE_LABEL } from "../lib/status";
 
-// ── KPI strip ─────────────────────────────────────────────────────────────
-export function KpiStrip({ stats, runs, by }: { stats: LiveStats | null; runs: AttackRun[] | null; by: Record<string, number> | null }) {
+// ── KPI strip (operations center) ─────────────────────────────────────────
+export function KpiStrip({ stats, runs, by, fresh, onRun }: {
+  stats: LiveStats | null; runs: AttackRun[] | null; by: Record<string, number> | null;
+  fresh: NewAccount[] | null; onRun?: (r: AttackRun) => void;
+}) {
   const { metrics: m } = usePlatform();
   const last = (runs ?? []).find((r) => r.status === "completed") ?? null;
   const n = (k: string) => by?.[k] ?? 0;
   const atRisk = by ? n("flagged") + n("held") + n("confirmed_fraud") : null;
-  const tiers = m?.decisions_by_tier ?? {};
-  const total = Object.values(tiers).reduce((x, y) => x + y, 0);
-  const passed = tiers["0"] ?? 0;
-  const item = (k: string, v: React.ReactNode, d: React.ReactNode, tone?: "bad" | "ok" | "warn") => (
-    <div className={`kpi ${tone ?? ""}`}><div className="k">{k}</div><div className="v">{v}</div><div className="d">{d}</div></div>
+  const t = stats?.traffic;
+  const funded = (fresh ?? []).filter((a) => a.in_paise > 0).length;
+  const ruled = (fresh ?? []).filter((a) => a.large_inflow_rule).length;
+  const item = (k: string, v: React.ReactNode, d: React.ReactNode, tone?: "bad" | "ok" | "warn", onClick?: () => void, title?: string) => (
+    <div className={`kpi ${tone ?? ""} ${onClick ? "click" : ""}`} onClick={onClick} title={title} role={onClick ? "button" : undefined}>
+      <div className="k">{k}</div><div className="v">{v}</div><div className="d">{d}</div>
+    </div>
   );
   return (
     <div className="kpi-strip">
+      {item("Postings · 10 min", m ? m.transactions_last_10m.toLocaleString("en-IN") : "—",
+        stats ? `${stats.throughput_tps.toFixed(2)} tx/s · ${m?.transactions_total.toLocaleString("en-IN") ?? "—"} in ledger` : "live")}
+      {item("Value moved · 10 min", t ? formatPaiseShort(t.value_paise) : "—",
+        t && t.postings ? `avg ${formatPaiseShort(t.avg_paise)} · largest ${formatPaiseShort(t.largest[0]?.amount_paise ?? 0)}` : "no postings yet")}
       {item("Accounts at risk", atRisk ?? "—", by ? `${n("flagged")} flagged · ${n("held")} held · ${n("early_warning")} early warning` : "loading live statuses…",
         atRisk ? "bad" : atRisk === 0 ? "ok" : undefined)}
       {item("Open interventions", m ? String(m.open_interventions) : "—", m ? `${formatPaiseShort(m.held_paise)} held in scoped holds` : "",
         m && m.open_interventions ? "warn" : undefined)}
-      {item("Passed without friction", total ? `${((passed / total) * 100).toFixed(1)}%` : "—",
-        total ? `${passed.toLocaleString("en-IN")} of ${total.toLocaleString("en-IN")} payments at Tier 0` : "no payments yet")}
-      {item("Decision latency", m?.latency_p95_ms != null ? `${m.latency_p95_ms.toFixed(1)} ms` : "—",
-        m ? `p95 pre-commit · ${m.decisions_total.toLocaleString("en-IN")} payments assessed` : "")}
+      {item("New accounts · 30 days", fresh ? String(fresh.length) : "—",
+        fresh ? `${funded} received money${ruled ? ` · ${ruled} large inflow` : ""}` : "loading…", ruled ? "warn" : undefined)}
       {item("Last detection run", last && last.recall != null ? `${last.detected.filter((x) => last.injected.includes(x)).length} / ${last.injected.length}` : "—",
-        last ? `mules caught · ${last.name} · ${last.false_positives.length} false positive${last.false_positives.length === 1 ? "" : "s"} · ${msLabel(last.detection_ms)}` : "no pattern injected yet",
-        last ? (last.missed.length ? "warn" : "ok") : undefined)}
-      {item("Postings · 10 min", m ? m.transactions_last_10m.toLocaleString("en-IN") : "—",
-        stats ? `${stats.throughput_tps.toFixed(2)} tx/s · ${m?.transactions_total.toLocaleString("en-IN") ?? "—"} in ledger` : "live")}
+        last ? `mules caught · ${last.name} · ${last.false_positives.length} false positive${last.false_positives.length === 1 ? "" : "s"}` : "no pattern injected yet",
+        last ? (last.missed.length ? "warn" : "ok") : undefined,
+        last && onRun ? () => onRun(last) : undefined, last ? "Show the injected accounts in the network" : undefined)}
     </div>
   );
 }
@@ -87,7 +92,7 @@ export function AccountScoring({ statusOf }: { statusOf?: (id: string) => Accoun
     <th className={`num sortable ${sort === k ? "on" : ""}`} onClick={() => setSort(k)} title={`Sort by ${label}`}>{label}{sort === k ? " ↓" : ""}</th>
   );
   return (
-    <div className="kcard" style={{ paddingBottom: 12 }}>
+    <div className="kcard" id="account-scoring" style={{ paddingBottom: 12 }}>
       <div className="kcard-h">
         <span>Account scoring</span>
         <span className="act">

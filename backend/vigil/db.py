@@ -125,7 +125,7 @@ def set_meta(key: str, value: str) -> None:
 
 
 ALL_TABLES = (
-    "intent_transitions", "circuit_breaker_events", "scoped_holds", "alerts",
+    "watchlist", "intent_transitions", "circuit_breaker_events", "scoped_holds", "alerts",
     "risk_decisions", "payment_attempts", "transaction_intents", "fraud_labels",
     "taint_runs", "scenario_runs", "events", "payees", "account_devices",
     "trusted_contacts", "external_intel", "transactions", "accounts", "meta",

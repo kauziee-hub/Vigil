@@ -6,7 +6,7 @@ import type {
   IntelOverview, InterventionRow, ModeView, ModelInfo, RiskPoint, ScenarioCompare, ScenarioReplay, SystemHealth,
   AccountSummary, ContactView, DecisionSummary, GraphEvidence, Health, IntentWithDecision, Investigation,
   LedgerTx, Metrics, PolicyView, RingRow, RiskDecision, ScenarioExplain, ScenarioStatus, TaintView,
-  TransactionIntent,
+  NewAccount, TransactionIntent, Watchlist,
 } from "./types";
 
 export class ApiError extends Error {
@@ -103,8 +103,16 @@ export const api = {
     request<LiveUniverse>(`/api/live/universe?${new URLSearchParams(
       Object.entries(p).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))}`),
   liveStats: () => request<LiveStats>("/api/live/stats"),
+  newAccounts: (days = 30) => request<NewAccount[]>(`/api/live/new-accounts?days=${days}`),
   attackRuns: () => request<AttackRun[]>("/api/attacks/runs"),
   attackRun: (runId: string) => request<AttackRun>(`/api/attacks/runs/${runId}`),
+
+  // ── v8: close monitoring (watchlist) ──
+  watchlist: () => request<Watchlist>("/api/watchlist"),
+  watch: (account_id: string, note?: string) =>
+    post<{ account_id: string; note: string | null; added_at: string }>("/api/watchlist", { account_id, note }),
+  unwatch: (account_id: string) =>
+    request<{ account_id: string; removed: boolean }>(`/api/watchlist/${encodeURIComponent(account_id)}`, { method: "DELETE" }),
 
   // ── v2: detection intelligence (Claude 2, /api/intel/**) ──
   intelAccount: (accountId: string) => request<AccountIntel>(`/api/intel/accounts/${encodeURIComponent(accountId)}`),

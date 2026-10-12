@@ -16,6 +16,7 @@ import { AccountAlerts, GroundTruth, LiveStatusLine, useAccountLive } from "../c
 import { RiskEvolution } from "../components/Replay";
 import { SceneThumb } from "../components/SceneThumb";
 import { useConsoleEvents } from "../components/Shell";
+import { WatchButton, useWatched } from "../components/Watchlist";
 import { Async, ErrorNote, KV, Loading, PageHead, Panel, Pill, Seg, Sim, StatePill, TierPill, Unavailable } from "../components/ui";
 import { clean, evValue, formatINR, formatStamp, formatTime, handle, humanKey } from "../lib/format";
 import { nodeStatus } from "../lib/graphStyle";
@@ -43,6 +44,7 @@ export function AccountPage() {
   const scene = useLoad<GraphScene>(() => api.scene({ focus: accountId, hops: Number(hops), cap: 60 }), [accountId, hops]);
   const policy = useLoad<PolicyView>(api.policy);
   const live = useAccountLive(accountId);
+  const watched = useWatched(accountId);
 
   // Event-driven refresh, throttled: postings touching this account re-score it (intel + RingWatch + ledger + scene).
   const refreshScores = useThrottled(() => { net.reload(); intel.reload(); txs.reload(); scene.reload(); }, 4000);
@@ -119,9 +121,11 @@ export function AccountPage() {
           {node?.labelled && <Pill status="fraud">confirmed fraud</Pill>}
           {a.held_paise > 0 && <Pill status="held">held {formatINR(a.held_paise)}</Pill>}
           {a.is_demo_customer && <span className="tag">demo customer</span>}
+          {watched.pinned && <span className="tag pin" title={watched.entry?.note ?? "On the close-monitoring watchlist"}>on watchlist{watched.entry?.note ? ` · “${watched.entry.note}”` : ""}</span>}
           <span>{a.persona ?? a.kind}</span>
         </span>}
         actions={<>
+          {a.kind !== "external" && watched.available && <WatchButton accountId={a.id} pinned={watched.pinned} askNote onChange={() => watched.reload()} />}
           <Link className="btn sm" to={`/network?focus=${encodeURIComponent(a.id)}&hops=1`}>3D network · 1-hop</Link>
           <Link className="btn sm ghost" to={`/network?focus=${encodeURIComponent(a.id)}&hops=2`}>2-hop</Link>
           {a.is_demo_customer && <Link className="btn sm ghost" to={`/guard?as=${encodeURIComponent(a.id)}`}>Transaction Guard</Link>}
@@ -338,7 +342,9 @@ export function AccountPage() {
       </div>
 
       <div className="grid cols-2 align-start section-gap">
-        <Panel kicker="PRIMA · risk evolution" title="Payment decisions as sender" q="each marker says why the score moved">
+        <Panel kicker="PRIMA · risk evolution"
+               title={(rt.data ?? []).some((p) => p.label.startsWith("Payment from")) ? "Payments to this account · network score at each decision" : "Payment decisions as sender"}
+               q="each marker says why the score moved">
           <Async load={rt} what="Risk evolution" endpoint="/api/accounts/{id}/risk-timeline">
             {(pts) => pts.length === 0
               ? <div className="empty">This account has not initiated an evaluated payment. Its risk as a recipient is the network evidence above.</div>

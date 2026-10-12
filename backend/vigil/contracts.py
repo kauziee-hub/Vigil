@@ -473,6 +473,11 @@ class UniverseAccount(BaseModel):
     opened_at: str
     balance_paise: int = 0
     last_active: Optional[str] = None
+    # v8 (additive): why the account has its status, which detector families flag it, and since when
+    reason: Optional[str] = None
+    families_flagging: int = 0
+    families: list[str] = Field(default_factory=list)
+    status_since: Optional[str] = None
 
 
 class UniverseEdge(BaseModel):
@@ -565,3 +570,69 @@ class LiveStats(BaseModel):
     roles_flagged: dict[str, int]
     threshold_history: list[dict[str, Any]] = Field(default_factory=list)  # [{t, value, reason}] model-evidence threshold
     counts: dict[str, int] = Field(default_factory=dict)  # transactions, accounts, active, warnings, flagged, held, confirmed
+    # v8 (additive): the last 10 minutes of ledger traffic, by origin, for the operations center —
+    # {bucket_seconds, buckets: [{t, everyday, customer, injected, value_paise}], postings, value_paise, avg_paise,
+    #  risky_postings, channels: {channel: n}, largest: [{id, ts, sender_id, recipient_id, amount_paise, channel, origin}]}
+    traffic: dict[str, Any] = Field(default_factory=dict)
+
+
+class NewAccount(BaseModel):
+    """An account opened recently, and what has flowed through it since (v8 operations center)."""
+
+    id: str
+    label: str
+    opened_at: str
+    age_days: float
+    status: AccountStatus
+    reason: Optional[str] = None
+    in_paise: int = 0                     # received since opening
+    out_paise: int = 0                    # sent since opening
+    inflows: int = 0
+    senders: int = 0                      # distinct senders since opening
+    first_inflow_at: Optional[str] = None
+    shared_device_accounts: int = 0       # other accounts on the same device(s)
+    large_inflow_rule: bool = False       # policy rule new_account_inflow would fire (age and inflow thresholds)
+
+
+# ══ v8 close monitoring (watchlist) — additive ═══════════════════════════════════════════════
+class WatchActivity(BaseModel):
+    """What the detectors measure for the account over the detection window (same features the models see)."""
+
+    window: str = "last 72 h"
+    in_paise: int = 0
+    out_paise: int = 0
+    forwarded_fraction: float = 0.0        # share of inflow value forwarded within 60 min (pass-through speed)
+    counterparties: int = 0
+    new_counterparty_ratio: float = 0.0    # share of counterparties never seen before the window
+    tx_count: int = 0
+
+
+class WatchEntry(BaseModel):
+    account_id: str
+    label: str
+    pinned: bool = False
+    sources: list[str] = Field(default_factory=list)   # pinned | early_warning | model_only | pattern_memory
+    note: Optional[str] = None
+    added_at: Optional[str] = None
+    status: AccountStatus
+    status_since: Optional[str] = None
+    reason: Optional[str] = None
+    families_flagging: int = 0
+    families: list[str] = Field(default_factory=list)
+    network_risk: float = 0.0              # RingWatch (authorisation path)
+    model_risk: Optional[float] = None     # strongest calibrated model evidence (corroborating only)
+    model_threshold: Optional[float] = None
+    role: Optional[str] = None
+    early_warning_signals: list[str] = Field(default_factory=list)
+    pattern: Optional[dict[str, Any]] = None           # {name, similarity} — structural similarity, not attribution
+    activity: Optional[WatchActivity] = None
+    last_active: Optional[str] = None
+    next_step: str = ""                    # what would change its status (or what to do now)
+
+
+class Watchlist(BaseModel):
+    as_of: str
+    model_threshold: Optional[float] = None
+    pinned: int = 0
+    suggested: int = 0
+    entries: list[WatchEntry] = Field(default_factory=list)

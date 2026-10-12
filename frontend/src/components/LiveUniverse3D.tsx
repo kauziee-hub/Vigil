@@ -206,7 +206,11 @@ export function LiveUniverse3D(p: LiveUniverse3DProps) {
         if (!t?.tx_id) return;
         const upd = (id: string, s: AccountStatus, r: number | null) => {
           const a = accounts.current.get(id);
-          if (a) { a.status = s; if (r !== null) a.risk = r; }
+          if (a) {
+            // a status change without its reason (the reason arrives with intel.account_status): drop the stale one
+            if (a.status !== s) { a.reason = null; a.status_since = t.ts; }
+            a.status = s; if (r !== null) a.risk = r;
+          }
           e.setStatus(id, s, { risk: r });
         };
         upd(t.sender_id, t.sender_status, t.sender_risk);
@@ -222,7 +226,10 @@ export function LiveUniverse3D(p: LiveUniverse3DProps) {
         const c = ev.data as AccountStatusChange;
         if (!c?.account_id) return;
         const a = accounts.current.get(c.account_id);
-        if (a) { a.status = c.status; if (c.risk !== null) a.risk = c.risk; if (c.role !== undefined) a.role = c.role; }
+        if (a) {
+          a.status = c.status; if (c.risk !== null) a.risk = c.risk; if (c.role !== undefined) a.role = c.role;
+          a.reason = c.reason || null; a.families_flagging = c.families_flagging; a.status_since = c.ts;
+        }
         e.setStatus(c.account_id, c.status, { risk: c.risk, role: c.role });
         break;
       }

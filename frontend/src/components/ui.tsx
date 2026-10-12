@@ -43,6 +43,17 @@ export function Panel({ title, kicker, q, actions, children, flush, footer, clas
   );
 }
 
+/** Plain-language caption under a chart or panel: what it shows, how to read it, and what it says right now. */
+export function Explain({ shows, read, now }: { shows: ReactNode; read?: ReactNode; now?: ReactNode }) {
+  return (
+    <div className="explain">
+      <p><b>Shows</b>{shows}</p>
+      {read && <p><b>How to read</b>{read}</p>}
+      {now && <p className="now"><b>Right now</b>{now}</p>}
+    </div>
+  );
+}
+
 export function PageHead({ crumb, title, lede, actions, compact }: { crumb?: ReactNode; title: ReactNode; lede?: ReactNode; actions?: ReactNode; compact?: boolean }) {
   return (
     <div className={`page-head ${compact ? "compact" : ""}`}>

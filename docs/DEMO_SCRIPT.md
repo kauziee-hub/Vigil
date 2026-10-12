@@ -15,15 +15,15 @@ The product screens show no simulation controls. Everything you drive for the de
 ---
 
 ## 1. The operations center (1 min)
-**Say:** "This is the bank's fraud operations view: what needs action now, and why."
+**Say:** "This is the bank's fraud operations view: what is moving and what needs action, live."
 **Point at, top to bottom:**
-- The **KPI strip**: accounts at risk, open interventions, payments passed without friction, decision latency, the last detection run, and postings.
-- The live transaction **network**, with **Needs attention** beside it (accounts / payments, each row opens the case).
-- **Why accounts are flagged**: SHAP drivers, how many detector families agree, and the last detection run.
-- **Transaction traffic.**
+- The **KPI strip**: postings and value moved in 10 minutes, accounts at risk, open interventions, new accounts in 30 days, and the last detection run (click it after an attack).
+- The full-width live transaction **network**.
+- **Needs attention** (each account with its reason, since when, and how many detector families agree) beside **Close monitoring** (pinned and suggested accounts one step before "flagged", with what they are doing and what would flag them next).
+- **Money moving now** (payments per 30 s: green everyday, blue customer, red injected) beside **New accounts** (fresh accounts and what flows into them).
 
 **Edge filter** (top left of the network): **Recent** shows the last two minutes. **Risk only** shows flows touching risky accounts. **All** adds the faint history.
-Deeper analytics live on their own pages: **Detection** (models, every run, full account scoring for 549 accounts) and **Network** (lenses, live activity streams).
+Analysis lives on its own pages: **Detection** (every chart explained, every run, full account scoring) and **Network** (lenses, live activity streams).
 
 ## 2. An everyday payment (1 min)
 **Do:** Test inputs → *Everyday · grocer ₹500* → **Open on customer device** → **Pay**.
@@ -36,7 +36,7 @@ Deeper analytics live on their own pages: **Detection** (models, every run, full
 
 ## 4. A money-mule network forms (2 min)
 **Do:** Test inputs → *Inject a mule-network pattern* → **Money-mule network** → **Inject** (17 real ledger postings over about 20 s). Close the drawer and watch the Overview.
-**See:** the ring lights up in the network (Kiran Traders → Zenith Exports → Pooja M). The KPI **Accounts at risk** rises and toasts appear. **Last attack result** shows the run: **3 of 4 injected accounts flagged, the 4th surfaced at early warning, no false positives, about 30 ms after the first posting** (simulator ground truth). Press **Show in network** to switch the edges to **Risk only** and focus on the ring.
+**See:** a red block in **Money moving now**, the ring lighting up in the network (Kiran Traders → Zenith Exports → Pooja M), **Accounts at risk** rising and toasts appearing. The **Last detection run** KPI shows **3 / 4**: 3 of 4 injected accounts flagged, the 4th at early warning, no false positives, first flag about 25 ms after the first posting (simulator ground truth). Click the KPI to switch the edges to **Risk only** and frame the ring.
 **Then:** Overview → **Needs attention** → *Kiran Traders* → the account page: why it is flagged (RingWatch rules in plain language), detector consensus **8 of 8 families agree**, role **collector**, SHAP per feature, drift baseline → current, pattern memory.
 
 ## 5. Confirm the scam, and the next payment is held (1.5 min)

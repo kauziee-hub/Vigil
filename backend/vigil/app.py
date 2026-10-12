@@ -19,6 +19,7 @@ from vigil import db
 from vigil.api.routes import router, ws_router
 from vigil.api.routes_v2 import router as routes_v2_router
 from vigil.api.routes_live import router as routes_live_router
+from vigil.api.routes_watch import router as routes_watch_router
 from vigil.engine.ledger import VigilError
 from vigil.settings import FRONTEND_DIST, get_policy, get_settings
 from vigil.sim import ambient, seed
@@ -84,6 +85,7 @@ async def unhandled(_r: Request, exc: Exception):
 app.include_router(router)
 app.include_router(routes_v2_router)
 app.include_router(routes_live_router)
+app.include_router(routes_watch_router)
 app.include_router(ws_router)
 
 # Detection intelligence (Claude 2, vigil/intel/**) is optional: the payment path never depends on it.

@@ -9,6 +9,17 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
+## Status: v8 — operations center, close monitoring, explained Detection, functional guide (updated 2026-10-13 03:30 IST)
+
+User direction (`prompts/10_USER_functional_guide_overview_watchlist_2026-10-13.md`).
+
+* Overview = live activity only: KPI strip → full-width network → Needs attention (reasons) | Close monitoring (watchlist) → Money moving now | New accounts. SHAP / detector families on Detection; decisions by tier on Governance.
+* Detection: four numbered sections; every chart captioned (Shows / How to read / Right now).
+* New APIs (additive): `/api/watchlist` (GET/POST/DELETE), `/api/live/new-accounts`, `LiveStats.traffic`, universe `reason` / `families` / `status_since`.
+* Functional guide (Claude Doc): https://claude.ai/code/artifact/bf16f71c-e278-4271-ac55-27e269ca9bac ; screenshots `docs/guide/img/`.
+* Live attack check: 11/11 detected, 0 FP (s2 3/4, velocity 3/5, rest full; circular 4/4 in a fresh world).
+* Next (user): the technical guide. Not committed yet.
+
 ## Status: v7 — no Razorpay, focused Overview, attacks verified (updated 2026-10-13 00:40 IST)
 
 User direction (`prompts/09_USER_fix_remove_razorpay_cleanup_overview_2026-10-12.md`).
@@ -150,3 +161,4 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-12 21:28–22:15 Claude 1 — v5: reference-style light UI, top pill nav, Operations center, Test inputs console, Detection runs section; full demo flow verified live; record `runs/20261012-2130_claude1_v5-final-demo.md`.
 - 2026-10-12 22:21–22:50 Claude 1 — v6: logo/wordmark, iPhone device, graph edge filter, overview re-architecture (KPI strip, detection performance, full account scoring), Payments policy primer; user published the repo (`f3b6329`), Claude 1 pushed the rest fast-forward; record `runs/20261012-2221_claude1_v6-identity-device-graph-overview.md`.
 - 2026-10-12 23:55 – 2026-10-13 00:40 Claude 1 — v7: Razorpay removed; Overview trimmed; all 11 attacks verified live; circular-ring originator fix; docs archived; record `runs/20261013-0000_claude1_v7-razorpay-removal-cleanup-overview-attacks.md`.
+- 2026-10-13 00:50–03:30 Claude 1 — v8: Overview rebuilt around live activity (network full width, reasons in Needs attention, close monitoring, money moving now, new accounts); Detection captioned; watchlist / new-accounts / traffic APIs; functional guide (Claude Doc, 67 screenshots). Record `runs/20261013-0050_claude1_v8-operations-center-watchlist-guide.md`.
