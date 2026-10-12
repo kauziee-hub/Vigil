@@ -1,5 +1,15 @@
 # Vigil design system
 
+## v5 — operations center (current, 2026-10-12)
+Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). References: `docs/reference_v5/*`. Implementation: `frontend/src/styles/tokens.css` (light tokens + `[data-theme="dark"]`) and `frontend/src/styles/v5.css` (loaded after `app.css`).
+* Field `#eef1f3` with a soft mint radial glow; cards white, 20 px radius, two-layer soft shadow, no borders; tiles 18 px.
+* Navigation: one pill bar in the top bar; the active item has a mint gradient (`#7cecd5 → #4fd6b8`) with dark mint ink. Buttons are pills; primary is near-black `#0f1419`.
+* Status colours are unchanged in meaning (watch amber, high orange, critical red, held violet, confirmed fraud crimson), tuned for white.
+* Dark highlight cards (`--canvas #0c1115`) only for live canvases (network / evidence scenes).
+* Card header pattern: 30 px black icon tile + 15–16 px semibold title + right-aligned pill action. Big numbers: 40 px / 500 weight, with a delta pill.
+* Demo-only inputs live in the Test inputs drawer, never on a product screen.
+
+
 ## v4 — institutional (current, 2026-10-09; supersedes the v3 visual language below)
 
 User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): "Not the green UI. Make it a professional, matured UI. Neat it up. Fully functional, no fake stuff." v3's *functionality* (live universe, command center, streams, score tables, attack runs, all nine areas) is kept; its *look* (green-black field, mint accent, glow, translucent glass, display hero, letter-spaced eyebrows) is replaced.

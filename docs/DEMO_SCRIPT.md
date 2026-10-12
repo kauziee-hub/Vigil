@@ -1,78 +1,58 @@
-# Demo Script — five acts + platform tour, ~10 minutes (v2 UI)
+# Demo script — final demonstration (v5 UI, ~12 minutes)
 
-Every act below was walked through in the browser on the merged v2 build (2026-10-07; record in `AGENT_HANDOFF/runs/20261007-0110_claude3_frontend-redesign-run3.md`). Scenario tiers are deterministic at any time of day: scripted scenarios evaluate time-of-day rules at a pinned 14:00 IST and the decision record says so.
+Every step below was run end to end on the live backend on 2026-10-12. The results shown are what the system produced, not mock-ups. The record is in `AGENT_HANDOFF/runs/20261012-2130_claude1_v5-final-demo.md`.
 
-## Before you start (2 minutes, once)
+The product screens show no simulation controls. Everything you drive for the demo comes from **Test inputs** (top bar, or **Alt + T**). This is a small drawer of minimal inputs, in the style of PRIMA's `/ops` page. Every input is a real API call.
+
+## Before you start (once)
 
 1. `powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset` (or `./run_demo.sh --reset`). It prints the URLs.
-2. Laptop, two windows side by side:
-   * **Transaction Guard** `http://localhost:8000/guard` — the customer's device and the bank's pre-commit assessment on one screen;
-   * **Scenario Lab** `http://localhost:8000/lab` (or **Overview** `/`).
-3. Phone on the same Wi-Fi: the printed **trusted-contact URL** `http://<laptop-ip>:8000/contact/arjun`. Fallback: a second browser tab.
-4. Top status strip: **MODE ACTIVE**, payments chip (*Mock* or *Razorpay TEST*), **REALTIME live**, policy version. System Health (`/health`) should say **Intel layer ON**.
-5. If anything looks off: **Reset demo** (Scenario Lab, top right). Every act gives the same result after a reset. If the browser shows an old-looking UI after an upgrade, reload once (`index.html` is never cached from now on).
+2. Browser at `http://localhost:8000/` (Operations center), full-screen, 1440–1920 px wide.
+3. Phone on the same Wi-Fi: the printed trusted-contact URL `http://<laptop-ip>:8000/contact/arjun` (fallback: a second browser tab).
+4. Top bar: the health icon has a green dot, the user chip says **Active mode · live**, and the footer says **Payments: Mock provider**. The Razorpay test keys in `.env` are rejected (HTTP 401), so payments use the clearly labelled mock provider. Put fresh `rzp_test_` keys in `.env` and restart to use the real gateway.
+5. If anything looks off: **Test inputs → Reset demo world** (about 5–20 s). Every step gives the same result after a reset.
 
 ---
 
-## ACT 1 — Normal customer (45 s)
+## 1. The operations center (1 min)
+**Say:** "This is the bank's fraud operations view: what needs action first, then how money is moving, then why accounts are flagged."
+**Point at:** the live transaction network (each node is an account, each live posting draws an edge), **Accounts at risk**, **Payments protected** (share of payments passed without friction, with exact counts), **Detector families**, **Needs attention**, **Transaction traffic**. Further down: **What drives the model** (SHAP), **Pattern memory & early warning**, **Pre-commit decisions by tier**, the live streams and the scoring tables.
 
-**Do:** Transaction Guard, *Paying as* **ramesh** → demo input *Act 1 · Grocer ₹500* → **Pay ₹500**.
-**See:** device: **Paid ₹500**, *DEMO PAYMENT (mock provider)* (or Razorpay TEST). Right: the structured pre-commit assessment — sender, recipient, amount (robust z), relationship *ESTABLISHED*, device *PRIMARY*, behaviour, network, external (*SIMULATED*), journey, context → **T0 · PASS**, evaluated in ~1 ms. *Model evidence — corroborating only*: RF / GNN / rules / drift / pattern memory all quiet.
-**Say:** "Every payment is evaluated before the provider is called. Known recipient, usual amount, known device, clean network: Tier 0, zero added friction." Point at *Outcome*: provider succeeded, ledger edge added, recipient risk unchanged.
+## 2. An everyday payment (1 min)
+**Do:** Test inputs → *Everyday · grocer ₹500* → **Open on customer device** → **Pay**.
+**See:** the phone shows **Paid ₹500**. On the right, the bank sees the full pre-commit assessment (sender, recipient, amount, relationship, device, behaviour, network, external intel (simulated), journey, context) → **Tier 0 · pass**, evaluated in milliseconds.
 
-## ACT 2 — Suspicious recipient, before payment (60 s)
+## 3. A risky recipient (1.5 min)
+**Do:** Test inputs → *Risky recipient · ₹45,000* → **Open on customer device** → **Pay**.
+**See:** **Tier 2 · "Please confirm before you pay"**, with four plain questions for the customer. The bank side shows why: first-time payee, outlier amount, recipient linked to rapid pass-through, a registry report (simulated).
+**Note:** after midnight, an "unusual hour" signal (+0.05) lifts this payment to Tier 3. That is real policy behaviour, and the case page's counterfactuals show it.
 
-**Do:** **New payment** → *Act 2 · Kiran Traders ₹45,000* → **Pay**.
-**See:** **T2 · Confirm before paying** (score 0.34). Assessment: External intel *Registry: reported* (**SIMULATED**), RingWatch *Rapid pass-through* + *New account, large inflow*, behaviour *amount outlier*, *first-time payee*. Model evidence beside it: **RF 1.00 · GNN 1.00 · drift HIGH · pattern memory 81 % "Rapid Fan-In / Pass-Through"** — and the tier is still T2.
-**Say:** "The risk is the recipient: a 9-day-old account whose money leaves within ~17 minutes. Nothing has been sent — PRIMA intervenes before irreversible commitment. And notice: the machine-learning models are certain, but they do **not** set the tier. The transparent policy engine decides; the models corroborate."
-**Do (optional, 30 s):** **Investigate** → case page → **▶ Play** the Decision Replay (score builds frame by frame); scroll to the **counterfactual ladder** ("with a clean recipient record → T0"), then the two separate panels: *ReasonLine — explains the OPERATIONAL DECISION* vs *Detector consensus · SHAP — explains the MODEL*.
+## 4. A money-mule network forms (2 min)
+**Do:** Test inputs → *Inject a mule-network pattern* → **Money-mule network** → **Inject** (17 real ledger postings over about 20 s). Close the drawer and watch the Overview.
+**See:** the ring lights up in the network (Kiran Traders → Zenith Exports → Pooja M). **Accounts at risk** shows *action needed* and toasts appear. The console shows **detected 3 of 4 injected accounts, no false positives, about 27 ms after the closing posting** (simulator ground truth).
+**Then:** Overview → **Needs attention** → *Kiran Traders* → the account page: why it is flagged (RingWatch rules in plain language), detector consensus **8 of 8 families agree**, role **collector**, SHAP per feature, drift baseline → current, pattern memory.
 
-## ACT 3 — Where that intelligence comes from (2–3 min)
+## 5. Confirm the scam, and the next payment is held (1.5 min)
+**Do:** Test inputs → *Report a confirmed scam* → **Find ring source** → **Report as confirmed scam**.
+**See:** label created; TaintTrace follows the money downstream (2 accounts hold traced value).
+**Do:** *Risky recipient · ₹45,000* again → **Open on customer device** → **Pay**.
+**See:** **Tier 3 · scoped hold**. The same payment is now held because of what the network learned. No account is frozen, and only this payment is paused.
 
-**Do:** Scenario Lab → **Money-mule network (s2)** → **▶ Start** (17 steps, ~20 s; live step log). Marked *SIMULATED INPUTS*.
-**Do:** **Compare detectors** → one matrix, accounts × detector families: kiran.traders 8/8 *strong*, zenith.exports and pooja.m *strong*, the victims only *drift* (1/8 weak — they genuinely changed behaviour), rahul.m weak (an honest miss).
-**Do:** **Attack scene in 3D ↗** → Network Intelligence scoped to s2 (~22 nodes; layout frozen on the server, no physics). Switch modes **RISK → MULE ROLES → GNN SCORE**. **Attack replay** to scrub the transfers in order.
-**Do:** Select **Kiran Traders** (or open `/network?focus=kiran.traders@vigil`) → drawer: RingWatch flags, *8 of 8 signal families agree*, SHAP (*explains the MODEL*), drift baseline → current, pattern memory (*structural similarity, not attribution*), role *Collector*.
-**Do:** Drawer → *Recent postings* → **Confirm scam** on `← anita.s ₹48,000` ("a verified 1930 report confirmed by the bank").
-**See:** TaintTrace panel: LIBR vs pro rata side by side, both conserved — ₹21,500 still attributable at Kiran Traders, ₹26,500 at Zenith Exports (= ₹48,000).
-**Say:** "We don't claim a better mule detector — banks have MuleHunter and DPIP. This is the post-payment half of the same lifecycle: where the money went, how much is still attributable, under which rule."
-**Do:** Back to **Transaction Guard** → *Act 2 · Kiran Traders ₹45,000* again → **Pay**.
-**See:** **T3 · Scoped hold** (score 0.58) with two new reasons: *labelled account* and *taint exposure*. The cap `CAP_NO_SENDER_EVIDENCE` keeps it at T3: trusted-contact escalation is reserved for sender compromise.
-**Say:** "Same recipient, same customer — the network learned something, and the very next decision inherited it."
+## 6. Coerced payment, "digital arrest" (2 min)
+**Do:** Test inputs → *Coerced payment* → **Run journey**. Open the trusted contact's phone.
+**See:** Sunita's journey: new device → payee added → limit raised → threatening call (simulated) → ₹5,61,600 → **Tier 4 · hold + trusted contact alerted**. Arjun's phone shows the alert card with facts, never accusations. Tap **I'm calling them now**; the bank's case shows the response.
+**Then:** **Cases → the Tier 4 case → Decision Replay → Play**. The score builds frame by frame (new device 0.04 → payee 0.07 → limit 0.11 → context 0.36 → transfer 0.64). Below it: the **counterfactual ladder** (what would make it safe) and **provenance** for every signal.
 
-## ACT 4 — Coerced customer (90 s)
+## 7. The bank acts and governs (1.5 min)
+**Do:** **Interventions** → **Release** one hold and **Reject** another (real state changes). Then **Governance**: policy weights and the tier ladder, model versions, decision records (view raw / replay), and **Shadow mode** (Test inputs → *Switch to SHADOW*): Vigil records its recommendation next to the bank's baseline without intervening.
 
-**Do:** Transaction Guard → *Paying as* **sunita**. Scenario Lab → **Coerced / digital-arrest payment (s3)** → **▶ Start**.
-**See (Lab log):** new device → payee added → limit raised → *simulated* threat call → 95 % of savings. *(TIME-COMPRESSED; the UI says so.)*
-**See (Sunita's device, by itself):** **T4 · Hold + CircuitBreaker** (score 0.64): only ₹5,61,600 is held; the account keeps working.
-**See (phone):** Arjun's alert arrives live — "An unusually large payment from Sunita's account to a newly-added recipient is awaiting confirmation" + three facts. Tap **I'm calling them now** → the phone confirms "Your response was sent to the bank: Arjun Rao (son) is calling"; Sunita's device shows the same line and the bank's Interventions queue shows *Arjun Rao · calling user*.
-**Say:** "None of these events alone proves anything. Together, within 8 minutes, the sequence is highly abnormal. Vigil chose a proportionate intervention: hold only this amount, tell a trusted person facts, not accusations." Note the models do *not* flag this recipient — coercion is caught by the journey and context, not by mule structure.
-**Do:** **Interventions** (`/interventions`) → the T4 row (review clock, CircuitBreaker response) → **Reject** → confirm (nothing sent; hold closed).
+## 8. Detection & models (1 min)
+**Do:** **Detection**.
+**See:** model metrics labelled **SYNTHETIC VALIDATION** (held-out synthetic worlds, not real-bank accuracy), per-attack recall, live detection runs (each injected pattern evaluated: detected / missed / false positives / latency), rules firing now, early warning, roles, pattern memory. Say: **"Rules decide the payment; models corroborate. SHAP explains the model; the reason line explains the decision."**
 
-## ACT 5 — Explainability and governance (60 s)
+---
 
-**Do:** Interventions → **Case →** (or Governance & Audit → *Decision records*) → the Act 4 decision → **Decision record**.
-**See:** identity, chosen action, *evaluation context* (pinned scenario hour), subscores, reason codes incl. `ADJ_CORROBORATION` (3 independent dimensions), the **policy ladder at decision time** with this decision marked, every component and model version, data provenance with *SIMULATED* markers, the operator trail ending in the bank's **Rejected**, payment result *provider not called · no posting*. **View raw record** shows the append-only JSON with its SHA-256 integrity hash.
-**Do:** Governance & Audit → **ACTIVE / SHADOW** (confirm) → the amber *SHADOW MODE* band appears on every page; a payment is now recorded with Vigil's recommendation beside the bank baseline, but not intervened. Switch back to **ACTIVE**.
-**Close:** "We are not proposing another fraud classifier. India already has sophisticated detection — bank EFRMS, MuleHunter and DPIP. Vigil is the layer that converts those signals — plus local journey and network evidence — into an explainable, governable intervention at the last reversible moment." Optionally open *Deployment positioning*.
-
-## Platform tour (if there is time, 1–2 min)
-
-* **Detection & Models** `/detection` — *SYNTHETIC VALIDATION* banner and *Operational use: corroborating evidence only*; per-family agreement; the model registry (confusion matrix, calibration raw vs calibrated, per-attack and leave-one-attack-family-out recall — including where the GNN fails on unseen families).
-* **Scenario Lab** — any of the 10 attack patterns (fan-in, fan-out, circular ring, velocity chain, cross-channel, shared device, behavioural drift, volume spike, smurfing, dormant) → **Compare detectors** → **Attack scene in 3D**.
-* **System Health** `/health` — decision p95 (~2 ms), realtime sockets, ledger conservation (₹0), caches, intel availability, endpoint coverage. No polling anywhere.
-
-## Control (if asked "doesn't it flag everything?")
-
-Transaction Guard as Ramesh → *Control · Landlord ₹1,20,000* → **T0**. Behaviour notes the amount is unusual; known payee, known device, clean registry → no friction.
-
-## Fallbacks
-
-| Problem | Do this |
-|---|---|
-| Razorpay Checkout fails / offline | Click **Complete as DEMO payment** — same lifecycle, labelled DEMO PAYMENT. Or start with `-Mock`. |
-| Phone can't reach laptop | Open `/contact/arjun` in a second browser tab. Check Windows firewall allows Python on private networks. |
-| 3D view doesn't render (no WebGL) | Toggle **2D** on Network Intelligence; the drawer, TaintTrace panel and Compare detectors prove the same thing. |
-| Old-looking UI after an upgrade | Reload once (the cached v1 shell; `index.html` is served `no-cache` now). |
-| Anything inconsistent | **Reset demo** — deterministic. |
-| Internet down | Everything except Razorpay works locally. |
+### Honesty points to state if asked
+* Synthetic data; not connected to any bank, regulator or payment network. External intelligence and call context are **simulated** and labelled.
+* Model metrics are **synthetic validation**. Models are corroborating evidence and never set a payment tier.
+* Payments use the mock provider while the Razorpay test keys are invalid. The code path for Razorpay test mode is real and switches over automatically with valid keys.

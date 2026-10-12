@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v5 — reference UI + final demo (2026-10-12, Claude 1)
+
+- **Light operations-center design** modelled on `docs/reference_v5/*`: white 20 px soft cards, pill top navigation with a mint active state, near-black primary buttons, a dark highlight card for the live network, Inter + IBM Plex Mono. Dark theme kept as a toggle.
+- **Test inputs** console (top bar or Alt+T), PRIMA `/ops` style: customer payment (opens the real device prefilled), inject a mule-network pattern, coerced journey, report a confirmed scam, traffic / mode / reset. The simulation command center and the demo panels are gone from product screens.
+- **Operations center** ordered by priority: network, accounts at risk, payments protected, detector families, needs attention, traffic; then SHAP drivers, pattern memory / early warning, decisions by tier; live activity; scoring.
+- Detection page: live detection runs. Alert stream: risk changes only. Demo script rewritten (`docs/DEMO_SCRIPT.md`), with every step verified live.
+
 ## v4 — professional UI + functional audit (2026-10-09, Claude 1)
 
 User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): not the green UI; professional, mature, neat; fully functional, nothing fake.

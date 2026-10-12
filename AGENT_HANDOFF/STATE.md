@@ -9,6 +9,15 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
+## Status: v5 final-demo build — ready (updated 2026-10-12 22:15 IST)
+
+User direction (`prompts/07_USER_reference_ui_final_demo_2026-10-12.md`): UI like `docs/reference_v5/*`; all PRIMA + mule features ordered by priority; SHAP; minimal test inputs, not a simulation panel; demo tomorrow.
+
+* UI v5: light soft-card design, pill top navigation, Operations center overview, Test inputs console (Alt+T). `docs/ui_v5/*`.
+* Demo script: `docs/DEMO_SCRIPT.md` (8 steps, all verified live).
+* Before presenting: `run_demo.ps1 -Reset`. Payments use the mock provider until valid `rzp_test_` keys are in `.env`.
+* Backend unchanged since `64e2b30` (330/330).
+
 ## Status: v4 professional UI — done by Claude 1 alone (updated 2026-10-09 10:30 IST)
 
 User direction 2026-10-09 (`prompts/06_USER_professional_ui_2026-10-09.md`): not the green UI; professional, mature, neat; fully functional, nothing fake.
@@ -120,3 +129,4 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-07 ~09:30 — third session restart killed both v3 agents. 09:33 user: "continue" (`prompts/05_USER_continue_2026-10-07_0933.md`).
 - 2026-10-07 09:35–09:42 Claude 1 — recovered: Claude 3 WIP committed (`4f842af`, tsc ok) → `claude3/v3-run1-wip`; Claude 2 had no uncommitted work → `claude2/v3-run1-wip`; orphaned Vite :5181 stopped; worktrees removed; run records closed as INTERRUPTED; resume prompts saved; both relaunched as v3 run 2 (`6fb1b51`).
 - 2026-10-09 00:13–10:30 Claude 1 — v4 (alone; agents stopped by usage limit): recovered + merged v3 work, design system v4, Overview restructure, SHAP honesty fix, consensus-v2.2 detection fixes, RingWatch perf, Playwright functional audit. See `runs/20261009-0013_claude1_v4-professional-ui.md`.
+- 2026-10-12 21:28–22:15 Claude 1 — v5: reference-style light UI, top pill nav, Operations center, Test inputs console, Detection runs section; full demo flow verified live; record `runs/20261012-2130_claude1_v5-final-demo.md`.

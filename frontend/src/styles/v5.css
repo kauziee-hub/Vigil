@@ -228,3 +228,4 @@ table.dt tr.click:hover td { background: var(--surface-2); }
 .sev { border-radius: 999px; padding: 0 8px; }
 .chip.live { height: 34px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); border: 0; }
 .chip { border-radius: 999px; height: 34px; padding: 0 13px; background: var(--surface); border: 0; box-shadow: var(--shadow); color: var(--ink-2); }
+label.field .sim, label.field .stamp-sv { align-self: flex-start; }

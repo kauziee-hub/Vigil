@@ -89,8 +89,10 @@ export function DetectionPage() {
       </div>
 
       <div className="oc-section" style={{ marginTop: 6 }}><h2>Live detection runs</h2><span>test injections scored live and evaluated against the simulator's ground truth</span></div>
-      <div className="grid cols-2 align-start" style={{ marginBottom: 18 }}>
+      <div style={{ marginBottom: 18 }}>
         <LastAttackResult runs={runs.data} unavailable={runs.unavailable} emptyText="No pattern has been injected since the last reset. Use Test inputs → Inject a mule-network pattern." />
+      </div>
+      <div style={{ marginBottom: 18 }}>
         <AttackHistory runs={runs.data} unavailable={runs.unavailable} />
       </div>
       <div style={{ marginBottom: 18 }}>
