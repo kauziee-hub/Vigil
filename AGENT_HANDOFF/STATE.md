@@ -3,25 +3,35 @@
 Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 1. `AGENT_HANDOFF/MASTER_PROMPT.md` — index of the user's prompts (verbatim files in `prompts/`); the binding one is `prompts/01_MASTER_PROMPT_v2_platform.md`.
 2. This file — what is done, what is running, how to run/verify, how to resume.
-3. `docs/V3_LIVE_PLATFORM_PLAN.md` — BINDING for v3 (live platform: interfaces, status semantics, ownership); `docs/FINAL_PARALLEL_PLAN.md` — v2 base (9-area IA, status colours, merge protocol).
+3. `docs/archive/plans/V3_LIVE_PLATFORM_PLAN.md` — BINDING for v3 (live platform: interfaces, status semantics, ownership); `docs/archive/plans/FINAL_PARALLEL_PLAN.md` — v2 base (9-area IA, status colours, merge protocol).
 4. `AGENT_HANDOFF/AGENT_LEDGER.md` — one row per agent run; each row links its run record in `runs/`.
 5. Your role prompt in `prompts/` (v2: `v2_claude2_*`, `v2_claude3_*`, `v2_codex_engineering.md`, `v2_cursor_polish.md`).
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
+
+## Status: v7 — no Razorpay, focused Overview, attacks verified (updated 2026-10-13 00:40 IST)
+
+User direction (`prompts/09_USER_fix_remove_razorpay_cleanup_overview_2026-10-12.md`).
+
+* Payments: simulated rail only, behind the `PaymentProvider` port. No `.env` or keys are needed (Razorpay fully removed).
+* Overview: KPI strip → network + needs attention → why flagged (SHAP, detector families, last run) → traffic. Full account scoring is on Detection; live streams are on Network.
+* Attacks (live check): 11/11 patterns detected, 0 false positives, every injected mule surfaced. Partial by design: money-mule network 3/4 and velocity chain 3/5 (the extra accounts are at early warning). Circular ring fixed to 4/4.
+* Docs: current docs in `docs/`, current screenshots in `docs/screenshots/`, superseded material in `docs/archive/`.
+* Backend tests: 330/330 pass.
 
 ## Status: v6 — identity, iPhone device, graph edge filter, overview architecture; on GitHub (updated 2026-10-12 22:50 IST)
 
 User direction (`prompts/08_USER_logo_iphone_graph_overview_push_2026-10-12.md`).
 
 * Repository: `https://github.com/kauziee-hub/Vigil.git`, branch **`main`** (the local `master` was renamed by the user on publish). Push fast-forward only; never push `.env`.
-* UI v6: logo + VIGIL wordmark, iPhone customer device, edge filter (Recent / Window / Risk only / All / Off), Overview KPI strip, detection performance, full account scoring (549). `docs/ui_v6/*`.
+* UI v6: logo + VIGIL wordmark, iPhone customer device, edge filter (Recent / Window / Risk only / All / Off), Overview KPI strip, detection performance, full account scoring (549). `docs/screenshots/*`.
 * Before presenting: Test inputs → Reset demo world (or `run_demo.ps1 -Reset`). Backend unchanged (330/330).
 
 ## Status: v5 final-demo build — ready (updated 2026-10-12 22:15 IST)
 
-User direction (`prompts/07_USER_reference_ui_final_demo_2026-10-12.md`): UI like `docs/reference_v5/*`; all PRIMA + mule features ordered by priority; SHAP; minimal test inputs, not a simulation panel; demo tomorrow.
+User direction (`prompts/07_USER_reference_ui_final_demo_2026-10-12.md`): UI like `docs/archive/references/reference_v5/*`; all PRIMA + mule features ordered by priority; SHAP; minimal test inputs, not a simulation panel; demo tomorrow.
 
-* UI v5: light soft-card design, pill top navigation, Operations center overview, Test inputs console (Alt+T). `docs/ui_v5/*`.
+* UI v5: light soft-card design, pill top navigation, Operations center overview, Test inputs console (Alt+T). `docs/archive/screenshots/ui_v5/*`.
 * Demo script: `docs/DEMO_SCRIPT.md` (8 steps, all verified live).
 * Before presenting: `run_demo.ps1 -Reset`. Payments use the mock provider until valid `rzp_test_` keys are in `.env`.
 * Backend unchanged since `64e2b30` (330/330).
@@ -63,8 +73,8 @@ Known red on `main` until Claude 2 v3 merges: 13 intel tests (world v3 shifted f
 | Area | Owner | Where | State |
 |---|---|---|---|
 | v1 MVP (lifecycle, risk engine, s0–s4, CircuitBreaker, 2D graph, docs) | Claude 1 | `main` | ✅ verified (see v1 log below) |
-| UI audit of v1 (19 states) | Claude 1 | `docs/UI_CURRENT_STATE.md`, `docs/ui_current/` | ✅ |
-| Frozen v2 contracts + plan | Claude 1 | `backend/vigil/contracts.py`, `frontend/src/api/*`, `docs/FINAL_PARALLEL_PLAN.md` | ✅ `595d4aa` |
+| UI audit of v1 (19 states) | Claude 1 | `docs/archive/plans/UI_CURRENT_STATE.md`, `docs/archive/screenshots/ui_current/` | ✅ |
+| Frozen v2 contracts + plan | Claude 1 | `backend/vigil/contracts.py`, `frontend/src/api/*`, `docs/archive/plans/FINAL_PARALLEL_PLAN.md` | ✅ `595d4aa` |
 | Provenance, shadow mode + bank baseline, Decision Replay, counterfactuals, decision record, risk timeline, governance, interventions, system health, 3D GraphScene, 10 attack scenarios (15 total) | Claude 1 | `main` (`057bb0b` …) | ✅ live on :8000, tested |
 | Reset determinism across all 15 scenarios | Claude 1 | `main` `315ef07` | ✅ test enforces identical world |
 | Ambient stream routine-preserving (was flagging ordinary customers within minutes); scenarios pin time-of-day rules | Claude 1 | `main` `0070ff4`, `23dcbbf` | ✅ tested |
@@ -113,7 +123,7 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 ## Log (newest last)
 
 
-- 2026-10-06 Claude 1 — audited ccmule-main, "Actual ML - Laggy", PRIMA → `docs/CURRENT_STATE_AUDIT.md`, `docs/TARGET_ARCHITECTURE.md`.
+- 2026-10-06 Claude 1 — audited ccmule-main, "Actual ML - Laggy", PRIMA → `docs/archive/plans/CURRENT_STATE_AUDIT.md`, `docs/TARGET_ARCHITECTURE.md`.
 - 2026-10-06 Claude 1 — skeleton; vendored `PRIMA/prima` → `backend/prima` + 190 tests. `.env` copied from PRIMA (git-ignored; never print).
 - 2026-10-06 Claude 1 — backend complete (`backend/vigil/**`), 210 tests.
 - 2026-10-06 Claude 1 — frontend complete (`frontend/src/**`), builds clean; run scripts; walkthrough of Acts 1–5 in browser.
@@ -133,9 +143,10 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-07 07:29 user: "continue from where you left off". Claude 1 — Claude 3 WIP committed (`24f14cf`, tsc clean); backend restarted with intel live (5 routes 6–131 ms); found 130/140 accounts flagged on the live world → ambient stream made routine-preserving + 20 s interval (`0070ff4`, 269 pass, smoke 8/8); live world reset (07:36) → only kiran.traders + zenith.exports flagged; Claude 3 resumed with context (`prompts/v2_claude3_run3_continue_after_limit.md`); payment path verified (model evidence present, kinds honest, never in tier).
 - 2026-10-07 07:50–08:15 Claude 1 — Claude 3 returned (report saved `86da0b8`), merged `88823fb`; build green; implemented its `min_tier` request (`00f3920`); browser walkthrough of every act on the merged build → fixed cached v1 shell (`d6e83ae`), replay spark SVG (`4c5b750`), stale Lab panel (`a3b9ac9`); found an ordinary customer (ramesh) labelled "Distributor" by EW + drift alone → Claude 2 run 4 launched (`prompts/v2_claude2_run4_roles_consensus_followup.md`; resume of the run-3 agent failed because its worktree was removed). Demo world reset, ACTIVE.
 - 2026-10-07 08:30–08:40 Claude 1 — Claude 2 run 4 returned (report saved `9ac5ebb`), merged `c029fb6`, 286 pass; live check: ramesh weak/unclassified, kiran strong/collector; UI wording (`3e7984a`); demo world reset, ACTIVE. Docs: DEMO_SCRIPT v2 (`96b1ce6`), README + startup banner (`24697bc`), Cursor prompt v2.1 (`9ab441e`).
-- 2026-10-07 08:45–09:30 Claude 1 — v3: reviewed the refined repo (screenshots `docs/reference_refined/`), froze v3 contracts + plan + prompts (`9bbd08e`), launched Claude 2/3 v3 (08:59), world v3 (`d3bc3d3`), live backend (`0f8976a`), TaintTrace v3 (`5acf440`, 2,026 → 13 ms); server restarted 09:29:59.
+- 2026-10-07 08:45–09:30 Claude 1 — v3: reviewed the refined repo (screenshots `docs/archive/references/reference_refined/`), froze v3 contracts + plan + prompts (`9bbd08e`), launched Claude 2/3 v3 (08:59), world v3 (`d3bc3d3`), live backend (`0f8976a`), TaintTrace v3 (`5acf440`, 2,026 → 13 ms); server restarted 09:29:59.
 - 2026-10-07 ~09:30 — third session restart killed both v3 agents. 09:33 user: "continue" (`prompts/05_USER_continue_2026-10-07_0933.md`).
 - 2026-10-07 09:35–09:42 Claude 1 — recovered: Claude 3 WIP committed (`4f842af`, tsc ok) → `claude3/v3-run1-wip`; Claude 2 had no uncommitted work → `claude2/v3-run1-wip`; orphaned Vite :5181 stopped; worktrees removed; run records closed as INTERRUPTED; resume prompts saved; both relaunched as v3 run 2 (`6fb1b51`).
 - 2026-10-09 00:13–10:30 Claude 1 — v4 (alone; agents stopped by usage limit): recovered + merged v3 work, design system v4, Overview restructure, SHAP honesty fix, consensus-v2.2 detection fixes, RingWatch perf, Playwright functional audit. See `runs/20261009-0013_claude1_v4-professional-ui.md`.
 - 2026-10-12 21:28–22:15 Claude 1 — v5: reference-style light UI, top pill nav, Operations center, Test inputs console, Detection runs section; full demo flow verified live; record `runs/20261012-2130_claude1_v5-final-demo.md`.
 - 2026-10-12 22:21–22:50 Claude 1 — v6: logo/wordmark, iPhone device, graph edge filter, overview re-architecture (KPI strip, detection performance, full account scoring), Payments policy primer; user published the repo (`f3b6329`), Claude 1 pushed the rest fast-forward; record `runs/20261012-2221_claude1_v6-identity-device-graph-overview.md`.
+- 2026-10-12 23:55 – 2026-10-13 00:40 Claude 1 — v7: Razorpay removed; Overview trimmed; all 11 attacks verified live; circular-ring originator fix; docs archived; record `runs/20261013-0000_claude1_v7-razorpay-removal-cleanup-overview-attacks.md`.

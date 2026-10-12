@@ -3,7 +3,7 @@
 > **SYNTHETIC VALIDATION.** Every number in this report comes from computer-generated transaction worlds. None of it is a measurement of real-bank accuracy, and none of it may be quoted as one.
 
 Owner: Claude 2 (ML / detection intelligence). Scope: `backend/vigil/intel/**`, `backend/ml/**`, `backend/models/**`.
-Operational status: all models here produce **corroborating evidence only**. Payment authorisation stays with the transparent policy engine (`risk/*` + `config/risk_policy.yaml`). See `docs/FINAL_PARALLEL_PLAN.md` §5.
+Operational status: all models here produce **corroborating evidence only**. Payment authorisation stays with the transparent policy engine (`risk/*` + `config/risk_policy.yaml`). See `docs/archive/plans/FINAL_PARALLEL_PLAN.md` §5.
 
 ---
 

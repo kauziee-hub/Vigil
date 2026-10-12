@@ -166,30 +166,9 @@ async def bank_action(intent_id: str, body: BankBody):
     return lifecycle.bank_action(intent_id, body.action, body.note).model_dump(mode="json")
 
 
-class PayBody(BaseModel):
-    provider: Optional[Literal["mock", "razorpay_test"]] = None
-
-
 @router.post("/intents/{intent_id}/pay")
-async def pay(intent_id: str, body: PayBody | None = None):
-    return lifecycle.pay(intent_id, body.provider if body else None).model_dump(mode="json")
-
-
-class RazorpayConfirm(BaseModel):
-    razorpay_order_id: str
-    razorpay_payment_id: str
-    razorpay_signature: str
-
-
-@router.post("/intents/{intent_id}/payment/confirm")
-async def payment_confirm(intent_id: str, body: RazorpayConfirm):
-    return lifecycle.confirm_razorpay(intent_id, body.razorpay_order_id, body.razorpay_payment_id,
-                                      body.razorpay_signature).model_dump(mode="json")
-
-
-@router.post("/intents/{intent_id}/payment/fallback-mock")
-async def payment_fallback(intent_id: str):
-    return lifecycle.fallback_mock(intent_id).model_dump(mode="json")
+async def pay(intent_id: str):
+    return lifecycle.pay(intent_id).model_dump(mode="json")
 
 
 # ── decisions / investigation ─────────────────────────────────────────────

@@ -106,13 +106,11 @@ export function HealthPage() {
                 ["Latency p50 · p95", m ? `${m.latency_p50_ms?.toFixed(1) ?? "—"} ms · ${m.latency_p95_ms?.toFixed(1) ?? "—"} ms` : "—"],
               ]} />
             </Panel>
-            <Panel kicker="Payments" title="Provider & gateway">
+            <Panel kicker="Payments" title="Payment rail">
               <KV rows={[
-                ["Provider", h.payment_provider === "razorpay_test" ? "Razorpay TEST" : "Mock provider"],
+                ["Provider", "Simulated payment rail"],
                 ["Label", <span className="xs">{h.payment_provider_label}</span>],
-                ["Gateway", <span className="row tight">{h.gateway.status === "ok" ? <Pill status="normal">ok</Pill> : h.gateway.status === "auth_failed" ? <Pill status="watch">keys rejected</Pill> : <Pill status="unknown">{h.gateway.status}</Pill>}<span className="xs muted">{h.gateway.detail}</span></span>],
-                ["Razorpay key", h.razorpay_key_id ? <span className="mono xs">{h.razorpay_key_id.slice(0, 12)}…</span> : <span className="muted">not configured</span>],
-                ["Money moves", "only after approval or a bank release; test funds only"],
+                ["Money moves", "never — settlement is simulated; the ledger posts only after approval or a bank release"],
               ]} />
             </Panel>
             <Panel kicker="Realtime" title="Push channel">

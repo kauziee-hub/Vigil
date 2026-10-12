@@ -285,7 +285,7 @@ const LAYERS: [string, string, string, string][] = [
   ["Existing institutional intelligence", "Bank EFRMS / AML, MuleHunter.AI deployments (RBIH), a DPIP-style shared registry, the I4C suspect registry, DoT FRI. Vigil consumes such signals through one adapter.", "Simulated (LocalRegistryProvider)", "sim"],
   ["Vigil pre-commit decision engine", "Fuses external + network + journey + behaviour + context evidence at commit time; picks a proportionate intervention; explains it three ways.", "Built", "normal"],
   ["Pass / explain / challenge / hold / escalate", "Interrupt ladder. Holds are scoped to the payment amount; no account freeze exists.", "Built", "normal"],
-  ["Payment provider / rail", "Called only after approval. Mock provider offline; Razorpay in TEST mode (test funds — no real money moves).", "Built (mock) · Razorpay TEST if configured", "normal"],
+  ["Payment provider / rail", "Called only after approval. Simulated rail behind a provider port: a bank plugs its own rail in here. No real money moves.", "Built (simulated)", "normal"],
   ["Post-transaction monitoring", "Ledger + incremental graph; RingWatch re-scores; TaintTrace attributes value from confirmed scams (LIBR / pro rata).", "Built", "normal"],
   ["Model intelligence (RF · GNN · drift · pattern memory)", "Corroborating evidence beside the decision; never fused into the tier. Validated on synthetic data only.", "In progress (intelligence layer)", "watch"],
 ];
@@ -294,7 +294,7 @@ const LIFECYCLE: [string, string][] = [
   ["Evaluate", "External · network · journey · behaviour · context"],
   ["Fuse + explain", "Versioned weights, named adjustments, ReasonLine"],
   ["Interrupt ladder", "Pass · inform · confirm · hold · hold + CircuitBreaker"],
-  ["Provider", "Mock or Razorpay TEST — only after approval"],
+  ["Provider", "Simulated rail — only after approval"],
   ["Ledger + PathGraph", "Double-entry posting; edge appended incrementally"],
   ["RingWatch / TaintTrace", "Network re-scored; confirmed scams traced"],
   ["Next decision", "Inherits what the network just learned"],

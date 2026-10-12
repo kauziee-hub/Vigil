@@ -138,13 +138,12 @@ class RiskDecision(BaseModel):
 
 
 class PaymentInfo(BaseModel):
-    provider: str                      # mock | razorpay_test
+    provider: str                      # mock (simulated payment rail)
     status: str                        # created | succeeded | failed
     order_id: Optional[str] = None
     payment_id: Optional[str] = None
-    key_id: Optional[str] = None       # publishable Razorpay key id (test)
     amount_paise: int
-    label: str                         # "DEMO PAYMENT (mock)" | "RAZORPAY TEST MODE — no real money moved"
+    label: str                         # "Simulated payment — no real money moved"
 
 
 class Transition(BaseModel):
@@ -255,7 +254,7 @@ class ErrorBody(BaseModel):
     details: Optional[dict[str, Any]] = None
 
 
-# ══ v2 contracts (frozen 2026-10-06 by Claude 1 — see docs/FINAL_PARALLEL_PLAN.md) ══
+# ══ v2 contracts (frozen 2026-10-06 by Claude 1 — see docs/archive/plans/FINAL_PARALLEL_PLAN.md) ══
 
 # ── Detection intelligence (implemented by Claude 2 in vigil/intel/**) ─────
 DetectorFamily = Literal[
@@ -456,7 +455,7 @@ class GraphScene(BaseModel):
 RiskDecision.model_rebuild()
 
 
-# ══ v3 live-platform contracts (frozen 2026-10-07 by Claude 1 — see docs/V3_LIVE_PLATFORM_PLAN.md) ══
+# ══ v3 live-platform contracts (frozen 2026-10-07 by Claude 1 — see docs/archive/plans/V3_LIVE_PLATFORM_PLAN.md) ══
 AccountStatus = Literal["normal", "idle", "new", "early_warning", "flagged", "held", "confirmed_fraud", "external"]
 
 

@@ -8,7 +8,7 @@
 * **Score cells:** `.score-cell`, a 64 px bar plus a mono value coloured by band. Sortable headers use `th.sortable` with an arrow.
 
 ## v5 — operations center (current, 2026-10-12)
-Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). References: `docs/reference_v5/*`. Implementation: `frontend/src/styles/tokens.css` (light tokens + `[data-theme="dark"]`) and `frontend/src/styles/v5.css` (loaded after `app.css`).
+Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). References: `docs/archive/references/reference_v5/*`. Implementation: `frontend/src/styles/tokens.css` (light tokens + `[data-theme="dark"]`) and `frontend/src/styles/v5.css` (loaded after `app.css`).
 * Field `#eef1f3` with a soft mint radial glow; cards white, 20 px radius, two-layer soft shadow, no borders; tiles 18 px.
 * Navigation: one pill bar in the top bar; the active item has a mint gradient (`#7cecd5 → #4fd6b8`) with dark mint ink. Buttons are pills; primary is near-black `#0f1419`.
 * Status colours are unchanged in meaning (watch amber, high orange, critical red, held violet, confirmed fraud crimson), tuned for white.
@@ -141,6 +141,6 @@ A light theme exists (`data-theme="light"`) with the same roles.
 * **Risk over time on the account page** has no stored score history for model families, so it samples the backend's own values each time they are re-computed while the page is open, and says so.
 * **Before `intel.tx_scored` is served,** the streams carry each party's *current* live status from the universe (RingWatch + Vigil state), are seeded with the newest postings of the live window and the newest PRIMA alerts, and say so in their footers.
 * **Bundles:** three.js only in the Overview / Network chunks; Chart.js (208 kB) only when a chart mounts; Cytoscape only on the 2D fallback.
-* **Screenshots** (`docs/ui_v3/`) are captured headless with an isolated Chromium at 1600 × 1000 (390 × 844 for the contact phone).
+* **Screenshots** (`docs/archive/screenshots/ui_v3/`) are captured headless with an isolated Chromium at 1600 × 1000 (390 × 844 for the contact phone).
 
 History: v2 decisions (run 2–3: role shapes, scene caching, shared customer device, tier-coloured final score, printed value kinds, risk-evolution labelling, alert-window gap) remain in force; see git history of this file (`3aaa7ae`) for the v2 text.

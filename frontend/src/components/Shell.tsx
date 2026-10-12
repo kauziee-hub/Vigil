@@ -142,17 +142,12 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // any gateway problem is shown, not only rejected keys (a probe can also fail with HTTP 429 / be unreachable)
-  const gwStatus = health?.gateway?.status;
-  const gwBad = gwStatus === "auth_failed" || gwStatus === "error" || gwStatus === "unreachable";
-  const gwText = gwStatus === "auth_failed" ? "gateway keys rejected" : gwStatus === "unreachable" ? "gateway unreachable"
-    : `gateway check failed${health?.gateway?.detail ? ` (${health.gateway.detail})` : ""}`;
   const open = metrics?.open_interventions ?? 0;
   const shadow = mode?.mode === "shadow";
-  const provider = health ? (health.payment_provider === "razorpay_test" ? "Razorpay TEST" : "Mock provider") : "…";
-  const healthy = conn === "open" && !gwBad && intelAvailable !== false;
+  const provider = "simulated rail (no real money)";
+  const healthy = conn === "open" && intelAvailable !== false;
   const statusTitle = [
-    `Mode: ${mode ? mode.mode.toUpperCase() : "…"}`, `Payments: ${provider}${gwBad ? ` (${gwText})` : ""}`,
+    `Mode: ${mode ? mode.mode.toUpperCase() : "…"}`, `Payments: ${provider}`,
     `Realtime: ${conn === "open" ? "live" : conn}`, `Policy: ${health?.policy_version ?? "…"}`,
     `Detection intelligence: ${intelAvailable === null ? "…" : intelAvailable ? "available" : "not available"}`,
     "External intelligence: SIMULATED", `Background traffic: ${health ? (health.ambient ? "on" : "off") : "…"}`,
@@ -205,7 +200,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <main className="page"><ErrorBoundary resetKey={loc.pathname}>{children}</ErrorBoundary></main>
           <footer className="xs dim center" style={{ padding: "0 28px 28px" }}>
             Vigil · PRIMA architecture · prototype on synthetic data — not connected to any bank, regulator or payment network.
-            {" "}Payments: {provider}{gwBad ? ` (${gwText})` : ""} · external intelligence simulated.
+            {" "}Payments: {provider} · external intelligence simulated.
           </footer>
         </div>
       </div>

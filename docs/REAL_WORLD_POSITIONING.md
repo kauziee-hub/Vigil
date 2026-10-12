@@ -20,7 +20,6 @@ Sources: RBIH/MuleHunter adoption ([Business Standard](https://www.business-stan
 * "Nobody uses AI for mule detection." (MuleHunter.AI does.)
 * "DPIP cannot detect fraud." (It is designed to.)
 * "We integrate directly into RBI / NPCI / I4C." (We do not.)
-* "Razorpay test mode moved money." (Test funds only.)
 * "Vigil reads calls / WhatsApp / SMS." (It cannot; context is simulated.)
 
 ## 2. Where Vigil sits
@@ -51,7 +50,7 @@ Customer app (bank / PSP)  ──intent──▶  VIGIL pre-commit decision serv
 | **ReasonLine** | Bank | Decision record | Per intervention | App UI, analyst console, audit store | Customer / analyst / audit text | **Built** (deterministic templates) | Language localisation (Hindi + regional), accessibility review, legal sign-off on wording |
 | **ScopedHold** | Bank | Intent amount | Tier ≥ 3 | Payments hub | Amount-scoped hold with review window | **Built** (simulated review) | Real hold semantics in the payments hub; SLA for review; customer comms |
 | **CircuitBreaker** | Bank | Pre-nominated trusted contact (customer consent) | Tier 4 | Notification service (SMS/push) | Facts-only alert, contact response | **Built** (WebSocket to a browser/phone on LAN) | Consent capture and revocation, verified contact channel, abuse safeguards |
-| **PaymentProvider** | Bank/PSP | Approved intent | After approval | UPI/IMPS rails; Razorpay as a demo PSP | Payment execution | **Built**: Mock; Razorpay **TEST** mode (needs valid test keys) | Real rail integration owned by the bank/PSP |
+| **PaymentProvider** | Bank/PSP | Approved intent | After approval | UPI/IMPS rails | Payment execution | **Built**: provider port + simulated rail | Real rail integration owned by the bank/PSP |
 
 ## 4. Adoption path: shadow first
 

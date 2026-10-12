@@ -8,7 +8,7 @@ export function PayPage() {
   return (
     <div className="kiosk">
       <CustomerDevice payer={payer} kiosk />
-      <div className="kiosk-foot">Vigil demo · customer view · synthetic accounts · payments are DEMO or Razorpay TEST — no real money moves.</div>
+      <div className="kiosk-foot">Vigil demo · customer view · synthetic accounts · payments are simulated — no real money moves.</div>
     </div>
   );
 }

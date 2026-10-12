@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v7 — no Razorpay, focused Overview, verified attacks (2026-10-13, Claude 1)
+
+- **Razorpay removed.** Payments settle on a simulated rail behind the provider port. Gone: gateway probe, keys, checkout, confirm/fallback routes, `-Mock` flag.
+- **Overview focused** on what needs action and why: KPI strip, network + needs attention, SHAP drivers, detector families, last detection run, traffic. Account scoring moved to Detection; live activity moved to Network.
+- **Attacks verified live.** All 11 patterns detected, 0 false positives, every injected mule surfaced. Circular-ring originator now flagged (closed loop through ≥ 2 accounts counts as structural evidence): 3/4 → 4/4.
+- **Neater repository:** `docs/screenshots/` (current), `docs/archive/` (superseded plans, audits, old screenshots, references); README rewritten for the current product.
+
 ## v6 — identity, iPhone device, graph edge filter, overview architecture (2026-10-12, Claude 1)
 
 - **Identity:** the "watchful V" mark and a **VIGIL** wordmark in Sora; the same mark is the favicon.

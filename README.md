@@ -7,7 +7,7 @@ Vigil is not another fraud classifier. India already has bank EFRMS/AML, RBIH's 
 
 ```
 intent ─▶ evaluate (external · network · journey · behaviour · context) ─▶ fuse + explain ─▶ interrupt ladder
-        ─▶ (only if approved) payment provider ─▶ ledger + PathGraph ─▶ RingWatch / TaintTrace ─▶ next decision
+        ─▶ (only if approved) simulated payment rail ─▶ ledger + PathGraph ─▶ RingWatch / TaintTrace ─▶ next decision
 ```
 
 ## Quick start
@@ -21,73 +21,60 @@ powershell -ExecutionPolicy Bypass -File run_demo.ps1          # Windows
 ./run_demo.sh                                                    # macOS / Linux / Git Bash
 ```
 
-The script creates the venv, installs dependencies, builds the UI, seeds the deterministic demo database on first run, starts one server on port 8000 and prints:
+The script creates the venv, installs dependencies, builds the UI, seeds the deterministic demo world on first run and starts one server on port 8000. Options: `-Reset` / `--reset` (wipe + reseed), `-Port 8001`.
 
-* Overview — `http://localhost:8000/`
-* Transaction Guard — `http://localhost:8000/guard` (customer device + the bank's pre-commit assessment); customer-only kiosk at `/pay?as=ramesh@vigil`
-* Scenario Lab — `http://localhost:8000/lab`
-* Trusted contact (open on a phone on the same Wi-Fi) — `http://<lan-ip>:8000/contact/arjun`
-
-The console has nine areas: Overview · Transaction Guard · Network Intelligence (3D) · Detection & Models · Investigations · Interventions · Governance & Audit · Scenario Lab · System Health.
-
-Options: `-Reset` / `--reset` (wipe + reseed), `-Mock` / `--mock` (force offline payments), `-Port 8001`. The **Reset demo** button in the Scenario Lab does the same reset at runtime.
-
-### Razorpay (optional)
-
-Copy `.env.example` to `.env` and set `RAZORPAY_KEY_ID=rzp_test_…` / `RAZORPAY_KEY_SECRET=…`. Vigil probes the keys at startup; if they are missing or rejected it uses the mock provider and the top bar says so. Razorpay **test mode** proves a real gateway integration with test funds — **it does not move real money**. Live keys are refused.
-
-## The five-act demo
-
-Full script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
-
-| Act | Scenario | Outcome |
+| Screen | URL | What it is for |
 |---|---|---|
-| 1 | Ramesh pays his grocer ₹500 | Tier 0, approved, paid |
-| 2 | Ramesh → Kiran Traders ₹45,000 | Tier 2, confirm purpose — before any money moves |
-| 3 | Mule ring (Scenario Lab), compare detectors, 3D attack scene, confirm one victim payment | Rules / RF / GNN / drift / pattern memory agree on the ring; TaintTrace attributes value (conserved); Kiran Traders now Tier 3 |
-| 4 | Sunita, 67: new device → payee → limit → simulated threat call → 95 % of savings | Tier 4, scoped hold, CircuitBreaker alert to her son's phone, live; bank rejects |
-| 5 | Open the decision record; toggle SHADOW mode | Replay · counterfactuals · provenance · versions · operator trail; shadow records without intervening |
-| Control | Ramesh pays landlord ₹1,20,000 | Tier 0 — unusual amount, no friction |
+| Overview | `/` | What needs action now and why: KPIs, live network (edge filter), needs attention, SHAP drivers, detector agreement, last detection run, traffic |
+| Payments | `/guard` | The customer's phone beside the bank's pre-commit assessment; customer-only kiosk at `/pay?as=ramesh@vigil` |
+| Network | `/network` | Live 3D universe with lenses and edge filter, evidence scenes, live activity streams |
+| Detection | `/detection` | Models (synthetic validation), live detection runs, rules, early warning, roles, full account scoring, pattern memory |
+| Cases | `/investigations` | Decision replay, counterfactuals, provenance, account investigation |
+| Interventions | `/interventions` | Holds and confirmations: release / reject |
+| Governance | `/governance` | Policy, tier ladder, model versions, decision records, shadow mode |
+| Trusted contact | `/contact/arjun` | Open on a phone on the same Wi-Fi |
 
-Plus ten attack patterns from the original mule project (fan-in, fan-out, circular ring, velocity chain, cross-channel, shared device, behavioural drift, volume spike, smurfing, dormant) as deterministic scenarios.
+**Test inputs** (top bar or Alt + T) is a small drawer of demo-only inputs: a customer payment, inject one of eleven mule-network patterns, a coerced journey, report a confirmed scam, traffic / mode / reset. Product screens carry no simulation controls. Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+
+Payments settle on a **simulated payment rail** behind a provider port (a bank plugs its own rail in there). No real money moves and no gateway keys are needed.
 
 ## Repository
 
 ```
-backend/vigil/      FastAPI service: contracts, sqlite3 (WAL) db, intent lifecycle, risk engine, payments, scenarios
-backend/vigil/intel/  detection intelligence: rules, early warning, drift, pattern memory, roles, RF + GNN inference, SHAP, consensus, /api/intel/*
-backend/ml/         synthetic-world generator + training/evaluation (train_all.py); artefacts in backend/models/
-backend/prima/      vendored PRIMA lineage engine (LIBR / pro-rata tracing with exact conservation)
-backend/tests/      286 tests (190 lineage + Vigil lifecycle, scenarios, API, invariants, v2, intel)
-frontend/           Vite + React + TypeScript; three.js 3D network, Cytoscape 2D fallback — built and served by the backend
+backend/vigil/        FastAPI service: contracts, sqlite3 (WAL), intent lifecycle, risk engine, payment port, scenarios, live status
+backend/vigil/intel/  detection intelligence: rules, early warning, drift, pattern memory, roles, RF + GNN inference, SHAP, consensus
+backend/ml/           synthetic-world generator + training / evaluation (train_all.py); artefacts in backend/models/
+backend/prima/        vendored PRIMA lineage engine (LIBR / pro-rata tracing with exact conservation)
+backend/tests/        pytest suite (lineage, lifecycle, scenarios, API, invariants, intel, live detection)
+frontend/             Vite + React + TypeScript; three.js live network — built and served by the backend
 config/risk_policy.yaml   the only place weights, thresholds and windows live (versioned)
-scripts/benchmark_demo.py latency benchmark
-docs/               audit, architecture, positioning, model card, demo script, limitations, agent prompts
-AGENT_HANDOFF/      prompts, outputs and STATE.md so any agent can continue
+scripts/              smoke test and latency benchmark
+docs/                 demo script, architecture, design system, ML validation, model card, limitations, positioning, screenshots
+docs/archive/         superseded plans, audits and earlier screenshot sets (kept for the record)
+AGENT_HANDOFF/        every prompt, run record and the current STATE.md, so any agent can continue
 ```
 
 ## Tests and benchmark
 
 ```powershell
 cd backend; .venv\Scripts\python.exe -m pytest
+backend\.venv\Scripts\python.exe scripts\smoke_demo.py
 backend\.venv\Scripts\python.exe scripts\benchmark_demo.py
 ```
 
 Detection models (optional; the platform runs without them and shows "unavailable"):
 
 ```powershell
-backend\.venv\Scripts\python.exe -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu   # training only
 backend\.venv\Scripts\python.exe -m pip install -r backend\requirements-ml.txt   # numpy, scikit-learn, shap (serving + SHAP)
-cd backend; .venv\Scripts\python.exe ml\train_all.py                             # ~3 min CPU, deterministic; rewrites backend\models\
+backend\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu   # training only
+cd backend; .venv\Scripts\python.exe ml\train_all.py                             # deterministic; rewrites backend\models\
 ```
 
-Results are **SYNTHETIC VALIDATION** on computer-generated worlds (split by world, leave-one-attack-family-out), not real-bank accuracy: [docs/ML_VALIDATION_REPORT.md](docs/ML_VALIDATION_REPORT.md).
-
-On the build laptop: risk evaluation p95 ≈ 1 ms (target < 150 ms), graph queries < 1 ms, TaintTrace ≈ 80 ms over ~2,000 journals. See [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md).
+Results are **SYNTHETIC VALIDATION** on computer-generated worlds (split by world, leave-one-attack-family-out), not real-bank accuracy: [docs/ML_VALIDATION_REPORT.md](docs/ML_VALIDATION_REPORT.md). Benchmarks: [docs/BENCHMARK_RESULTS.md](docs/BENCHMARK_RESULTS.md).
 
 ## What is real, simulated, synthetic
 
-See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). In short: the decision engine, ledger, graph, tracing, interventions and realtime are real; external intelligence, call context, scam confirmations and bank review are **simulated** and labelled; all data is **synthetic**; no ML model decides a payment's tier — the retrained Random Forest, graph neural network, drift and pattern-memory detectors are shown beside each decision as corroborating evidence only ([docs/MODEL_CARD.md](docs/MODEL_CARD.md)).
+See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). In short: the decision engine, ledger, graph, tracing, interventions and realtime are real; the payment rail, external intelligence, call context, scam confirmations and bank review are **simulated** and labelled; all data is **synthetic**; no ML model decides a payment's tier — the Random Forest, graph neural network, drift and pattern-memory detectors are corroborating evidence only ([docs/MODEL_CARD.md](docs/MODEL_CARD.md)).
 
 ## Conventions
 

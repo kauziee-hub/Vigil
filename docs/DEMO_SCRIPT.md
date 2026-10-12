@@ -1,6 +1,6 @@
-# Demo script — final demonstration (v6 UI, ~12 minutes)
+# Demo script — final demonstration (~12 minutes)
 
-Every step below was run end to end on the live backend on 2026-10-12. The results shown are what the system produced, not mock-ups. The record is in `AGENT_HANDOFF/runs/20261012-2130_claude1_v5-final-demo.md`.
+Every step below was run end to end on the live backend (last verified 2026-10-13). The results shown are what the system produced, not mock-ups. Records: `AGENT_HANDOFF/runs/`.
 
 The product screens show no simulation controls. Everything you drive for the demo comes from **Test inputs** (top bar, or **Alt + T**). This is a small drawer of minimal inputs, in the style of PRIMA's `/ops` page. Every input is a real API call.
 
@@ -9,15 +9,21 @@ The product screens show no simulation controls. Everything you drive for the de
 1. `powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset` (or `./run_demo.sh --reset`). It prints the URLs.
 2. Browser at `http://localhost:8000/` (Operations center), full-screen, 1440–1920 px wide.
 3. Phone on the same Wi-Fi: the printed trusted-contact URL `http://<laptop-ip>:8000/contact/arjun` (fallback: a second browser tab).
-4. Top bar: the health icon has a green dot, the user chip says **Active mode · live**, and the footer says **Payments: Mock provider**. The Razorpay test keys in `.env` are rejected (HTTP 401), so payments use the clearly labelled mock provider. Put fresh `rzp_test_` keys in `.env` and restart to use the real gateway.
+4. Top bar: the health icon has a green dot and the user chip says **Active mode · live**. The footer says **Payments: simulated rail (no real money)**. No keys or `.env` are needed.
 5. If anything looks off: **Test inputs → Reset demo world** (about 5–20 s). Every step gives the same result after a reset.
 
 ---
 
 ## 1. The operations center (1 min)
-**Say:** "This is the bank's fraud operations view: what needs action first, then how money is moving, then why accounts are flagged, then how well detection performs."
-**Point at:** the **KPI strip** (payments assessed, postings, open interventions, last-run detection, models active, ledger integrity), the live transaction network (each node is an account, each live posting draws an edge), **Accounts at risk**, **Payments protected**, **Detector families**, **Needs attention**, **Transaction traffic**.
-**Edge filter** (top left of the network): **Recent** shows only the last two minutes, **Risk only** shows flows touching risky accounts, **All** adds the faint history. Further down: **What drives the model** (SHAP), **Pattern memory & early warning**, **Decisions by tier**, **Detection performance**, the live streams and **Account scoring**, which covers every scored account (549) and can be sorted by rules / Random Forest / GNN.
+**Say:** "This is the bank's fraud operations view: what needs action now, and why."
+**Point at, top to bottom:**
+- The **KPI strip**: accounts at risk, open interventions, payments passed without friction, decision latency, the last detection run, and postings.
+- The live transaction **network**, with **Needs attention** beside it (accounts / payments, each row opens the case).
+- **Why accounts are flagged**: SHAP drivers, how many detector families agree, and the last detection run.
+- **Transaction traffic.**
+
+**Edge filter** (top left of the network): **Recent** shows the last two minutes. **Risk only** shows flows touching risky accounts. **All** adds the faint history.
+Deeper analytics live on their own pages: **Detection** (models, every run, full account scoring for 549 accounts) and **Network** (lenses, live activity streams).
 
 ## 2. An everyday payment (1 min)
 **Do:** Test inputs → *Everyday · grocer ₹500* → **Open on customer device** → **Pay**.
@@ -30,7 +36,7 @@ The product screens show no simulation controls. Everything you drive for the de
 
 ## 4. A money-mule network forms (2 min)
 **Do:** Test inputs → *Inject a mule-network pattern* → **Money-mule network** → **Inject** (17 real ledger postings over about 20 s). Close the drawer and watch the Overview.
-**See:** the ring lights up in the network (Kiran Traders → Zenith Exports → Pooja M). Switch the edge filter to **Risk only** to see just the ring's flows; **Detection performance** fills in the run (detected / missed / first warning / latency). **Accounts at risk** shows *action needed* and toasts appear. The console shows **detected 3 of 4 injected accounts, no false positives, about 27 ms after the closing posting** (simulator ground truth).
+**See:** the ring lights up in the network (Kiran Traders → Zenith Exports → Pooja M). The KPI **Accounts at risk** rises and toasts appear. **Last attack result** shows the run: **3 of 4 injected accounts flagged, the 4th surfaced at early warning, no false positives, about 30 ms after the first posting** (simulator ground truth). Press **Show in network** to switch the edges to **Risk only** and focus on the ring.
 **Then:** Overview → **Needs attention** → *Kiran Traders* → the account page: why it is flagged (RingWatch rules in plain language), detector consensus **8 of 8 families agree**, role **collector**, SHAP per feature, drift baseline → current, pattern memory.
 
 ## 5. Confirm the scam, and the next payment is held (1.5 min)
@@ -56,4 +62,8 @@ The product screens show no simulation controls. Everything you drive for the de
 ### Honesty points to state if asked
 * Synthetic data; not connected to any bank, regulator or payment network. External intelligence and call context are **simulated** and labelled.
 * Model metrics are **synthetic validation**. Models are corroborating evidence and never set a payment tier.
-* Payments use the mock provider while the Razorpay test keys are invalid. The code path for Razorpay test mode is real and switches over automatically with valid keys.
+* Payments settle on a **simulated rail** behind a provider port. No real money moves; a bank would plug its own rail into the same port.
+* Detection of the eleven injectable patterns (live check, 2026-10-13): every pattern detected, **0 false positives** in every run, and every injected mule account surfaced at early warning or above. Fully flagged: 9 of 11 patterns. The two partial ones:
+  - Money-mule network: 3 of 4 flagged. The downstream account is at early warning.
+  - Velocity chain: 3 of 5 flagged. The chain's first and last accounts are at early warning.
+  These stay at early warning by design: a lone fast-chain signal also matches a victim who receives money and pays within minutes.

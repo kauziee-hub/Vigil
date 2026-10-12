@@ -39,7 +39,7 @@ print("RESULT" + json.dumps(out))
 def test_app_runs_without_ml_dependencies():
     tmp = tempfile.mkdtemp(prefix="vigil-nodeps-")
     env = {**os.environ, "VIGIL_DB_PATH": os.path.join(tmp, "t.db"), "VIGIL_AMBIENT": "0",
-           "VIGIL_PAYMENT_PROVIDER": "mock", "PYTHONIOENCODING": "utf-8"}
+           "PYTHONIOENCODING": "utf-8"}
     proc = subprocess.run([sys.executable, "-c", SCRIPT], cwd=str(BACKEND), env=env, capture_output=True, text=True,
                           timeout=180)
     assert proc.returncode == 0, proc.stderr[-3000:]

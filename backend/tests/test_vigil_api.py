@@ -1,9 +1,6 @@
-"""API contract tests: shapes, error format, Razorpay signature verification."""
+"""API contract tests: shapes, error format, simulated payment rail."""
 
 from __future__ import annotations
-
-import hashlib
-import hmac
 
 import pytest
 from fastapi.testclient import TestClient
@@ -63,21 +60,14 @@ def test_graph_endpoints_are_capped(client):
     assert n["focus"] == "kiran.traders@vigil"
 
 
-def test_razorpay_signature_verification(monkeypatch):
+def test_simulated_payment_rail_is_the_only_provider(client):
     from vigil.payments import providers
-    from vigil import settings
 
-    from pathlib import Path
-
-    secret = "test_secret_for_unit_test"
-    fake = settings.Settings(db_path=Path("unused.db"), host="x", port=0, payment_provider="razorpay_test",
-                             razorpay_key_id="rzp_test_x", razorpay_key_secret=secret,
-                             ambient_default=False, ambient_interval_s=1.0)
-    monkeypatch.setattr(providers, "get_settings", lambda: fake)
-    good = hmac.new(secret.encode(), b"order_1|pay_1", hashlib.sha256).hexdigest()
-    assert providers.verify_razorpay_signature("order_1", "pay_1", good)
-    assert not providers.verify_razorpay_signature("order_1", "pay_2", good)
-    assert not providers.verify_razorpay_signature("order_1", "pay_1", "")
+    assert isinstance(providers.get_provider(), providers.MockPaymentProvider)
+    h = client.get("/api/health").json()
+    assert h["payment_provider"] == "mock" and "no real money" in h["payment_provider_label"]
+    assert not any("razorpay" in k for k in h)
+    assert client.post("/api/intents/INT-x/payment/confirm", json={}).status_code in {404, 405}
 
 
 def test_contact_page_and_unknown_token(client):

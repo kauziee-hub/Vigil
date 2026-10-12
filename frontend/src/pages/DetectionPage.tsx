@@ -2,23 +2,22 @@
 // SYNTHETIC VALIDATION. Model outputs (RF · GNN · drift · early warning · pattern memory) are corroborating
 // evidence only; the operational tier comes from the transparent policy engine. Renders /api/intel/overview,
 // /api/intel/models and /api/intel/scores; until those are served it says so and shows the rule engine only.
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { IntelOverview, IntelScores, ModelInfo, RingRow } from "../api/types";
+import type { AccountStatus, IntelOverview, IntelScores, LiveUniverse, ModelInfo, RingRow } from "../api/types";
 import { FlaggedPerFamilyChart, ModelMetricsChart, PerAttackRecallChart, modelHeadline } from "../components/DetectionCharts";
 import { RoleIcon } from "../components/intel";
 import { AttackHistory, LastAttackResult } from "../components/live/AttackResults";
 import { LiveStatsCharts } from "../components/live/LiveStatsCharts";
 import { ModelCard, ModelComparison, Synthetic } from "../components/ModelCard";
+import { AccountScoring } from "../components/OverviewAnalytics";
 import { useConsoleEvents, usePlatform } from "../components/Shell";
-import { Async, Bar, Metric, PageHead, Panel, Pill, Seg } from "../components/ui";
+import { Async, Bar, Metric, PageHead, Panel } from "../components/ui";
 import { handle, pct } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
 import { useAttackRuns, useLiveStats } from "../lib/live";
-import { ROLE_LABEL, levelStatus, scoreStatus } from "../lib/status";
-
-type SortKey = "max" | "rules" | "rf" | "gnn";
+import { ROLE_LABEL, scoreStatus } from "../lib/status";
 
 export function DetectionPage() {
   const nav = useNavigate();
@@ -26,7 +25,6 @@ export function DetectionPage() {
   const models = useLoad<ModelInfo[]>(api.intelModels);
   const scores = useLoad<IntelScores>(api.intelScores);
   const ring = useLoad<RingRow[]>(api.ringwatch);
-  const [sort, setSort] = useState<SortKey>("max");
   const [picked, setPicked] = useState<string | null>(null);
   const refresh = useDebounced(() => { overview.reload(); models.reload(); scores.reload(); }, 800);
   const refreshRing = useDebounced(() => ring.reload(), 1500);
@@ -35,10 +33,10 @@ export function DetectionPage() {
     if (["ringwatch.scan", "taint.updated", "demo.reset"].includes(e.type)) refreshRing();
   });
 
-  const scoreRows = useMemo(() => {
-    const rows = Object.entries(scores.data?.scores ?? {}).map(([id, s]) => ({ id, ...s, max: Math.max(s.rules ?? 0, s.rf ?? 0, s.gnn ?? 0) }));
-    return rows.sort((a, b) => ((b[sort] ?? -1) as number) - ((a[sort] ?? -1) as number));
-  }, [scores.data, sort]);
+  const scoredCount = Object.keys(scores.data?.scores ?? {}).length;
+  const universe = useLoad<LiveUniverse>(() => api.universe({ history: 0 }));
+  const liveStatus = useMemo(() => new Map((universe.data?.accounts ?? []).map((a) => [a.id, a.status])), [universe.data]);
+  const statusOf = useCallback((id: string): AccountStatus | null => liveStatus.get(id) ?? null, [liveStatus]);
   const ruleCounts = useMemo(() => {
     const c = new Map<string, { n: number; rule: string }>();
     (ring.data ?? []).forEach((r) => r.labels.forEach((l, i) => c.set(l, { n: (c.get(l)?.n ?? 0) + 1, rule: r.rules[i] ?? "" })));
@@ -71,7 +69,7 @@ export function DetectionPage() {
         <Metric k={<>RF held-out ROC-AUC</>} v={fx(modelHeadline(models.data, "random_forest", "roc_auc"), 3)} d={`PR-AUC ${fx(modelHeadline(models.data, "random_forest", "pr_auc"), 3)} · synthetic validation`} />
         <Metric k={<>GNN held-out ROC-AUC</>} v={fx(modelHeadline(models.data, "gnn", "roc_auc"), 3)} d={`PR-AUC ${fx(modelHeadline(models.data, "gnn", "pr_auc"), 3)} · synthetic validation`} />
         <Metric k="Rule engine recall" v={fx(modelHeadline(models.data, "rules", "recall"), 2)} d={`precision ${fx(modelHeadline(models.data, "rules", "precision"), 2)} · point score, not a probability`} />
-        <Metric k="Accounts scored" v={scores.data ? String(scoreRows.length) : "—"} d={scores.data ? `graph v${scores.data.graph_version}` : scores.unavailable ? "/api/intel/scores not served" : "loading"} />
+        <Metric k="Accounts scored" v={scores.data ? String(scoredCount) : "—"} d={scores.data ? `graph v${scores.data.graph_version}` : scores.unavailable ? "/api/intel/scores not served" : "loading"} />
         <Metric k="RingWatch flags" v={ring.data ? String(ring.data.length) : "—"} status={ring.data && ring.data.length ? "high" : undefined} d="operational · score ≥ 0.30" />
         <Metric k="Early warnings" v={overview.data ? String(overview.data.early_warnings.length) : "—"} status={overview.data && overview.data.early_warnings.length ? "watch" : undefined} d="behaviour change · not mule evidence alone" />
       </div>
@@ -106,7 +104,7 @@ export function DetectionPage() {
         </div>
       )}
 
-      <div className="grid cols-3 align-start">
+      <div className="grid cols-4 align-start">
         <Panel kicker="Rule engine · RingWatch" title="Network rules firing now" flush q="operational — feeds every payment's recipient-network dimension">
           <div className="sect">
             {ruleCounts.length === 0 ? <div className="xs muted">No network rule fires on any account.</div> : ruleCounts.map(([l, v]) => (
@@ -149,35 +147,6 @@ export function DetectionPage() {
             ))}
           </div>
         </Panel>
-      </div>
-
-      <div className="grid cols-ms align-start" style={{ marginTop: 12 }}>
-        <Panel kicker="Per-account scores" title="Rules · Random Forest · GNN side by side" flush
-               q={scores.data ? `${scoreRows.length} accounts in the default scene · graph v${scores.data.graph_version}` : undefined}
-               actions={<Seg options={[["max", "Max"], ["rules", "Rules"], ["rf", "RF"], ["gnn", "GNN"]]} value={sort} onChange={setSort} />}
-               footer="Rules = rule-engine point score (points ÷ maximum; hand-set thresholds, not a probability). RF / GNN = calibrated on synthetic worlds — not a real-world probability. Model evidence never sets a payment's tier.">
-          <Async load={scores} what="Per-account model scores" endpoint="/api/intel/scores">
-            {() => scoreRows.length === 0 ? <div className="empty">No scored accounts.</div> : (
-              <div className="tscroll" style={{ maxHeight: 460 }}>
-                <table className="dt compact">
-                  <thead><tr><th>Account</th><th>Rules</th><th>RF</th><th>GNN</th><th>Drift</th><th>Role</th><th>EW</th></tr></thead>
-                  <tbody>{scoreRows.slice(0, 60).map((r) => (
-                    <tr key={r.id} className="click" onClick={() => nav(`/investigations/account/${encodeURIComponent(r.id)}`)}>
-                      <td className="xs">{handle(r.id)}</td>
-                      {(["rules", "rf", "gnn"] as const).map((k) => (
-                        <td key={k} style={{ width: "16%" }}>{r[k] == null ? <span className="dim xs">—</span> :
-                          <span className="row tight"><span className="grow"><Bar value={r[k]} status={scoreStatus(r[k])} /></span><span className="mono xs">{r[k]!.toFixed(2)}</span></span>}</td>
-                      ))}
-                      <td>{r.drift_level ? <Pill status={levelStatus(r.drift_level)}>{r.drift_level}</Pill> : <span className="dim xs">—</span>}</td>
-                      <td className="xs"><span className="row tight"><RoleIcon role={r.role} />{r.role ? ROLE_LABEL[r.role] ?? r.role : "—"}</span></td>
-                      <td className="xs">{r.early_warning ? <Pill status="watch">EW</Pill> : <span className="dim">—</span>}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            )}
-          </Async>
-        </Panel>
         <Panel kicker="Pattern memory" title="Structural similarity to known signatures" flush q="not criminal attribution">
           <Async load={overview} what="Pattern alerts" endpoint="/api/intel/overview">
             {(o) => o.pattern_alerts.length === 0 ? <div className="empty">No account resembles a known signature.</div> : (
@@ -193,6 +162,10 @@ export function DetectionPage() {
             )}
           </Async>
         </Panel>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <AccountScoring statusOf={statusOf} />
       </div>
 
       <div style={{ marginTop: 12 }}>

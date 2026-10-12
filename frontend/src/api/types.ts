@@ -91,7 +91,6 @@ export interface PaymentInfo {
   status: string;
   order_id: string | null;
   payment_id: string | null;
-  key_id: string | null;
   amount_paise: number;
   label: string;
 }
@@ -253,10 +252,8 @@ export interface Health {
   status: string;
   time: string;
   policy_version: string;
-  payment_provider: "mock" | "razorpay_test";
+  payment_provider: "mock";
   payment_provider_label: string;
-  gateway: { status: string; detail: string };
-  razorpay_key_id: string | null;
   external_intel_provider: string;
   ambient: boolean;
   ws_clients: number;

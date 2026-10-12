@@ -41,26 +41,8 @@ class Settings:
     db_path: Path
     host: str
     port: int
-    payment_provider: str  # "mock" | "razorpay_test"
-    razorpay_key_id: str
-    razorpay_key_secret: str
     ambient_default: bool
     ambient_interval_s: float
-
-
-def _resolve_provider() -> str:
-    wanted = os.environ.get("VIGIL_PAYMENT_PROVIDER", "auto").strip().lower()
-    key_id = os.environ.get("RAZORPAY_KEY_ID", "")
-    secret = os.environ.get("RAZORPAY_KEY_SECRET", "")
-    test_keys = key_id.startswith("rzp_test_") and bool(secret)
-    if os.environ.get("VIGIL_DEMO_MODE", "").lower() in {"1", "true", "yes"}:
-        return "mock"
-    if wanted == "mock":
-        return "mock"
-    if wanted in {"auto", "razorpay_test"} and test_keys:
-        return "razorpay_test"
-    # Live keys are never used automatically. RazorpayLiveProvider is not built.
-    return "mock"
 
 
 @lru_cache(maxsize=1)
@@ -70,9 +52,6 @@ def get_settings() -> Settings:
         db_path=Path(db),
         host=os.environ.get("VIGIL_HOST", "0.0.0.0"),
         port=int(os.environ.get("VIGIL_PORT", "8000")),
-        payment_provider=_resolve_provider(),
-        razorpay_key_id=os.environ.get("RAZORPAY_KEY_ID", ""),
-        razorpay_key_secret=os.environ.get("RAZORPAY_KEY_SECRET", ""),
         ambient_default=os.environ.get("VIGIL_AMBIENT", "1") not in {"0", "false", "no"},
         ambient_interval_s=float(os.environ.get("VIGIL_AMBIENT_INTERVAL", "3")),
     )

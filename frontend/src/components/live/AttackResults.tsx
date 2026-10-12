@@ -1,5 +1,6 @@
 // LAST ATTACK RESULT + ATTACK HISTORY — AttackRun records evaluated against SIMULATOR GROUND TRUTH
 // (injected = the scenario's scripted mule accounts). Detected / missed / false positives / latency / precision / recall.
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { AttackRun } from "../../api/types";
 import { formatTime, handle } from "../../lib/format";
@@ -17,8 +18,12 @@ function Tokens({ ids, kind }: { ids: string[]; kind?: "danger" | "warn" | "ok" 
 
 const fx = (v: number | null | undefined, d = 2) => (v === null || v === undefined ? "—" : v.toFixed(d));
 
-export function LastAttackResult({ runs, unavailable, emptyText }: { runs: AttackRun[] | null; unavailable: boolean; emptyText?: string }) {
+export function LastAttackResult({ runs, unavailable, emptyText, compact = false, footer }: {
+  runs: AttackRun[] | null; unavailable: boolean; emptyText?: string; compact?: boolean; footer?: ReactNode;
+}) {
   const r = (runs ?? []).find((x) => x.status === "completed") ?? (runs ?? [])[0] ?? null;
+  const caught = r ? r.injected.filter((x) => r.detected.includes(x)) : [];
+  const surfaced = r ? r.missed.filter((x) => r.warned.includes(x)) : [];
   return (
     <Panel kicker="Outcome" title="Last attack result" actions={<span className="sim gt">simulator ground truth</span>}>
       {unavailable ? <Unavailable what="Attack-run evaluation" endpoint="/api/attacks/runs" /> : !r ? (
@@ -28,19 +33,31 @@ export function LastAttackResult({ runs, unavailable, emptyText }: { runs: Attac
           <div className="ink2">{r.run_id} · {r.name} — {r.status === "completed" ? "evaluated against the simulator's injected mule list." : `${r.status} (${r.steps_done}/${r.steps_total} steps)…`}</div>
           <div className="mstrip dense">
             <div className="m"><div className="k">Mules injected</div><div className="v">{r.injected.length}</div></div>
-            <div className="m st-critical"><div className="k">Detected</div><div className="v">{r.detected.length}</div></div>
+            <div className="m st-critical"><div className="k">Detected</div><div className="v">{caught.length}</div></div>
             <div className="m st-watch"><div className="k">Missed</div><div className="v">{r.missed.length}</div></div>
             <div className="m"><div className="k">First warning</div><div className="v">{msLabel(r.first_warning_ms)}</div></div>
             <div className="m"><div className="k">Detection</div><div className="v">{msLabel(r.detection_ms)}</div></div>
             <div className="m"><div className="k">False positives</div><div className="v">{r.false_positives.length}</div></div>
           </div>
-          <div><div className="sect-t">Detected mules · {r.detected.length}</div><Tokens ids={r.detected} kind="danger" /></div>
+          {compact ? (
+            <>
+              <div className="sm ink2">
+                {r.missed.length === 0 ? "Every injected mule account was flagged." :
+                  `${r.missed.length} not flagged${surfaced.length ? ` — ${surfaced.length === r.missed.length ? "all" : surfaced.length} still surfaced at early warning` : ""}.`}
+                {" "}{r.false_positives.length === 0 ? "No other account was flagged." : `${r.false_positives.length} other account(s) flagged.`}
+              </div>
+              {r.missed.length > 0 && <Tokens ids={r.missed} kind="warn" />}
+            </>
+          ) : <>
+          <div><div className="sect-t">Detected mules · {caught.length}</div><Tokens ids={r.detected} kind="danger" /></div>
           <div><div className="sect-t">Missed mules · {r.missed.length}</div><Tokens ids={r.missed} kind="warn" /></div>
           <div><div className="sect-t">Warned (early warning or worse) · {r.warned.length}</div><Tokens ids={r.warned} kind="warn" /></div>
           <div><div className="sect-t">False positives during the run · {r.false_positives.length}</div><Tokens ids={r.false_positives} /></div>
           <div className="xs muted">Precision {fx(r.precision)} · recall {fx(r.recall)}{r.model_threshold != null ? ` · model-evidence threshold ${r.model_threshold.toFixed(3)}` : ""}. The threshold adapts only model evidence; PRIMA tiers are never touched.</div>
+          </>}
         </div>
       )}
+      {footer}
     </Panel>
   );
 }

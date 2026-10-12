@@ -28,7 +28,7 @@ Vigil is not a fraud classifier and does not replace RBI/RBIH (MuleHunter.AI, DP
  └──────────────────────────────────────────────────────────────────────────────────┘
             │ user acknowledges (T1/T2) · bank releases (T3/T4) · contact responds (T4)
             ▼
- PaymentProvider (Mock | RazorpayTest)  PAYMENT_INITIATED → PAYMENT_SUCCEEDED/FAILED
+ PaymentProvider (simulated rail)  PAYMENT_INITIATED → PAYMENT_SUCCEEDED/FAILED
             │
             ▼
  ┌──────────────────────── POST-COMMIT (monitoring) ─────────────────────────────────┐
@@ -72,7 +72,7 @@ Fraud Detection/
 │  │  ├─ risk/              ringwatch, trailscore, behaviour, contextflag,      [Claude 2]
 │  │  │                     external_intel, fusion, reasonline, taint
 │  │  ├─ engine/            intents (orchestrator), ladder, holds, breaker     [Claude 1]
-│  │  ├─ payments/          PaymentProvider, Mock, RazorpayTest                [Claude 1]
+│  │  ├─ payments/          PaymentProvider port + simulated rail          [Claude 1]
 │  │  ├─ sim/               seed (deterministic), scenarios, ambient           [Claude 1 / Codex]
 │  │  ├─ realtime.py        WebSocket topic hub                                [Claude 1]
 │  │  └─ api/               FastAPI routers                                    [Claude 1]
@@ -94,7 +94,7 @@ Fraud Detection/
 | Realtime | One WebSocket `/ws?topics=…` with topic hub | Push only; no polling |
 | Frontend | Vite + React 18 + TS, built and **served by FastAPI on the same port** | One URL, works from a phone on the LAN, no CORS, no scattered localhost URLs |
 | Graph UI | Cytoscape.js + dagre (left→right money flow), layout computed once | No physics loop; evidence, not decoration |
-| Payments | `PaymentProvider` → `MockPaymentProvider` (default, offline) / `RazorpayTestProvider` (Checkout + server-side signature verification) | Razorpay is never a single point of failure |
+| Payments | `PaymentProvider` port → `MockPaymentProvider` (simulated rail, offline, labelled) | The provider is called only after approval; a bank plugs its own rail into the port |
 | ML | **None on the decision path.** Behaviour uses robust statistics (median/MAD z-score) | See `MODEL_CARD.md` |
 
 ## 4. Conventions (non-negotiable)
@@ -179,8 +179,6 @@ Every adjustment is a named `PolicyAdjustment` in the decision record so an anal
 | `POST /intents/{id}/acknowledge` | T1/T2 (`purpose` required at T2) |
 | `POST /intents/{id}/cancel` | customer cancels |
 | `POST /intents/{id}/bank-action` | `release` / `reject` (analyst) |
-| `POST /intents/{id}/payment/confirm` | Razorpay Checkout result → signature verify |
-| `POST /intents/{id}/payment/fallback-mock` | complete via mock if gateway unavailable |
 | `GET /decisions/{id}` | full decision (3 representations) |
 | `GET /alerts` | interventions queue |
 | `GET /investigate/{decision_id}` | everything the investigation view needs |

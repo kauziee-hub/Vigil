@@ -62,8 +62,8 @@ def get_intent(intent_id: str) -> TransactionIntent:
         detail = db.loads(attempt["detail"], {}) or {}
         payment = PaymentInfo(
             provider=attempt["provider"], status=attempt["status"], order_id=attempt["provider_order_id"],
-            payment_id=attempt["provider_payment_id"], key_id=detail.get("key_id"),
-            amount_paise=int(detail.get("gateway_amount_paise", row["amount_paise"])),
+            payment_id=attempt["provider_payment_id"],
+            amount_paise=int(row["amount_paise"]),
             label=detail.get("label", providers.MOCK_LABEL),
         )
     return TransactionIntent(
@@ -184,7 +184,7 @@ def create(req: CreateIntentRequest, *, auto_pay: bool | None = None) -> tuple[T
     intent = _publish(intent_id)
     should_auto = auto_pay if auto_pay is not None else req.source in {"ambient", "scenario"}
     if should_auto and intent.state == S.APPROVED:
-        intent = pay(intent_id, provider_override="mock")
+        intent = pay(intent_id)
     return intent, decision
 
 
@@ -234,7 +234,7 @@ def bank_action(intent_id: str, action: str, note: str | None = None) -> Transac
             raise VigilError(400, "bad_action", "action must be 'release' or 'reject'.")
     intent = _publish(intent_id)
     if action == "release" and row["source"] in {"scenario", "ambient"}:
-        intent = pay(intent_id, provider_override="mock")
+        intent = pay(intent_id)
     return intent
 
 
@@ -341,12 +341,12 @@ def contact_respond(token: str, breaker_id: str, response: str) -> dict[str, Any
 
 
 # ── payment ───────────────────────────────────────────────────────────────
-def pay(intent_id: str, provider_override: str | None = None) -> TransactionIntent:
+def pay(intent_id: str) -> TransactionIntent:
     row = _row(intent_id)
     if row["state"] not in {S.APPROVED.value, S.PAYMENT_FAILED.value}:
         raise VigilError(409, "not_approved", "Payment can only start after Vigil (or the bank) approves it.",
                          {"state": row["state"]})
-    provider = providers.get_provider(provider_override)
+    provider = providers.get_provider()
     result = provider.initiate(intent_id, int(row["amount_paise"]))
     now = clock.now_iso()
     with db.tx():
@@ -356,8 +356,7 @@ def pay(intent_id: str, provider_override: str | None = None) -> TransactionInte
             "id": db.next_id("PAY"), "intent_id": intent_id, "provider": result.provider,
             "status": result.status if result.status != "succeeded" else "created",
             "provider_order_id": result.order_id, "provider_payment_id": result.payment_id,
-            "detail": db.dumps({"label": result.label, "key_id": result.key_id, "error": result.error,
-                                "gateway_amount_paise": min(int(row["amount_paise"]), providers.RazorpayTestProvider.MAX_GATEWAY_PAISE)}),
+            "detail": db.dumps({"label": result.label, "error": result.error}),
             "created_at": now, "updated_at": now,
         })
         if result.status == "failed":
@@ -365,32 +364,6 @@ def pay(intent_id: str, provider_override: str | None = None) -> TransactionInte
     if result.status == "succeeded":
         return _settle(intent_id, result.payment_id, result.label)
     return _publish(intent_id)
-
-
-def confirm_razorpay(intent_id: str, order_id: str, payment_id: str, signature: str) -> TransactionIntent:
-    row = _row(intent_id)
-    if row["state"] != S.PAYMENT_INITIATED.value or row["provider"] != "razorpay_test":
-        raise VigilError(409, "no_gateway_payment", "No Razorpay test payment is pending for this intent.")
-    if order_id != row["provider_ref"]:
-        raise VigilError(400, "order_mismatch", "Order id does not match the one created for this intent.")
-    if not providers.verify_razorpay_signature(row["provider_ref"], payment_id, signature):
-        with db.tx():
-            _transition(intent_id, S.PAYMENT_FAILED, "provider", "Razorpay signature verification FAILED.")
-            db.execute("UPDATE payment_attempts SET status='failed', updated_at=? WHERE intent_id=? AND provider_order_id=?",
-                       (clock.now_iso(), intent_id, order_id))
-        _publish(intent_id)
-        raise VigilError(400, "bad_signature", "Razorpay payment signature did not verify.")
-    db.execute("UPDATE payment_attempts SET provider_payment_id=?, updated_at=? WHERE intent_id=? AND provider_order_id=?",
-               (payment_id, clock.now_iso(), intent_id, order_id))
-    return _settle(intent_id, payment_id, providers.RAZORPAY_LABEL + " · signature verified")
-
-
-def fallback_mock(intent_id: str) -> TransactionIntent:
-    row = _row(intent_id)
-    if row["state"] == S.PAYMENT_INITIATED.value:
-        with db.tx():
-            _transition(intent_id, S.PAYMENT_FAILED, "provider", "Gateway step abandoned; switching to demo provider.")
-    return pay(intent_id, provider_override="mock")
 
 
 def _settle(intent_id: str, payment_ref: str | None, label: str) -> TransactionIntent:

@@ -1,6 +1,6 @@
 """Live detection stream (v3): hook listener, WS event shapes, latency, status precedence, adaptive threshold.
 
-Behavioural checks on the seeded demo world (SYNTHETIC). Status semantics: docs/V3_LIVE_PLATFORM_PLAN.md.
+Behavioural checks on the seeded demo world (SYNTHETIC). Status semantics: docs/archive/plans/V3_LIVE_PLATFORM_PLAN.md.
 """
 
 from __future__ import annotations

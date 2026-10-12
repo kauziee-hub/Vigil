@@ -282,7 +282,7 @@ export function Outcome({ intent, record }: { intent: TransactionIntent; record:
       {!moved && <div className="notice info sm">No money has moved. The payment provider is called only after Vigil approves (or the bank releases) the intent.</div>}
       <table className="dt compact">
         <tbody>
-          <tr><td className="muted" style={{ width: 120 }}>Provider</td><td>{pay ? <><b>{pay.provider === "razorpay_test" ? "Razorpay TEST" : "Mock provider"}</b> · {pay.status} · <span className="mono xs">{pay.payment_id ?? pay.order_id ?? "—"}</span> <span className="sim">{pay.label}</span></> : <span className="dim">not called</span>}</td></tr>
+          <tr><td className="muted" style={{ width: 120 }}>Provider</td><td>{pay ? <><b>Simulated rail</b> · {pay.status} · <span className="mono xs">{pay.payment_id ?? pay.order_id ?? "—"}</span> <span className="sim">{pay.label}</span></> : <span className="dim">not called</span>}</td></tr>
           <tr><td className="muted">Ledger</td><td>{ledger ? <><span className="mono">{ledger.id}</span> · seq {ledger.seq} · <b className="mono">{formatINR(ledger.amount_paise)}</b> · {formatTime(ledger.ts)} · double-entry posted</> : <span className="dim">no posting</span>}</td></tr>
           <tr><td className="muted">Monitoring</td><td>{monitored ? <span>{monitored.detail ?? "monitored"} <span className="xs dim">{formatTime(monitored.ts)}</span></span> : <span className="dim">{moved ? "pending" : "not applicable before payment"}</span>}</td></tr>
         </tbody>

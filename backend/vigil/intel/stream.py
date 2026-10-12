@@ -10,7 +10,7 @@ event-loop thread; suspended while seeding). For each posting it
        * `intel.account_status` (AccountStatusChange) for every account whose status changed, with a reason;
        * `intel.tx_scored` (TxScored) for the posting itself, with both parties' status and model evidence.
 
-Status semantics and precedence (docs/V3_LIVE_PLATFORM_PLAN.md):
+Status semantics and precedence (docs/archive/plans/V3_LIVE_PLATFORM_PLAN.md):
     confirmed_fraud > held > flagged > early_warning > new > normal > idle      (external accounts: "external")
   * confirmed_fraud — recipient of a BANK-CONFIRMED fraud label (`fraud_labels`, read-only). A
     `reported_unverified` label does not make an account "confirmed".
@@ -174,7 +174,11 @@ def _rw(account_id: str) -> tuple[bool, bool]:
         hit = _STRUCT["v"].get(account_id)
         if hit is None:
             signals, feats = ringwatch.evaluate(account_id)
-            hit = (ringwatch.score(signals) >= RINGWATCH_FLAG,
+            # a closed money loop through >= 2 other accounts is structural on its own: the ring's originator
+            # pays out first and is paid back last, so it never shows pass-through or a fast chain (RingWatch
+            # 0.25) yet it is as much a member as its ring-mates. A refund (A → B → A) is not a loop here.
+            loop = any(x.rule_id == "NET_CIRCULAR" and len((x.evidence or {}).get("cycle") or []) >= 4 for x in signals)
+            hit = (ringwatch.score(signals) >= RINGWATCH_FLAG or loop,
                    float(feats.get("forwarded_fraction") or 0.0) >= FORWARDING_MIN or feats.get("role") is not None
                    or any(x.rule_id == "NET_CIRCULAR" for x in signals))
             _STRUCT["v"][account_id] = hit
@@ -184,7 +188,7 @@ def _rw(account_id: str) -> tuple[bool, bool]:
 
 
 def structural(account_id: str) -> bool:
-    """RingWatch (the payment engine's transparent network rules) at or above RINGWATCH_FLAG."""
+    """RingWatch (the payment engine's transparent network rules) at or above RINGWATCH_FLAG, or a closed loop."""
     return _rw(account_id)[0]
 
 

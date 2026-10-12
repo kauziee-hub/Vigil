@@ -64,10 +64,7 @@ export const api = {
   cancel: (id: string) => post<TransactionIntent>(`/api/intents/${id}/cancel`),
   bankAction: (id: string, action: "release" | "reject", note?: string) =>
     post<TransactionIntent>(`/api/intents/${id}/bank-action`, { action, note }),
-  pay: (id: string, provider?: "mock" | "razorpay_test") => post<TransactionIntent>(`/api/intents/${id}/pay`, { provider }),
-  confirmRazorpay: (id: string, r: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
-    post<TransactionIntent>(`/api/intents/${id}/payment/confirm`, r),
-  fallbackMock: (id: string) => post<TransactionIntent>(`/api/intents/${id}/payment/fallback-mock`),
+  pay: (id: string) => post<TransactionIntent>(`/api/intents/${id}/pay`),
 
   decisions: (minTier = 0) => request<DecisionSummary[]>(`/api/decisions?min_tier=${minTier}`),
   decision: (id: string) => request<RiskDecision>(`/api/decisions/${id}`),

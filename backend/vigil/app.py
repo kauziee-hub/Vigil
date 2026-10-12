@@ -5,7 +5,6 @@ Run:  python -m vigil.app        (or via run_demo.ps1 / run_demo.sh)
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import socket
 from contextlib import asynccontextmanager
@@ -21,7 +20,6 @@ from vigil.api.routes import router, ws_router
 from vigil.api.routes_v2 import router as routes_v2_router
 from vigil.api.routes_live import router as routes_live_router
 from vigil.engine.ledger import VigilError
-from vigil.payments import providers
 from vigil.settings import FRONTEND_DIST, get_policy, get_settings
 from vigil.sim import ambient, seed
 
@@ -46,8 +44,6 @@ async def lifespan(_app: FastAPI):
             log.warning("detection intelligence warm-up failed: %s", exc)
     if get_settings().ambient_default:
         ambient.set_enabled(True)
-    # probe Razorpay once, off the event loop; never blocks startup or the demo
-    asyncio.get_running_loop().run_in_executor(None, providers.probe_gateway)
     yield
     ambient.STATE["enabled"] = False
     db.close()
@@ -137,7 +133,7 @@ def main() -> None:
     print(f"  Transaction Guard: http://localhost:{s.port}/guard   (customer device + pre-commit assessment)")
     print(f"  Scenario Lab     : http://localhost:{s.port}/lab")
     print(f"  Trusted contact  : http://{ip}:{s.port}/contact/arjun   (open on a phone on the same Wi-Fi)")
-    print(f"  Payment mode   : {s.payment_provider}\n")
+    print("  Payments         : simulated payment rail (no real money)\n")
     uvicorn.run(app, host=s.host, port=s.port, log_level="warning")
 
 

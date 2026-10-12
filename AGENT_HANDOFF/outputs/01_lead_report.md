@@ -2,7 +2,7 @@
 
 This is the output requested by the master prompt (sections 1–6), plus what was built and verified.
 
-## 1. Current-state findings (full detail: docs/CURRENT_STATE_AUDIT.md)
+## 1. Current-state findings (full detail: docs/archive/plans/CURRENT_STATE_AUDIT.md)
 
 * **ccmule-main / "Actual ML - Laggy"** — two forks of one mule detector (9 of 12 backend files identical). Best asset: the attack-pattern catalogue. Rules were windowless (`in_degree >= 2` = fan-in), unseeded random generator, RF + GAT trained on the injector's own labels with features measured only on the attack window (label leakage), adaptive threshold read ground truth at runtime, suspicion scoring was O(accounts × transactions) per request with 1 s client polling → the lag. Three.js / D3 / vis-network graphs rendered the whole universe with physics.
 * **PRIMA** — two unrelated halves. `prima/` is a rigorous, pure, property-tested ledger + value-lineage library (190 tests port cleanly) — the strongest code anywhere. The hackathon app (`backend/`, `web/`) had: no TransactionIntent (a "quoted" ledger row played the role), two duplicate decision paths (one fabricated tier 4 for long notes), a known-payee override that forced tier 0 (coercion to a previously paid payee would pass), a commit path that **debited without crediting** (money destroyed), no graph update after payment (no feedback loop), a GNN given 45 % of network weight and run per request, a ContextFlag lexicon that only matched the demo script, a non-conserving taint ratio, and a frontend calling `/api/ops/*` routes that **did not exist**. Razorpay was a webhook top-up that cannot reach localhost; its keys are now rejected by Razorpay (HTTP 401).
@@ -19,7 +19,7 @@ RF, GAT, SHAP, adaptive threshold, PatternMemory (off the decision path; see MOD
 
 One FastAPI process on one port serving API + built React UI; SQLite WAL; in-memory incremental PathGraph; one WebSocket with topics. Lifecycle: `CREATED → RISK_EVALUATED → APPROVED | CHALLENGED | HELD | ESCALATED → PAYMENT_INITIATED → PAYMENT_SUCCEEDED → MONITORED` (+ CANCELLED / REJECTED / PAYMENT_FAILED), every transition persisted and pushed. Five dimensions (external [simulated], network, sequence, behaviour, context [simulated]) → versioned fusion with named adjustments → ladder T0–T4 → provider only after approval → ledger + graph → RingWatch/TaintTrace → next decision.
 
-## 5. Parallel task allocation (full: docs/PARALLEL_WORK_PLAN.md, prompts in docs/AGENT_PROMPTS/)
+## 5. Parallel task allocation (full: docs/archive/plans/PARALLEL_WORK_PLAN.md, prompts in docs/archive/plans/AGENT_PROMPTS/)
 
 * Claude 1 — contracts, schema, lifecycle, payments, API, seed/scenarios, run scripts, integration (done).
 * Claude 2 — risk-rule unit tests, fusion tests, false-positive review (`backend/vigil/risk/**`).

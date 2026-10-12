@@ -1,32 +1,17 @@
 // The customer's phone. One implementation shared by Transaction Guard (/guard, beside the bank
 // assessment) and the customer-only kiosk (/pay?as=). The four-question intervention copy and the
-// approve / confirm / hold / cancel / pay / Razorpay / fallback flows are v1's, unchanged: they work.
+// approve / confirm / hold / cancel / pay flows are v1's, unchanged: they work. Payments settle on the simulated rail.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "../api/client";
 import { useRealtime } from "../api/realtime";
 import type { AccountSummary, RiskDecision, TransactionIntent, WsEnvelope } from "../api/types";
 import { STATE_LABEL, TIER_LABEL, formatINR, handle, rupeesToPaise } from "../lib/format";
 
-declare global {
-  interface Window { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void; on: (e: string, cb: (r: unknown) => void) => void } }
-}
-
 export const DEMO_PAYERS = ["ramesh@vigil", "sunita@vigil"];
 export const COERCION_SCRIPT = "Inspector Sharma, cyber police: a warrant has been issued in your name. You are under digital arrest. Do not tell anyone, not even your family. Transfer immediately to the RBI verification account.";
 
 export interface Prefill { to: string; amount: string; note: string; context?: string; nonce: number }
 export interface DeviceState { intent: TransactionIntent | null; decision: RiskDecision | null }
-
-function loadRazorpay(): Promise<boolean> {
-  if (window.Razorpay) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
 
 const TERMINAL = new Set(["MONITORED", "PAYMENT_SUCCEEDED", "CANCELLED", "REJECTED"]);
 type View = "form" | "checking" | "result";
@@ -51,7 +36,7 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [contactNews, setContactNews] = useState<string[]>([]);
-  const [gatewayIssue, setGatewayIssue] = useState<string | null>(null);
+  const [payIssue, setPayIssue] = useState<string | null>(null);
   const current = useRef<{ id: string | null; state: string | null }>({ id: null, state: null });
   current.current = { id: intent?.intent_id ?? null, state: intent?.state ?? null };
 
@@ -66,7 +51,7 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
   }, [prefill?.nonce]);
 
   function resetForm() {
-    setView("form"); setIntent(null); setDecision(null); setPurpose(""); setErr(null); setContactNews([]); setGatewayIssue(null);
+    setView("form"); setIntent(null); setDecision(null); setPurpose(""); setErr(null); setContactNews([]); setPayIssue(null);
   }
 
   const onEvent = async (e: WsEnvelope<any>) => {
@@ -108,31 +93,13 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
     }
   };
 
-  async function startPayment(intentId: string, provider?: "mock" | "razorpay_test") {
-    setBusy(true); setGatewayIssue(null);
+  async function startPayment(intentId: string) {
+    setBusy(true); setPayIssue(null);
     try {
-      const it = await api.pay(intentId, provider);
+      const it = await api.pay(intentId);
       setIntent(it);
-      if (it.state === "PAYMENT_INITIATED" && it.payment?.provider === "razorpay_test" && it.payment.order_id) {
-        const ok = await loadRazorpay();
-        if (!ok || !window.Razorpay) { setGatewayIssue("Razorpay Checkout could not load (offline?)."); return; }
-        const rzp = new window.Razorpay({
-          key: it.payment.key_id, order_id: it.payment.order_id, amount: it.payment.amount_paise, currency: "INR",
-          name: "Vigil demo · Razorpay TEST MODE", description: `${it.intent_id} → ${handle(it.recipient_id)} (test funds)`,
-          theme: { color: "#12171f" },
-          handler: async (r: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-            try { setIntent(await api.confirmRazorpay(it.intent_id, r)); refreshAccount(); }
-            catch (e) { setGatewayIssue(e instanceof ApiError ? e.message : String(e)); }
-          },
-          modal: { ondismiss: () => setGatewayIssue("Razorpay checkout was closed before completing.") },
-        });
-        rzp.on("payment.failed", () => setGatewayIssue("Razorpay reported the test payment as failed."));
-        rzp.open();
-      } else if (it.state === "PAYMENT_FAILED") {
-        setGatewayIssue(it.transitions[it.transitions.length - 1]?.detail ?? "Gateway unavailable.");
-      } else {
-        refreshAccount();
-      }
+      if (it.state === "PAYMENT_FAILED") setPayIssue(it.transitions[it.transitions.length - 1]?.detail ?? "Payment failed.");
+      else refreshAccount();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : String(e));
     } finally { setBusy(false); }
@@ -152,13 +119,6 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
     if (!intent) return;
     setBusy(true);
     try { setIntent(await api.cancel(intent.intent_id)); refreshAccount(); }
-    catch (e) { setErr(e instanceof ApiError ? e.message : String(e)); }
-    finally { setBusy(false); }
-  };
-  const doFallback = async () => {
-    if (!intent) return;
-    setBusy(true);
-    try { setIntent(await api.fallbackMock(intent.intent_id)); setGatewayIssue(null); refreshAccount(); }
     catch (e) { setErr(e instanceof ApiError ? e.message : String(e)); }
     finally { setBusy(false); }
   };
@@ -233,10 +193,10 @@ export function CustomerDevice({ payer, kiosk = false, onPayerChange, onChange, 
 
         {view === "result" && intent && decision && (
           <ResultPanel intent={intent} decision={decision} purpose={purpose} setPurpose={setPurpose}
-                       busy={busy} err={err} contactNews={contactNews} gatewayIssue={gatewayIssue}
-                       onAck={doAck} onCancel={doCancel} onFallback={doFallback}
+                       busy={busy} err={err} contactNews={contactNews} payIssue={payIssue}
+                       onAck={doAck} onCancel={doCancel}
                        onNew={() => { resetForm(); setTo(""); setAmount(""); setNote(""); setCtx(""); }}
-                       onPay={(p) => startPayment(intent.intent_id, p)} />
+                       onPay={() => startPayment(intent.intent_id)} />
         )}
       </div>
       <div className="ios-home" aria-hidden="true" />
@@ -264,8 +224,8 @@ function IosStatusBar() {
 
 function ResultPanel(p: {
   intent: TransactionIntent; decision: RiskDecision; purpose: string; setPurpose: (s: string) => void; busy: boolean;
-  err: string | null; contactNews: string[]; gatewayIssue: string | null;
-  onAck: () => void; onCancel: () => void; onNew: () => void; onPay: (p?: "mock" | "razorpay_test") => void; onFallback: () => void;
+  err: string | null; contactNews: string[]; payIssue: string | null;
+  onAck: () => void; onCancel: () => void; onNew: () => void; onPay: () => void;
 }) {
   const { intent, decision } = p;
   const c = decision.reasons.customer;
@@ -349,16 +309,10 @@ function ResultPanel(p: {
         <button className="btn primary block" onClick={() => p.onPay()} disabled={p.busy}>
           {decision.tier >= 3 ? "Bank released this payment — complete it" : "Complete payment"}</button>
       )}
-      {state === "PAYMENT_INITIATED" && intent.payment?.provider === "razorpay_test" && (
-        <div className="notice sm"><b>RAZORPAY TEST MODE</b> — real gateway API with test funds; no real money moves. Complete the payment in the Razorpay window.</div>
-      )}
-      {(p.gatewayIssue || state === "PAYMENT_FAILED") && (
+      {(p.payIssue || state === "PAYMENT_FAILED") && (
         <div className="stack">
-          <div className="notice err sm">{p.gatewayIssue ?? "Payment gateway failed."}</div>
-          <div className="row">
-            <button className="btn grow" onClick={() => p.onPay("razorpay_test")} disabled={p.busy}>Retry Razorpay</button>
-            <button className="btn primary grow" onClick={p.onFallback} disabled={p.busy}>Complete as DEMO payment</button>
-          </div>
+          <div className="notice err sm">{p.payIssue ?? "Payment failed."}</div>
+          <button className="btn primary block" onClick={() => p.onPay()} disabled={p.busy}>Retry payment</button>
         </div>
       )}
       <div className="sm muted center">{intent.intent_id} · {STATE_LABEL[state]}</div>

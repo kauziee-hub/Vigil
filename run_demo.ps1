@@ -1,8 +1,7 @@
 # Vigil — one-command demo start (Windows PowerShell).
 #   powershell -ExecutionPolicy Bypass -File run_demo.ps1            # start (seeds DB on first run)
 #   powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Reset     # wipe + reseed, then start
-#   powershell -ExecutionPolicy Bypass -File run_demo.ps1 -Mock      # force mock payments (offline)
-param([switch]$Reset, [switch]$Mock, [switch]$SkipBuild, [int]$Port = 8000)
+param([switch]$Reset, [switch]$SkipBuild, [int]$Port = 8000)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backend = Join-Path $root "backend"
@@ -26,7 +25,6 @@ if ($Reset) {
   Write-Host "Resetting demo database..." -ForegroundColor Cyan
   Push-Location $backend; & $py -c "from vigil import db; from vigil.sim import seed; db.connect(); print(seed.seed())"; Pop-Location
 }
-if ($Mock) { $env:VIGIL_PAYMENT_PROVIDER = "mock" }
 $env:VIGIL_PORT = "$Port"
 $env:PYTHONIOENCODING = "utf-8"
 Push-Location $backend

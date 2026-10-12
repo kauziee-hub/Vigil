@@ -12,7 +12,6 @@ Every component of the demo falls in exactly one of four buckets.
 * Incremental PathGraph; RingWatch rules with evidence; post-payment monitoring that changes the next decision.
 * TaintTrace using the vendored PRIMA lineage engine (LIBR + pro rata, exact conservation, 190 ported tests).
 * CircuitBreaker over WebSocket to a second browser/phone; contact responses pushed back live.
-* Razorpay **Test Mode** integration code: order creation via the real API and server-side payment-signature verification (HMAC-SHA256 of `order_id|payment_id`). *Requires valid test keys — the keys inherited from the PRIMA repo are rejected by Razorpay (HTTP 401) and must be replaced in `.env`.* When keys are missing or rejected, the app automatically uses the mock provider and says so.
 * Benchmarks and 211 automated tests.
 
 ### Added in v2 (REAL)
@@ -32,7 +31,7 @@ Every component of the demo falls in exactly one of four buckets.
 * **Mule-ring transfers in Scenario 2** — injected as observed ledger postings (representing payments made before Vigil coverage), not as intents.
 * **Time compression** — Scenario 3 back-dates journey events by up to 8 minutes so the story plays in seconds.
 * **Pinned local hour in scripted scenarios** — while a scenario step runs, time-of-day rules (the "unusual hour" behaviour signal, 00:00–05:00 IST) see a fixed 14:00 IST, so every scenario gives the same tier whenever the demo is run. Live and ambient payments use the real hour. Each decision's audit record states which (`evaluation_context.local_hour_source`).
-* **Mock payments** — "DEMO PAYMENT", no gateway.
+* **Payment rail** — simulated behind a provider port (`backend/vigil/payments/providers.py`); no gateway, no real money. A bank would plug its own rail into the same port.
 * **Trusted-contact delivery** — a web page over WebSocket, not SMS/push.
 
 ## SYNTHETIC (data)
@@ -54,6 +53,5 @@ Every component of the demo falls in exactly one of four buckets.
 ## Other honest caveats
 
 * Single process, single SQLite file; designed for one demo laptop.
-* `RazorpayLiveProvider` is intentionally not implemented; live keys are refused.
 * Customer-facing text is English only.
 * The background stream is seeded but timing-dependent; nothing in the demo depends on it.

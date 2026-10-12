@@ -150,7 +150,7 @@ export function RecordPage() {
                 </Panel>
                 <Panel kicker="Payment result" title="Provider and ledger">
                   <KV rows={[
-                    ["Provider", r.payment_result ? <span>{r.payment_result.provider === "razorpay_test" ? "Razorpay TEST" : "Mock provider"} · {r.payment_result.status} <Sim text={r.payment_result.label} /></span> : <span className="dim">not called</span>],
+                    ["Provider", r.payment_result ? <span>Simulated rail · {r.payment_result.status} <Sim text={r.payment_result.label} /></span> : <span className="dim">not called</span>],
                     ["Payment id", <span className="mono xs">{r.payment_result?.payment_id ?? r.payment_result?.order_id ?? "—"}</span>],
                     ["Ledger", r.ledger_transaction ? <span className="mono xs">{r.ledger_transaction.id} · seq {r.ledger_transaction.seq} · {formatINR(r.ledger_transaction.amount_paise)} · {formatDateTime(r.ledger_transaction.ts)}</span> : <span className="dim">no posting</span>],
                   ]} />

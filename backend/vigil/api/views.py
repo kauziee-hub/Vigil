@@ -14,7 +14,7 @@ from vigil.engine import ledger, lifecycle
 from vigil.graph.pathgraph import GRAPH
 from vigil.realtime import HUB
 from vigil.risk import external_intel, ringwatch, taint, trailscore
-from vigil.settings import get_policy, get_policy_version, get_settings
+from vigil.settings import get_policy, get_policy_version
 
 MAX_NODES = 60
 
@@ -226,19 +226,11 @@ def metrics() -> dict[str, Any]:
 
 
 def health() -> dict[str, Any]:
-    s = get_settings()
-    from vigil.payments import providers
     from vigil.sim import ambient
-    effective = providers.effective_provider()
-    label = "Razorpay TEST MODE" if effective == "razorpay_test" else "Mock (DEMO PAYMENT)"
-    if s.payment_provider == "razorpay_test" and effective == "mock":
-        label += " — Razorpay test keys rejected (401); update .env"
     return {
         "status": "ok", "time": clock.now_iso(), "policy_version": get_policy_version(),
-        "payment_provider": effective,
-        "payment_provider_label": label,
-        "gateway": dict(providers.GATEWAY),
-        "razorpay_key_id": s.razorpay_key_id if effective == "razorpay_test" else None,
+        "payment_provider": "mock",
+        "payment_provider_label": "Simulated payment rail (no real money)",
         "external_intel_provider": external_intel.provider().name,
         "ambient": ambient.STATE["enabled"], "ws_clients": HUB.clients(),
         "seeded_at": db.get_meta("seeded_at"), "graph_version": GRAPH.version,

@@ -16,6 +16,7 @@ import { useConsoleEvents } from "../components/Shell";
 import { KV, PageHead, Panel, Pill, Seg, Sim, Tabs } from "../components/ui";
 import { EdgeViewSeg, LiveUniverse3D, UniverseLegend, type EdgeView, type UniverseInfo, type UniverseMode } from "../components/LiveUniverse3D";
 import { UniverseDrawer } from "../components/UniverseDrawer";
+import { LiveStreams } from "../components/live/LiveStreams";
 import { formatINR, formatStamp, formatTime, handle } from "../lib/format";
 import { ROLE_SHAPE, SHAPE_ICON, evidenceFromScene, nodeStatus, roleKey, sceneFromEvidence } from "../lib/graphStyle";
 import { withChunkReload } from "../lib/chunks";
@@ -600,6 +601,8 @@ function LiveUniverseView() {
                                   onClose={() => setSel(null)} onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
         </div>
       </section>
+      <div className="oc-section"><h2>Live activity</h2><span>every posting scored as it lands</span></div>
+      <LiveStreams statusOf={(id) => accounts.current.get(id)?.status ?? null} recent={info?.recent ?? null} />
     </>
   );
 }

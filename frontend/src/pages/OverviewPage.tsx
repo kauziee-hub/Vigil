@@ -1,21 +1,20 @@
-// OPERATIONS CENTER (Overview v5) — reference layout (docs/reference_v5): what needs action first, then how money is
+// OPERATIONS CENTER (Overview v5) — reference layout (docs/archive/references/reference_v5): what needs action first, then how money is
 // moving, then why the models flag accounts (SHAP) and how detection is performing. Every number is read from the
 // Vigil backend; live state arrives over the Shell's console WebSocket (no polling); the 3D canvas is imperative.
 // Demo-only controls live in the Test inputs console (top bar), never on this page.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { AccountStatus, DetectorFamily, IntelOverview, UniverseAccount } from "../api/types";
-import { CH, ChartCanvas, TIER_COLORS, baseOptions } from "../components/charts";
+import { CH, ChartCanvas, baseOptions } from "../components/charts";
 import { RoleIcon } from "../components/intel";
-import { LiveStreams } from "../components/live/LiveStreams";
-import { AttackHistory } from "../components/live/AttackResults";
-import { AccountScoring, DetectionPerformance, KpiStrip } from "../components/OverviewAnalytics";
+import { LastAttackResult } from "../components/live/AttackResults";
+import { KpiStrip } from "../components/OverviewAnalytics";
 import { EdgeViewSeg, LiveUniverse3D, UniverseLegend, type EdgeView, type UStats, type UniverseInfo } from "../components/LiveUniverse3D";
 import { useConsoleEvents, usePlatform } from "../components/Shell";
 import { StatePill, TierPill } from "../components/ui";
 import { UniverseDrawer } from "../components/UniverseDrawer";
-import { duration, formatINR, formatPaiseShort, handle } from "../lib/format";
+import { duration, formatINR, handle } from "../lib/format";
 import { useDebounced, useLoad, useNow } from "../lib/hooks";
 import { useAttackRuns, useLiveStats } from "../lib/live";
 import { rowAge, useInterventionQueue } from "../lib/queue";
@@ -36,37 +35,6 @@ function Icon({ k }: { k: keyof typeof I }) {
 }
 function KHead({ icon, title, act }: { icon: keyof typeof I; title: ReactNode; act?: ReactNode }) {
   return <div className="kcard-h"><span className="ic"><Icon k={icon} /></span><span>{title}</span>{act && <span className="act">{act}</span>}</div>;
-}
-
-/** Bars sparkline (reference "candles"), drawn from real per-bucket counts. */
-function Spark({ values, color = "#2fbfa0" }: { values: number[]; color?: string }) {
-  if (values.length < 2) return <div className="ksub" style={{ height: 60, display: "grid", alignItems: "center" }}>collecting live postings…</div>;
-  const max = Math.max(1, ...values);
-  const w = 300, h = 60, bw = w / values.length;
-  return (
-    <svg className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-label="postings per 10 seconds">
-      {values.map((v, i) => {
-        const bh = Math.max(2, (v / max) * (h - 4));
-        return <rect key={i} x={i * bw + bw * 0.18} y={h - bh} width={bw * 0.64} height={bh} rx={Math.min(2, bw * 0.3)} fill={color} opacity={0.35 + 0.65 * (i / values.length)} />;
-      })}
-    </svg>
-  );
-}
-
-/** Semicircle gauge (reference "exposure" dial). */
-function Gauge({ value }: { value: number | null }) {
-  const v = value === null ? 0 : Math.max(0, Math.min(1, value));
-  const r = 80, cx = 100, cy = 96;
-  const a = Math.PI * (1 - v);
-  const x = cx + r * Math.cos(a), y = cy - r * Math.sin(a);
-  return (
-    <svg className="gauge" viewBox="0 0 200 112" aria-hidden="true">
-      <defs><linearGradient id="g-mint" x1="0" x2="1"><stop offset="0" stopColor="#bdf3e6" /><stop offset="1" stopColor="#2fbfa0" /></linearGradient></defs>
-      <path d={`M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--surface-3)" strokeWidth="14" strokeLinecap="round" />
-      {value !== null && <path d={`M${cx - r} ${cy} A${r} ${r} 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`} fill="none" stroke="url(#g-mint)" strokeWidth="14" strokeLinecap="round" />}
-      {value !== null && <><line x1={cx} y1={cy} x2={cx + (r - 22) * Math.cos(a)} y2={cy - (r - 22) * Math.sin(a)} stroke="#0f1419" strokeWidth="3" strokeLinecap="round" /><circle cx={cx} cy={cy} r="6" fill="#0f1419" /></>}
-    </svg>
-  );
 }
 
 function RiskBar({ value, status }: { value: number; status: AccountStatus }) {
@@ -101,44 +69,6 @@ function Header({ suggest }: { suggest: UniverseAccount[] }) {
 }
 
 // ── cards ─────────────────────────────────────────────────────────────────
-function AlertsCard({ by, spark }: { by: Record<string, number> | null; spark: number[] }) {
-  const n = (k: string) => (by ? by[k] ?? 0 : null);
-  const alarm = by ? (n("flagged")! + n("held")! + n("confirmed_fraud")!) : null;
-  return (
-    <div className="kcard">
-      <KHead icon="pulse" title="Accounts at risk" act={<Link className="btn xs" to="/network">View</Link>} />
-      <div className="kbig">
-        <span className="n">{alarm ?? "—"}</span>
-        {by && <span className={`delta ${alarm ? "bad" : "flat"}`}>{alarm ? "action needed" : "all clear"}</span>}
-      </div>
-      <div className="ksub">{by ? `${n("flagged")} flagged · ${n("held")} held · ${n("confirmed_fraud")} confirmed · ${n("early_warning")} early warning` : "loading live statuses…"}</div>
-      <Spark values={spark} />
-      <div className="ksub" style={{ fontSize: 11.5 }}>Postings per 10 s, live</div>
-    </div>
-  );
-}
-
-function FrictionCard() {
-  const { metrics: m } = usePlatform();
-  const tiers = m?.decisions_by_tier ?? {};
-  const total = Object.values(tiers).reduce((a, b) => a + b, 0);
-  const passed = tiers["0"] ?? 0;
-  const rate = total ? passed / total : null;
-  return (
-    <div className="kcard">
-      <KHead icon="shield" title="Payments protected" act={<Link className="btn xs" to="/guard">Payments</Link>} />
-      <div className="row" style={{ alignItems: "flex-end", gap: 12 }}>
-        <div style={{ flex: "0 0 auto" }}>
-          <div className="kbig"><span className="n">{rate === null ? "—" : `${(rate * 100).toFixed(1)}%`}</span></div>
-          <div className="ksub">passed without friction</div>
-        </div>
-        <div className="grow"><Gauge value={rate} /></div>
-      </div>
-      <div className="ksub">{total ? `${passed.toLocaleString("en-IN")} of ${total.toLocaleString("en-IN")} pre-commit decisions · ${m?.open_interventions ?? 0} open · ${formatPaiseShort(m?.held_paise ?? 0)} held` : "no decisions yet"}</div>
-    </div>
-  );
-}
-
 function DetectorsCard() {
   const intel = useLoad<IntelOverview>(api.intelOverview);
   const refresh = useDebounced(() => intel.reload(), 1500);
@@ -193,7 +123,7 @@ function AttentionCard({ risky }: { risky: UniverseAccount[] }) {
       {tab === "accounts" ? (
         risky.length === 0 ? <div className="empty">No account is flagged, held or under early warning. Statuses update live as postings are scored.</div> : (
           <table className="dt" style={{ marginTop: 6 }}>
-            <thead><tr><th>Account</th><th>Status</th><th>Risk</th><th>Role</th><th /></tr></thead>
+            <thead><tr><th>Account</th><th>Status</th><th>Risk</th><th>Role</th></tr></thead>
             <tbody>
               {risky.slice(0, 7).map((a) => (
                 <tr key={a.id} className="click" onClick={() => nav(`/investigations/account/${encodeURIComponent(a.id)}`)}>
@@ -202,7 +132,6 @@ function AttentionCard({ risky }: { risky: UniverseAccount[] }) {
                   <td><span className={`pill as-${a.status}`}>{ACCOUNT_STATUS_LABEL[a.status]}</span></td>
                   <td><RiskBar value={Math.max(a.risk ?? 0, a.model_risk ?? 0)} status={a.status} /></td>
                   <td className="sm">{a.role ? <span className="row tight"><RoleIcon role={a.role} size={12} />{ROLE_LABEL[a.role] ?? a.role}</span> : <span className="dim">—</span>}</td>
-                  <td className="right"><span className="btn xs">Open</span></td>
                 </tr>
               ))}
             </tbody>
@@ -297,55 +226,6 @@ function DriversCard({ risky, top }: { risky: UniverseAccount[]; top: UniverseAc
   );
 }
 
-function DecisionsCard({ stats }: { stats: ReturnType<typeof useLiveStats> }) {
-  const t = stats.data?.tiers_over_time ?? [];
-  const labels = t.map((p) => new Date(p.t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }));
-  const keys = ["t0", "t1", "t2", "t3", "t4"] as const;
-  const names = ["T0 pass", "T1 inform", "T2 confirm", "T3 hold", "T4 hold + contact"];
-  return (
-    <div className="kcard">
-      <KHead icon="shield" title="Pre-commit decisions" act={<Link className="btn xs" to="/interventions">Queue</Link>} />
-      <div className="ksub">Every payment intent, by intervention tier, per minute</div>
-      <ChartCanvas type="bar" height={232} empty={stats.unavailable ? "Live statistics not available." : "No decisions in the window yet."}
-        data={{ labels, datasets: keys.map((k, i) => ({ label: names[i], data: t.map((p) => p[k]), backgroundColor: TIER_COLORS[i], borderRadius: 4, stack: "t", maxBarThickness: 26 })) }}
-        options={baseOptions({ scales: { x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: "#8a939e", maxTicksLimit: 6 } }, y: { stacked: true, beginAtZero: true, grid: { color: "rgba(15,20,25,0.06)" }, border: { display: false }, ticks: { color: "#8a939e" } } },
-          plugins: { legend: { position: "bottom", labels: { color: "#69737f", boxWidth: 8, boxHeight: 8, usePointStyle: true } } } }) as never} />
-    </div>
-  );
-}
-
-function PatternsCard() {
-  const intel = useLoad<IntelOverview>(api.intelOverview);
-  const refresh = useDebounced(() => intel.reload(), 1500);
-  useConsoleEvents((e) => { if (e.type === "intel.updated" || e.type === "demo.reset" || e.type === "attack.run_updated") refresh(); });
-  const d = intel.data;
-  const pats = (d?.pattern_alerts ?? []).slice(0, 5);
-  const ews = (d?.early_warnings ?? []).slice(0, 4);
-  return (
-    <div className="kcard">
-      <KHead icon="grid" title="Pattern memory & early warning" act={<Link className="btn xs" to="/detection">All</Link>} />
-      <div className="ksub">Structural similarity to stored mule signatures (not attribution), and behaviour change before mule structure exists</div>
-      {!d ? <div className="ksub">{intel.unavailable ? "Detection intelligence not available." : "Loading…"}</div> : (
-        <div className="stack tight" style={{ gap: 8, marginTop: 4 }}>
-          {pats.length === 0 && ews.length === 0 && <div className="empty" style={{ padding: 12 }}>No pattern match or early warning right now.</div>}
-          {pats.map((p) => (
-            <Link key={`p-${p.account_id}`} to={`/investigations/account/${encodeURIComponent(p.account_id)}`} className="row" style={{ color: "inherit", textDecoration: "none" }}>
-              <span className="cell-2l grow"><b>{handle(p.account_id)}</b><small>similar to {p.match.name}</small></span>
-              <span className="mono sm">{Math.round(p.match.similarity * 100)}%</span>
-            </Link>
-          ))}
-          {ews.map((w) => (
-            <Link key={`e-${w.account_id}`} to={`/investigations/account/${encodeURIComponent(w.account_id)}`} className="row" style={{ color: "inherit", textDecoration: "none" }}>
-              <span className="cell-2l grow"><b>{handle(w.account_id)}</b><small>early warning · {w.signals.join(", ") || "behaviour change"}</small></span>
-              <span className="pill as-early_warning nodot">{w.score.toFixed(2)}</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── page ──────────────────────────────────────────────────────────────────
 export function OverviewPage() {
   const stats = useLiveStats(5000);
@@ -354,8 +234,6 @@ export function OverviewPage() {
   const accounts = useRef(new Map<string, UniverseAccount>());
   const [by, setBy] = useState<Record<string, number> | null>(null);
   const [lists, setLists] = useState<{ risky: UniverseAccount[]; top: UniverseAccount[] }>({ risky: [], top: [] });
-  const [recent, setRecent] = useState<UniverseInfo["recent"] | null>(null);
-  const [uniVersion, setUniVersion] = useState(0);
   const [sel, setSel] = useState<{ id: string; acct: UniverseAccount | null } | null>(null);
   const [focus, setFocus] = useState<{ ids: string[]; seq: number } | null>(null);
 
@@ -369,20 +247,19 @@ export function OverviewPage() {
       return k(prev.risky) === k(risky) && k(prev.top) === k(top) ? prev : { risky, top };
     });
   }, []);
-  const onInfo = useCallback((i: UniverseInfo) => { accounts.current = i.accounts; setRecent((r) => r ?? i.recent); setUniVersion((n) => n + 1); recompute(); }, [recompute]);
+  const onInfo = useCallback((i: UniverseInfo) => { accounts.current = i.accounts; recompute(); }, [recompute]);
   const onStats = useCallback((s: UStats) => { setBy(s.byStatus); recompute(); }, [recompute]);
-  const statusOf = useCallback((id: string): AccountStatus | null => accounts.current.get(id)?.status ?? null, []);
   const onSelect = useCallback((id: string | null, acct: UniverseAccount | null) => setSel(id ? { id, acct } : null), []);
-  const spark = useMemo(() => (stats.data?.volume ?? []).slice(-30).map((p) => p.normal + p.attack), [stats.data]);
   const counts = stats.data?.counts;
+  const lastRun = (runs.data ?? []).find((r) => r.status === "completed") ?? null;
   const byStatus = by ?? (counts ? { flagged: counts.flagged ?? 0, held: counts.held ?? 0, confirmed_fraud: counts.confirmed ?? 0, early_warning: counts.warnings ?? 0 } : null);
 
   return (
     <>
       <Header suggest={lists.risky.length ? [...lists.risky, ...lists.top] : [...accounts.current.values()].filter((a) => a.kind === "customer").slice(0, 40)} />
-      <KpiStrip stats={stats.data} runs={runs.data} />
+      <KpiStrip stats={stats.data} runs={runs.data} by={byStatus} />
 
-      <div className="oc-grid">
+      <div className="oc-hero">
         <section className="stage">
           <div className="stage-h">
             <div>
@@ -402,35 +279,23 @@ export function OverviewPage() {
                                     onFocus={() => setFocus({ ids: [sel.id], seq: Date.now() })} />}
           </div>
         </section>
-        <div className="oc-col">
-          <AlertsCard by={byStatus} spark={spark} />
-          <FrictionCard />
-        </div>
-        <DetectorsCard />
-      </div>
-
-      <div className="oc-grid2">
         <AttentionCard risky={lists.risky} />
-        <TrafficCard stats={stats} />
       </div>
 
-      <div className="oc-section"><h2>Why accounts are flagged</h2><span>model explanations, structural patterns and decisions — live</span></div>
+      <div className="oc-section"><h2>Why accounts are flagged</h2><span>model drivers, detector agreement and the latest detection run — live</span></div>
       <div className="oc-grid3" style={{ marginTop: 0 }}>
         <DriversCard risky={lists.risky} top={lists.top} />
-        <PatternsCard />
-        <DecisionsCard stats={stats} />
+        <DetectorsCard />
+        <LastAttackResult runs={runs.data} unavailable={runs.unavailable} compact
+          emptyText="No pattern injected since the last reset. Test inputs → Inject a mule-network pattern."
+          footer={<div className="row tight wrap" style={{ marginTop: 12 }}>
+            {lastRun && <button className="btn sm" onClick={() => { setEdgeView("risk"); setFocus({ ids: lastRun.injected, seq: Date.now() }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              Show in network</button>}
+            <Link className="btn sm ghost" to="/detection">All runs</Link>
+          </div>} />
       </div>
 
-      <div className="oc-section"><h2>Detection performance</h2><span>every injected pattern evaluated against the simulator's ground truth — the mule-detection analytics</span></div>
-      <DetectionPerformance stats={stats.data} runs={runs.data} runsUnavailable={runs.unavailable} />
-      <div className="section-gap"><AttackHistory runs={runs.data} unavailable={runs.unavailable}
-        onPick={(r) => { setEdgeView("risk"); setFocus({ ids: r.injected, seq: Date.now() }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /></div>
-
-      <div className="oc-section"><h2>Live activity</h2><span>every posting scored as it lands</span></div>
-      <LiveStreams statusOf={statusOf} recent={recent} />
-
-      <div className="oc-section"><h2>Account scoring</h2><span>{"rules · Random Forest · GNN · drift · early warning · role — every scored account"}</span></div>
-      <AccountScoring key={uniVersion > 0 ? "u" : "n"} statusOf={statusOf} />
+      <div className="section-gap"><TrafficCard stats={stats} /></div>
     </>
   );
 }
