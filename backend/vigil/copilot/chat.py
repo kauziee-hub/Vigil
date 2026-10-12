@@ -143,6 +143,23 @@ def offline_answer(text: str, thread: dict[str, Any]) -> tuple[str, list[dict[st
                 f"{' · retains ' + str(d['retention_pct']) + '%' if d.get('retention_pct') is not None else ''}\n"
                 f"- Shares a device with: {', '.join('[[acct:' + a + ']]' for a in d['shared_device_with']) or 'nobody'}\n"
                 f"- Open incidents: {', '.join(d.get('open_incidents') or []) or 'none'}"), log
+    if inc and inc["entities"] and any(w in q for w in ("trace", "money go", "follow", "where did")):
+        a = inc["entities"][0]
+        r = _call("trace_funds", {"account_id": a, "direction": "downstream", "hops": 3}, log)
+        edges = (r.get("data") or {}).get("edges", [])[:8]
+        lines = [f"- [[acct:{e['from']}]] → [[acct:{e['to']}]] {_fmt_inr(e['amount_paise'])} ({e['ts'][11:16]} UTC)" for e in edges]
+        return (f"**Where the money from [[acct:{a}]] went** (last 7 days, up to 3 hops):\n" + ("\n".join(lines) or "- nothing in view")
+                + "\n\nAsk *trace the money from <account>* for another member."), log
+    if inc and inc["entities"] and any(w in q for w in ("linked", "who else", "connected", "related")):
+        rows = []
+        for a in inc["entities"][:6]:
+            r = _call("get_account", {"account_id": a}, log)
+            d = r.get("data") or {}
+            if d:
+                rows.append(f"- [[acct:{a}]] — {d.get('status')}{' · ' + d['role'] if d.get('role') else ''}"
+                            + (f" · shares a device with {', '.join('[[acct:' + x + ']]' for x in d['shared_device_with'][:3])}"
+                               if d.get("shared_device_with") else ""))
+        return f"**Accounts in this incident and how they connect**\n" + "\n".join(rows), log
     if inc and any(w in q for w in ("what should", "do first", "next", "action", "recommend")):
         b = brief_mod.template(inc)
         steps = "\n".join(f"{i + 1}. {t['action']}" for i, t in enumerate(b["what_to_do"]))

@@ -46,7 +46,7 @@ export interface TapeRow {
   recipient_status: AccountStatus; risk: Risk; tier: number | null; geo: TxGeo;
 }
 export interface Hop { from: string; to: string; account: string; name: string; amount_paise: number; ts: string;
-  tx_id: string; hops: number; status: AccountStatus }
+  tx_id: string; hops: number; status: AccountStatus; count?: number }
 export interface AccountCard { id: string; name: string; status: AccountStatus; risk: number | null;
   model_risk: number | null; role: string | null; reason: string | null; home_city: string | null }
 export interface Ring { id: string; kind: string; members: string[]; size: number; value_paise: number; flagged: number;

@@ -43,7 +43,7 @@ function Hops({ hops, dir }: { hops: Hop[]; dir: "up" | "down" }) {
             <div key={`${h.tx_id}-${h.account}`} className="cd-hop-row">
               <span className={`dot as-${h.status}`} />
               <Link to={`/investigations/account/${encodeURIComponent(h.account)}`}>{h.account.startsWith("ext:") ? h.name : handle(h.account)}</Link>
-              <span className="mono xs">{formatINR(h.amount_paise)}</span>
+              <span className="mono xs">{formatINR(h.amount_paise)}{h.count && h.count > 1 ? ` · ×${h.count}` : ""}</span>
               <span className="mono xs dim">{formatTime(h.ts).slice(0, 5)}</span>
             </div>
           ))}

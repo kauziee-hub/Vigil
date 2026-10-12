@@ -123,7 +123,8 @@ def findings() -> list[dict[str, Any]]:
                     "confirmed": False, "ts": c["last_ts"], "city": c["city"]})
     for t in overview.impossible_travel(since2h):
         out.append({"kind": "impossible_travel", "entities": [t["account"]], "stake": 0, "tx_ids": t["tx_ids"],
-                    "title": f"{nm.get(t['account'], t['account'])}: {t['from_city']} → {t['to_city']} in {t['minutes']:.0f} min",
+                    "title": f"{nm.get(t['account'], t['account'])}: {t['from_city']} → {t['to_city']} in "
+                             + ("under a minute" if t["minutes"] < 1 else f"{t['minutes']:.0f} min"),
                     "facts": [f"{t['km']} km apart, implied speed {t['kmh']} km/h (limit "
                               f"{overview.policy()['signals']['impossible_travel_kmh']} km/h)",
                               "Same account, consecutive device-GPS fixes (simulated)"],

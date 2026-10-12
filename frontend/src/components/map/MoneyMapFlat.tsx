@@ -194,7 +194,7 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
   // zoom / pan
   const zoomAt = useCallback((factor: number, mx: number, my: number) => {
     setT((o) => {
-      const k = Math.min(60, Math.max(1, o.k * factor));
+      const k = Math.min(24, Math.max(1, o.k * factor));   // land data is simplified to ~3 km: no deeper zoom
       const r = k / o.k;
       return { k, x: mx - (mx - o.x) * r, y: my - (my - o.y) * r };
     });
@@ -218,7 +218,8 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     if (!selected || selected.lat == null || selected.lng == null) return;
     const p = proj([selected.lng, selected.lat]);
     if (!p) return;
-    const k = Math.max(tRef.current.k, selected.kind === "city" ? 3.2 : selected.kind === "cluster" ? 6 : 2.4);
+    const precise = /±\d+ m\b/.test(selected.label ?? "");      // ATM / device GPS: show street level
+    const k = Math.max(tRef.current.k, selected.kind === "city" ? 3.2 : selected.kind === "cluster" ? 12 : precise ? 14 : 2.4);
     setT({ k, x: w / 2 - k * p[0], y: h / 2 - k * p[1] });
   }, [selected?.kind, selected?.id, selected?.lat, selected?.lng, proj, w, h]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -328,6 +329,12 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
       </svg>
       <canvas ref={canvas} className="mmap-canvas" style={{ width: w, height: h }} />
       <svg width={w} height={h} className="mmap-top" aria-hidden="true">
+        {screen.filter((s) => s.on).map((s) => (
+          <g key={s.c.city}>
+            <circle cx={s.x} cy={s.y} r={t.k >= 6 ? Math.min(s.r, 5) : s.r} fill={s.color} className={`city ${selected?.kind === "city" && selected.id === s.c.city ? "sel" : ""}`} opacity={t.k >= 6 ? 0.55 : 1} />
+            {labelled.has(s.c.city) && <text x={s.x + s.r + 3} y={s.y + 4} className={`city-label ${s.c.kind === "foreign" ? "foreign" : ""}`}>{s.c.city}</text>}
+          </g>
+        ))}
         {atms.map((a) => {
           const [x, y] = P(a.lng, a.lat);
           const u = used.get(a.terminal_id);
@@ -338,12 +345,6 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
         {clusters.map((c) => c.kind === "cash_out"
           ? <g key={c.id}><circle cx={c.sx} cy={c.sy} r={c.rpx} className="cluster cash" /><text x={c.sx} y={c.sy + 3} className="cluster-n">{c.tx_ids?.length ?? ""}</text></g>
           : <path key={c.id} d={`M${c.sx} ${c.sy - 7}L${c.sx + 7} ${c.sy}L${c.sx} ${c.sy + 7}L${c.sx - 7} ${c.sy}Z`} className={`coll ${c.status === "flagged" || c.status === "held" || c.status === "confirmed_fraud" ? "risky" : ""}`} />)}
-        {screen.filter((s) => s.on).map((s) => (
-          <g key={s.c.city}>
-            <circle cx={s.x} cy={s.y} r={s.r} fill={s.color} className={`city ${selected?.kind === "city" && selected.id === s.c.city ? "sel" : ""}`} />
-            {labelled.has(s.c.city) && <text x={s.x + s.r + 3} y={s.y + 4} className={`city-label ${s.c.kind === "foreign" ? "foreign" : ""}`}>{s.c.city}</text>}
-          </g>
-        ))}
         {selPins.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r={p.rpx} className="acc-circle" />

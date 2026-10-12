@@ -114,10 +114,11 @@ def rings() -> list[dict[str, Any]]:
             kind = ("ring" if any("Circular" in r for r in rules) else "chain" if any("chain" in r for r in rules)
                     else "collection" if roles.get("collector") else "cluster")
             members.sort(key=lambda a: (-livestatus.RANK.get(sts.get(a, {}).get("status", "normal"), 0), a))
-            marks = ",".join("?" * len(members))       # where the members actually transact (simulated), else home
+            core = [a for a in members if sts.get(a, {}).get("status") in RISKY] or members
+            marks = ",".join("?" * len(core))          # where the flagged members transact (simulated), else home
             cities = Counter(r["geo_city"] for r in db.q(
                 f"SELECT geo_city FROM transactions WHERE sender_id IN ({marks}) AND geo_city IS NOT NULL "
-                f"ORDER BY seq DESC LIMIT 24", tuple(members)))
+                f"ORDER BY seq DESC LIMIT 24", tuple(core)))
             if not cities:
                 cities = Counter(geo.home_for(a) for a in members if geo.home_for(a))
             out.append({"id": "RING-" + members[0].split("@")[0], "kind": kind, "members": members,
@@ -457,14 +458,24 @@ def _trace(start: str, t: float, direction: str, depth: int = 3, breadth: int = 
             if node.startswith("ext:"):
                 continue
             edges = GRAPH.inflows_before(node, nt) if direction == "up" else GRAPH.outflows(node, nt)
-            edges = sorted(edges, key=lambda e: (-e.amount_paise, -e.t))[:breadth]
+            grouped: dict[str, dict[str, Any]] = {}
             for e in edges:
                 other = e.src if direction == "up" else e.dst
-                out.append({"from": e.src, "to": e.dst, "account": other, "amount_paise": e.amount_paise, "ts": e.ts,
-                            "tx_id": e.tx_id, "hops": hop})
-                if other not in seen:
-                    seen.add(other)
-                    nxt.append((other, e.t))
+                g = grouped.setdefault(other, {"from": e.src, "to": e.dst, "account": other, "amount_paise": 0, "ts": e.ts,
+                                               "tx_id": e.tx_id, "hops": hop, "count": 0, "_t": e.t, "_max": 0})
+                g["amount_paise"] += e.amount_paise
+                g["count"] += 1
+                if e.amount_paise > g["_max"]:
+                    g.update(tx_id=e.tx_id, _max=e.amount_paise)
+                if e.ts > g["ts"]:
+                    g.update(ts=e.ts, _t=e.t)
+            for g in sorted(grouped.values(), key=lambda x: (-x["amount_paise"], -x["_t"]))[:breadth]:
+                t_next = g.pop("_t")
+                g.pop("_max")
+                out.append(g)
+                if g["account"] not in seen:
+                    seen.add(g["account"])
+                    nxt.append((g["account"], t_next))
         frontier = nxt[:breadth]
         if not frontier:
             break

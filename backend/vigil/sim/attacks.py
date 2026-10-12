@@ -176,9 +176,11 @@ def cross_channel() -> list[Step]:
         steps.append(Step("transaction", f"In via {ch.upper()}: {_h(f)} → {_h(hub)} ₹22,000", "Same hub, different rail.",
                           lambda f=f, ch=ch: _tx(sid, f, hub, 22_000_00, channel=ch, note="payment")))
     steps.append(Step("transaction", "Out across card / IMPS / UPI / NEFT", "Four rails within minutes.",
-                      lambda: (_move(hub, "Kolkata"),
-                               _many([lambda o=o, ch=ch: _tx(sid, hub, o, 15_500_00, channel=ch, note="transfer")
-                                      for o, ch in zip(outs, ["card", "imps", "upi", "neft"])]))[1]))
+                      lambda: _many([lambda o=o, ch=ch: _tx(sid, hub, o, 15_500_00, channel=ch, note="transfer")
+                                     for o, ch in zip(outs[:2], ["card", "imps"])]
+                                    + [lambda: _move(hub, "Kolkata")]
+                                    + [lambda o=o, ch=ch: _tx(sid, hub, o, 15_500_00, channel=ch, note="transfer")
+                                       for o, ch in zip(outs[2:], ["upi", "neft"])])))
     steps.append(Step("detect", "Detector comparison", "Channel diversity is a rule-engine feature; RingWatch sees pass-through.",
                       _ring_scan))
     return steps

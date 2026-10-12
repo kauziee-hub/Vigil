@@ -47,7 +47,7 @@ export function KpiStripV10({ onTile }: { onTile: (key: KpiTile["key"]) => void 
           <div className="v">{fmt(t, t.value)}</div>
           <div className="d">
             {t.delta != null ? <span className={`delta ${t.delta > 0 ? "up" : t.delta < 0 ? "down" : "flat"}`}>
-              {t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "•"} {fmt(t, Math.abs(t.delta))} vs previous {window}</span>
+              {t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "•"} {fmt(t, Math.abs(t.delta))}<span className="delta-tail"> vs previous {window}</span></span>
               : <span className="dim">{t.how.length > 60 ? t.how.slice(0, 58) + "…" : t.how}</span>}
           </div>
           {t.spark && <Spark v={t.spark} tone={t.tone} />}
