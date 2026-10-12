@@ -1,0 +1,71 @@
+# Copilot + Overview display policy (overview-v10). Version this file like the risk policy.
+#
+# This file NEVER feeds a payment tier, a detector score or a live account status. It only decides:
+#   * which derived signals the Overview / Copilot show (pipeline, cash-out clusters, impossible travel),
+#   * how the incident engine rates severity (a hand-set, explainable rubric — NOT validated on real data),
+#   * Copilot runtime limits.
+# Changing it does not change config/risk_policy.yaml or its hash (tests/test_copilot.py checks this).
+
+version: "2026.10.13-copilot-v1"
+
+windows:                     # Overview window selector → seconds
+  15m: 900
+  1h: 3600
+  24h: 86400
+  7d: 604800
+
+pipeline:                    # mule pipeline (display heuristic, not a model)
+  days: 60                   # accounts opened in the last N days enter the funnel
+  pass_through_fraction: 0.7 # forwarded ≥ this share of what came in …
+  pass_through_hours: 48     # … within this many hours of receiving it
+  new_account_days: 30       # "suspicious path" needs a young account (age ≤ this)
+
+signals:
+  impossible_travel_kmh: 900          # consecutive device-GPS fixes implying faster than an airliner
+  cash_out_min_withdrawals: 3         # ≥ N risky ATM withdrawals …
+  cash_out_radius_km: 8               # … within this distance of each other …
+  cash_out_window_min: 45             # … and this many minutes
+  # collection point = distinct-sender fan-in at or above risk_policy network.fan_in.min_distinct_senders
+  # (the number is read from the risk policy, not duplicated here)
+
+incidents:
+  max_visible: 5
+  cooldown_s: 120            # an incident updated within this window is refreshed, not re-announced
+  bucket_s: 1800             # dedupe key time bucket
+  base:                      # Appendix C base scores (0–100)
+    confirmed_scam_trace: 70
+    tier4_coercion: 70
+    ring_formed: 65
+    cash_out_cluster: 65
+    device_farm: 55
+    payment_held_t3: 50
+    fast_pass_through_new_account: 45
+    impossible_travel: 40
+    account_flagged: 35
+  stake_bands_paise:         # +points by rupees at stake (upper bound of the band, points)
+    - [1000000, 0]           # < ₹10,000
+    - [5000000, 5]           # < ₹50,000
+    - [20000000, 10]         # < ₹2,00,000
+    - [100000000, 15]        # < ₹10,00,000
+    - [null, 20]             # ≥ ₹10,00,000
+  entities_points: [[1, 0], [3, 4], [6, 7], [null, 10]]   # (≤ n accounts, points)
+  confirmed_points: 10
+  recency_points: 10         # full points if the newest evidence is < 5 min old, linearly to 0 at 60 min
+  contained_points: -10      # every involved account already held / confirmed (nothing left to stop)
+  bands:                     # score → label
+    critical: 80
+    high: 60
+    medium: 40
+
+copilot:
+  enabled_default: true
+  tool_budget_per_turn: 6
+  max_user_chars: 2000
+  max_thread_messages: 40
+  rate_limit_per_min: 20
+  max_answer_chars: 6000
+  history_messages: 12
+  default_model_fast: "gemini-3.8-flash"        # verified on ai.google.dev/gemini-api/docs/models (2026-10-13)
+  default_model_deep: "gemini-3.1-pro-preview"
+  daily_token_cap: 300000
+  timeout_s: 30
