@@ -216,3 +216,15 @@ table.dt tr.click:hover td { background: var(--surface-2); }
   .oc-grid, .oc-grid3 { grid-template-columns: minmax(0, 1fr); }
   .page { padding: 16px 12px 32px; }
 }
+
+/* live feeds: UI font for prose, mono only for ids / figures */
+.feed { font-family: var(--font-ui); font-size: 12.5px; }
+.feed-row { padding: 10px 20px; }
+.feed-row .h { font-family: var(--font-data); font-size: 12px; font-weight: 500; }
+.feed-row .s { color: var(--ink-2); }
+.feed-row .d { font-family: var(--font-data); font-size: 11px; }
+.alert-row { padding: 10px 20px; font-family: var(--font-ui); }
+.alert-row .h { font-family: var(--font-ui); }
+.sev { border-radius: 999px; padding: 0 8px; }
+.chip.live { height: 34px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); border: 0; }
+.chip { border-radius: 999px; height: 34px; padding: 0 13px; background: var(--surface); border: 0; box-shadow: var(--shadow); color: var(--ink-2); }

@@ -124,7 +124,7 @@ export function EvidenceGraph({
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       {tip && <div className="graph-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div>}
       {evidence && evidence.nodes.length === 0 && (
-        <div className="graph-empty">No suspicious structure in this window.<br />Start a network scenario in the Scenario Lab to inject one.</div>
+        <div className="graph-empty">No suspicious structure in this window.</div>
       )}
       {!compact && (
         <div className="graph-legend">

@@ -306,7 +306,7 @@ function DecisionsCard({ stats }: { stats: ReturnType<typeof useLiveStats> }) {
       <KHead icon="shield" title="Pre-commit decisions" act={<Link className="btn xs" to="/interventions">Queue</Link>} />
       <div className="ksub">Every payment intent, by intervention tier, per minute</div>
       <ChartCanvas type="bar" height={232} empty={stats.unavailable ? "Live statistics not available." : "No decisions in the window yet."}
-        data={{ labels, datasets: keys.map((k, i) => ({ label: names[i], data: t.map((p) => p[k]), backgroundColor: TIER_COLORS[i], borderRadius: 4, stack: "t" })) }}
+        data={{ labels, datasets: keys.map((k, i) => ({ label: names[i], data: t.map((p) => p[k]), backgroundColor: TIER_COLORS[i], borderRadius: 4, stack: "t", maxBarThickness: 26 })) }}
         options={baseOptions({ scales: { x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: "#8a939e", maxTicksLimit: 6 } }, y: { stacked: true, beginAtZero: true, grid: { color: "rgba(15,20,25,0.06)" }, border: { display: false }, ticks: { color: "#8a939e" } } },
           plugins: { legend: { position: "bottom", labels: { color: "#69737f", boxWidth: 8, boxHeight: 8, usePointStyle: true } } } }) as never} />
     </div>

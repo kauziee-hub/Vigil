@@ -99,6 +99,8 @@ export function LiveStreams({ statusOf, recent }: { statusOf?: (id: string) => A
       case "intel.account_status": {
         const c = e.data as AccountStatusChange;
         if (!c?.account_id) return;
+        // only risk changes are alerts: idle ↔ normal ↔ new is activity, not an alert
+        if (!isRisky(c.status) && !isRisky(c.previous)) return;
         const up = ACCOUNT_STATUS_RANK[c.status] > ACCOUNT_STATUS_RANK[c.previous];
         const sev = c.status === "held" ? "held" : c.status === "flagged" || c.status === "confirmed_fraud" ? "high" : c.status === "early_warning" ? "medium" : "low";
         alerts.push({ key: `s${c.account_id}${c.ts}`, ts: c.ts, sev: up ? sev : "low", kind: `${ACCOUNT_STATUS_LABEL[c.status].toLowerCase()}`, who: c.account_id,

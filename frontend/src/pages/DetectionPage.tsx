@@ -8,11 +8,14 @@ import { api } from "../api/client";
 import type { IntelOverview, IntelScores, ModelInfo, RingRow } from "../api/types";
 import { FlaggedPerFamilyChart, ModelMetricsChart, PerAttackRecallChart, modelHeadline } from "../components/DetectionCharts";
 import { RoleIcon } from "../components/intel";
+import { AttackHistory, LastAttackResult } from "../components/live/AttackResults";
+import { LiveStatsCharts } from "../components/live/LiveStatsCharts";
 import { ModelCard, ModelComparison, Synthetic } from "../components/ModelCard";
-import { useConsoleEvents } from "../components/Shell";
+import { useConsoleEvents, usePlatform } from "../components/Shell";
 import { Async, Bar, Metric, PageHead, Panel, Pill, Seg } from "../components/ui";
 import { handle, pct } from "../lib/format";
 import { useDebounced, useLoad } from "../lib/hooks";
+import { useAttackRuns, useLiveStats } from "../lib/live";
 import { ROLE_LABEL, levelStatus, scoreStatus } from "../lib/status";
 
 type SortKey = "max" | "rules" | "rf" | "gnn";
@@ -47,6 +50,9 @@ export function DetectionPage() {
     return [...c.entries()].sort((a, b) => b[1] - a[1]);
   }, [ring.data]);
   const intelDown = overview.unavailable && models.unavailable;
+  const runs = useAttackRuns();
+  const stats = useLiveStats(5000);
+  const { metrics } = usePlatform();
 
   return (
     <>
@@ -81,6 +87,16 @@ export function DetectionPage() {
           <div className="chart-shell"><PerAttackRecallChart models={models.data} /></div>
         </Panel>
       </div>
+
+      <div className="oc-section" style={{ marginTop: 6 }}><h2>Live detection runs</h2><span>test injections scored live and evaluated against the simulator's ground truth</span></div>
+      <div className="grid cols-2 align-start" style={{ marginBottom: 18 }}>
+        <LastAttackResult runs={runs.data} unavailable={runs.unavailable} emptyText="No pattern has been injected since the last reset. Use Test inputs → Inject a mule-network pattern." />
+        <AttackHistory runs={runs.data} unavailable={runs.unavailable} />
+      </div>
+      <div style={{ marginBottom: 18 }}>
+        <LiveStatsCharts stats={stats.data} statsUnavailable={stats.unavailable} runs={runs.data} metrics={metrics} />
+      </div>
+      <div className="oc-section"><h2>What each detector sees now</h2><span>rules, early warning, roles, scores and pattern memory — live</span></div>
 
       {intelDown && (
         <div style={{ marginBottom: 12 }}>

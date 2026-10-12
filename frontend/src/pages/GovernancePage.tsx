@@ -108,7 +108,7 @@ function Oversight() {
                   <Metric k="Agreement" v={s.shadow.agreement_rate === null ? "—" : pct(s.shadow.agreement_rate)} d={s.shadow.evaluated ? "both challenge, or both pass" : "no shadow decisions yet"} />
                 </div>
                 <Async load={records} what="Decision records" endpoint="/api/decisions/{id}/record">
-                  {(rs) => rs.length === 0 ? <div className="empty">No scenario or customer decisions yet. Run a scenario in the Scenario Lab.</div> : (
+                  {(rs) => rs.length === 0 ? <div className="empty">No decisions yet. Decisions appear here as payments are assessed.</div> : (
                     <table className="dt compact">
                       <thead><tr><th>Decision</th><th>Mode</th><th className="num">Amount</th><th>Vigil</th><th>Applied</th><th>Bank baseline</th><th>Agree</th></tr></thead>
                       <tbody>

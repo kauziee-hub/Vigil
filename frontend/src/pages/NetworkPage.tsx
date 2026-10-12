@@ -285,7 +285,7 @@ function EvidenceSceneView() {
         <HoverTip bind={bindTip} />
         {!scene && !loadErr && <div className="net-empty"><span className="spinner lg" /></div>}
         {scene && scene.nodes.length === 0 && (
-          <div className="net-empty">No suspicious structure in this scope.<br />Run a network or attack scenario in the <Link to="/lab">Scenario Lab</Link> to inject one.</div>
+          <div className="net-empty">No suspicious structure in this scope right now.</div>
         )}
 
         {scene && view === "3d" && (
@@ -305,7 +305,7 @@ function EvidenceSceneView() {
         {replayOn && scope.scenario && scenReplay.data && (
           <div className="net-steps">
             <div className="up" style={{ marginBottom: 4 }}>Attack timeline · {scope.scenario}</div>
-            {scenReplay.data.events.length === 0 && <div className="xs muted">This scenario has not run since the last reset. Start it in the Scenario Lab.</div>}
+            {scenReplay.data.events.length === 0 && <div className="xs muted">This pattern has not occurred since the last reset.</div>}
             {scenReplay.data.events.map((ev, i) => {
               const done = cur ? Date.parse(ev.ts) <= cur.t : false;
               const now = !!cur && ev.tx_id === cur.id;

@@ -99,7 +99,7 @@ export function AttackSubgraph({ scenario, statusOf }: {
                      focusSeq={0} onSelect={noop} onSelectEdge={noop} hoverText={hoverText} hoverEdgeText={hoverEdgeText} />
           )}
         </div>
-        {!scenario && <div className="net-empty">Select an attack pattern in the Command Center.</div>}
+        {!scenario && <div className="net-empty">Select a pattern to view its subgraph.</div>}
         {scenario && scene && scene.nodes.length === 0 && <div className="net-empty">This pattern has not run since the last reset.<br />Spawn it to see its subgraph form here.</div>}
         {scenario && !scene && !err && <div className="net-empty"><span className="spinner lg" /></div>}
         {err && <div className="net-empty">{err}</div>}

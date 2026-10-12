@@ -100,7 +100,7 @@ export function InterventionsPage() {
              footer={<>Source: <span className="mono">/api/interventions</span> (every Tier ≥ 2 alert + the newest 100 of any tier){(extra.data ?? []).length > 0 && <> + {(extra.data ?? []).length} Tier ≥ 2 decision{(extra.data ?? []).length === 1 ? "" : "s"} without an alert row, shown with live intent state (review clock and contact response are on the case page)</>}. Ages advance on a local clock between pushes; nothing is polled.</>}>
         <Async load={rows} what="Intervention queue" endpoint="/api/interventions">
           {() => shown.length === 0 ? (
-            <div className="empty">{queue === "holds" ? "No payment is on hold. Holds appear here the moment a Tier 3 / Tier 4 decision is made (Scenario Lab · Act 4)." : "Nothing in this queue."}</div>
+            <div className="empty">{queue === "holds" ? "No payment is on hold. Holds appear here the moment a Tier 3 / Tier 4 decision is made." : "Nothing in this queue."}</div>
           ) : (
             <div className="tscroll" style={{ maxHeight: "calc(100vh - 300px)" }}>
               <table className="dt compact">

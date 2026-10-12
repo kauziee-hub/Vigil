@@ -90,7 +90,7 @@ export function InvestigationsPage() {
                </>}
                footer="Tier 1 (inform) cases are mostly background-stream heads-ups; the default view starts at Tier 2. Origin: SCN/CUS = scenario or customer device, STR = background stream.">
           <Async load={rows} what="Intervention queue" endpoint="/api/interventions">
-            {() => shown.length === 0 ? <div className="empty">No cases at this tier. Run a scenario in the Scenario Lab or make a payment in Transaction Guard.</div> : (
+            {() => shown.length === 0 ? <div className="empty">No cases at this tier yet. Cases open as payments are assessed.</div> : (
               <div className="tscroll" style={{ maxHeight: "calc(100vh - 230px)" }}>
                 <table className="dt compact">
                   <thead>

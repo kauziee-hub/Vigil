@@ -22,7 +22,7 @@ export function LastAttackResult({ runs, unavailable, emptyText }: { runs: Attac
   return (
     <Panel kicker="Outcome" title="Last attack result" actions={<span className="sim gt">simulator ground truth</span>}>
       {unavailable ? <Unavailable what="Attack-run evaluation" endpoint="/api/attacks/runs" /> : !r ? (
-        <div className="empty">{emptyText ?? "No attack has run since the last reset. Spawn one in the Command Center."}</div>
+        <div className="empty">{emptyText ?? "No pattern has been injected since the last reset."}</div>
       ) : (
         <div className="stack" style={{ gap: 12 }}>
           <div className="ink2">{r.run_id} · {r.name} — {r.status === "completed" ? "evaluated against the simulator's injected mule list." : `${r.status} (${r.steps_done}/${r.steps_total} steps)…`}</div>
