@@ -21,6 +21,7 @@ from vigil.api.routes_v2 import router as routes_v2_router
 from vigil.api.routes_live import router as routes_live_router
 from vigil.api.routes_watch import router as routes_watch_router
 from vigil.api.routes_overview import router as routes_overview_router
+from vigil.api.routes_copilot import router as routes_copilot_router
 from vigil.engine.ledger import VigilError
 from vigil.settings import FRONTEND_DIST, get_policy, get_settings
 from vigil.sim import ambient, seed
@@ -56,7 +57,12 @@ async def lifespan(_app: FastAPI):
             log.warning("detection intelligence warm-up failed: %s", exc)
     if get_settings().ambient_default:
         ambient.set_enabled(True)
+    from vigil.copilot import config as copilot_config
+    from vigil.copilot import incidents
+    incidents.start()
+    log.warning("Copilot: Gemini %s", "configured" if copilot_config.api_key() else "not configured (offline templates)")
     yield
+    incidents.stop()
     ambient.STATE["enabled"] = False
     db.close()
 
@@ -98,6 +104,7 @@ app.include_router(routes_v2_router)
 app.include_router(routes_live_router)
 app.include_router(routes_watch_router)
 app.include_router(routes_overview_router)
+app.include_router(routes_copilot_router)
 app.include_router(ws_router)
 
 # Detection intelligence (Claude 2, vigil/intel/**) is optional: the payment path never depends on it.
