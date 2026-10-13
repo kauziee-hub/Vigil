@@ -17,7 +17,7 @@
 | **Infer** | What the result proves about the system, in one or two sentences you can say aloud. |
 | **If different** | The usual reason a number moves, and how to get the book's number back. |
 
-**Seven suites, each starting from a reset.**
+**Eight suites, each starting from a reset.**
 
 | Suite | What it demonstrates | Starts with | Time |
 | --- | --- | --- | --- |
@@ -28,6 +28,7 @@
 | **E** | Controls: false-positive control and shadow mode | Reset | 2 min |
 | **F** | A long demo: all 11 patterns back to back, no reset | Reset | 3 min |
 | **G** | A combination: three cash-outs in one city become a cash-out cluster | Reset | 1 min |
+| **L** | Location intelligence: normal geography, impossible travel, coordinated cash-out, location as corroboration only | Reset | 3 min |
 
 ### 1.1 Golden rules (read once)
 
@@ -36,8 +37,9 @@
 3. **One payer, at most four payments an hour.** The fifth payment by the same customer within 60 minutes adds the **velocity** signal (case B4). That is real policy behaviour, but it lifts a Tier 2 payment to Tier 3. Reset between suites and the numbers stay exact.
 4. **Midnight to 5 a.m. (IST) adds an "unusual hour" signal.** It is small (+0.05 inside the behaviour dimension). On the risky-recipient payment it can still push behaviour past 0.5, so two dimensions agree and the corroboration bonus lifts Tier 2 to Tier 3. Run Suite A before midnight, or say why it moved. Scenario runs (s0–s4, the attacks) pin their own clock and are not affected.
 5. **One injection at a time.** The Inject button is disabled while a pattern runs (about 9–23 seconds), and the drawer shows its progress.
-6. **What is already on screen after a reset is expected.** The seeded world contains Kiran Traders, a 9-day-old account that already moves money on fast. Vigilance therefore shows one alert at the start (**Medium · Account flagged · Kiran Traders**). That is part of the story, not a leftover.
-7. **Vigilance wording may vary; the facts do not.** With a Gemini key in `.env`, Vigilance phrases its narrative itself. Every number, classification, severity, deadline and procedure step is computed by code and is identical with or without the key.
+6. **A normal run stays calm; red means a test input ran.** Background traffic is ordinary customers paying their usual merchants and creates no fraud (12-minute check: 185 active accounts, 85 flows, nothing red). After any test input the top-bar button reads **"Test inputs · N active"**; those accounts stay flagged until a reset.
+7. **What is already on screen after a reset is expected.** The seeded world contains Kiran Traders, a 9-day-old account that already moves money on fast. Vigilance therefore shows one alert at the start (**Medium · Account flagged · Kiran Traders**). That is part of the story, not a leftover.
+8. **Vigilance wording may vary; the facts do not.** With a Gemini key in `.env`, Vigilance phrases its narrative itself. Every number, classification, severity, deadline and procedure step is computed by code and is identical with or without the key.
 
 ### 1.2 How a payment becomes a tier (30-second version)
 
@@ -347,6 +349,32 @@ Run each the same way. The table above is the expected result; these notes say w
 - **Expect:** **Critical · Cash-out cluster · 4 risky ATM withdrawals in Mumbai** (the rule: 3 or more risky ATM withdrawals within 8 km and 45 minutes), on top of each pattern's own alerts. On the money map, the Mumbai cash-out points glow.
 - **Infer:** separate rings cashing out in the same place is a coordinated cash-out operation, something no single account's score shows. (ATM locations are simulated and labelled.)
 
+## 8b. Suite L — location intelligence
+
+**The money map's right-hand rail turns places into evidence. Reset, then run L1 → L3 in order; watch the rail.**
+
+### L1 · Normal geography
+
+- **Do:** reset; look at the rail.
+- **Expect:** "0 impossible travel · 0 cash-out clusters · 0 unusual geography" and the dashed box **Geography looks normal**; the footer counts the located postings checked (precise vs IP-based). Background traffic can run for minutes without changing this.
+- **Infer:** ordinary customers paying from home never raise a location signal. Location is conservative by design.
+
+### L2 · Impossible travel (Cross-Channel Burst)
+
+- **Do:** inject *Cross-Channel Burst*; when it ends, click the **Impossible travel** card.
+- **Expect:** "Delhi → Kolkata · Amit Kaur · 1,303 km in under a minute · over 78,205 km/h (limit 900)", **high confidence** (both points Device GPS · ±30 m). On the map a violet dashed line joins Delhi and Kolkata; the account's moves are numbered from its home ring (Nagpur). The rail shows **Suspicious geography**, home Nagpur, usual places Nagpur (74 points), and three rules with observed vs threshold: impossible travel and two unusual regions (Delhi 843 km, Kolkata 970 km from the nearest usual point). Vigilance raises **Medium · Impossible travel** (possible account takeover) with the location quality in its facts.
+- **Infer:** the same account cannot be in Delhi and Kolkata a minute apart. Vigil says how it knows (basis and accuracy) and how sure it is; an IP-based estimate would have been shown as *low precision* and never used.
+
+![Impossible travel selected](guide/img/v12_map_travel.png)
+
+### L3 · Coordinated cash-out, and location as corroboration only
+
+- **Do:** inject *Money-mule network*, *Velocity Chain* and *Shared Device Cluster* one after another; click the **Coordinated cash-out** card.
+- **Expect:** "Mumbai · 4 suspicious accounts · 3 ATMs · ₹3.08L withdrawn · radius 1–3 km" (which terminals are used depends on the minute, so the radius varies; the rule allows up to 8 km), the four withdrawals in order (Zenith Exports, Pooja M, Amit Bose, Dc Hub) and the ATM terminals (ATM-MUM-10, -03, -07); a callout on the map. An **Unusual region** card for Amit Bose (Mumbai, home Patna, 1,441 km) — the account stays at **early warning**: its model evidence (0.75) is below the threshold and location cannot flag it on its own. Accounts with too little history (Kiran: 2 points) are never judged on geography.
+- **Infer:** cash leaving through a few ATMs in one city from several risky accounts is a coordinated cash-out. Location corroborates what the detectors already see; it never classifies an account by itself and never changes a payment's tier.
+
+![A cash-out cluster selected](guide/img/v12_map_cash.png)
+
 ## 9. A 15-minute demo built from these cases
 
 **The same order as the demo script, with the checkpoint you should see at each step.**
@@ -367,6 +395,8 @@ Run each the same way. The table above is the expected result; these notes say w
 | 11 | Interventions: Release one hold, Reject another | Real state changes | D5 |
 | 12 | Switch to SHADOW → risky payment → back to ACTIVE | Recorded, not interrupted | E2 |
 | 13 | Detection → section 2 | Graded runs, per-family agreement, SYNTHETIC VALIDATION labels | C |
+| 14 | Money map rail → the Impossible travel card (after step 5 add Cross-Channel Burst) | Delhi → Kolkata, high confidence, violet route, "Suspicious geography" | L2 |
+| 15 | Money map rail → **Between states** | "…% of the fraud-linked money crossing state lines ends in Maharashtra", risky state routes first | L3 |
 
 ## 10. Re-verify every expected result (one command)
 
@@ -376,9 +406,9 @@ Run each the same way. The table above is the expected result; these notes say w
 backend/.venv/Scripts/python.exe scripts/test_book_check.py --yes
 ```
 
-Options: `--base http://127.0.0.1:8811` for another server, `--only A,D` for some suites, `--out file.json` for the raw results (default `data/test_book_results.json`). Exit code 0 means every expected result held. It takes about 9 minutes and ends by resetting the world and resuming background traffic.
+Suites A, B, D and E make payments directly, so they use the real hour: run them before midnight or after 05:00 IST (golden rule 4). Options: `--base http://127.0.0.1:8811` for another server, `--only A,D` for some suites, `--out file.json` for the raw results (default `data/test_book_results.json`). Exit code 0 means every expected result held. It takes about 9 minutes and ends by resetting the world and resuming background traffic.
 
-Last run, 13 October 2026, on a fresh world: **all 117 checks in suites A–G passed** (every tier, every policy adjustment, all 11 patterns graded twice, Vigilance incidents, procedure, trusted-contact response, release, shadow mode).
+Last run, 14 October 2026, on a fresh world: **all 123 checks in suites A–G and L passed** (the direct-payment suites with the server's time-of-day pinned to 14:00 IST, because the check ran after midnight) (every tier, every policy adjustment, all 11 patterns graded twice, Vigilance incidents, procedure, trusted-contact response, release, shadow mode).
 
 ## 11. If a result is different
 

@@ -168,9 +168,10 @@ Ambient and scenario intents follow the same path; the only difference is that t
 | `backend/prima/` | Vendored PRIMA lineage engine: `money.py`, `ledger/`, `attribution/` (trace, rules, incremental). |
 | `backend/ml/` | Synthetic training worlds (`datagen.py`), training (`train_all.py`, `gnn_torch.py`), metrics, evaluation scripts. |
 | `backend/models/` | Trained artefacts and validation JSON (RF, GNN, drift, pattern memory, live-status threshold). |
-| `backend/tests/` | 381 pytest tests (190 of them in `tests/lineage/`; 374 at commit `490305a`). |
+| `backend/tests/` | 397 pytest tests (190 of them in `tests/lineage/`; 381 before the v12.1 location layer; 374 at commit `490305a`). |
 | `config/risk_policy.yaml` | The payment policy: weights, thresholds, windows, ladder. |
 | `config/copilot_policy.yaml` | Overview and incident display policy (never feeds a tier). |
+| `config/location_policy.yaml` | Location intelligence (v12): which location bases count, impossible-travel / anomaly thresholds, corroboration switch. Never feeds a tier. |
 | `frontend/src/` | React app: `App.tsx`, `pages/`, `components/`, `lib/` (hooks, three.js engine, status scales), `api/` (client, types, realtime), `styles/`, `assets/geo/`. |
 | `scripts/` | `smoke_demo.py`, `benchmark_demo.py`, `frontend_checks.mjs`, `build_geo_assets.py`. |
 | `docs/` | Architecture, model card, validation report, limitations, benchmarks, design system, demo script, functional guide, this guide. |
@@ -193,7 +194,7 @@ The runtime is deliberately small. `backend/requirements.txt` starts with the co
 | **PyYAML** 6.0.2 | YAML parser. | Reads `config/risk_policy.yaml` and `config/copilot_policy.yaml` (`yaml.safe_load`, which never executes code). | Human-readable policy files a risk officer can review in a diff. |
 | **httpx** 0.28.1 | HTTP client (sync + async). | FastAPI's `TestClient` in tests; the optional Gemini client of the assistant (section 17). | Async support; already the client FastAPI's test tools use. |
 | **sqlite3** (standard library) | SQLite database engine embedded in Python. | The whole store (`db.py`). No ORM. | Zero install, one file, transactional, fast enough for ~31,000 postings. See section 22 for "why not PostgreSQL". |
-| **pytest** ≥ 8, **hypothesis** ≥ 6 | Test runner; property-based testing (generates many random inputs and checks an invariant). | 381 tests; hypothesis drives the money-conservation property tests in `tests/lineage/`. | Standard Python tooling; property tests are the right tool for "conservation holds for any flow". |
+| **pytest** ≥ 8, **hypothesis** ≥ 6 | Test runner; property-based testing (generates many random inputs and checks an invariant). | 397 tests; hypothesis drives the money-conservation property tests in `tests/lineage/`. | Standard Python tooling; property tests are the right tool for "conservation holds for any flow". |
 
 ### 2.2 Optional machine-learning libraries (`requirements-ml.txt`)
 
@@ -347,7 +348,7 @@ Any `UPDATE` on a decision is rejected by the database itself, whatever the code
 | Live statuses, "status since", adaptive threshold history | Memory, `intel/stream.py::STATE` | No | Yes (new epoch) |
 | RingWatch scan, TaintTrace result, scene cache, Overview TTL cache | Memory caches keyed by graph version / labels | No | Yes |
 | Attack runs | Memory, `sim/runs.py::RUNS` | No | Yes |
-| Policy | `config/risk_policy.yaml`, `config/copilot_policy.yaml` | Files | No |
+| Policy | `config/risk_policy.yaml`, `config/copilot_policy.yaml`, `config/location_policy.yaml` | Files | No |
 | Model artefacts | `backend/models/*.npz`, `*.json`, `rf_v2.joblib` | Files | No |
 | Secrets (optional Gemini key) | Environment or git-ignored `.env` (repo root or `backend/`), never returned by an API | — | — |
 
@@ -456,7 +457,7 @@ The amount is the habitual average × U(0.75, 1.25), rounded down to whole rupee
 
 ### 4.7 Simulated locations (`backend/vigil/geo/`)
 
-**The idea.** The money map needs places, but Vigil has no real locations. Every location is generated from a hash of an id, labelled with how a bank would know it (the *basis*) and how precise that is (the *accuracy*), and never used by any detector.
+**The idea.** The money map needs places, but Vigil has no real locations. Every location is generated from a hash of an id, labelled with how a bank would know it (the *basis*) and how precise that is (the *accuracy*). Locations never set a payment tier. Since v12 the location intelligence layer (section 15.5) turns them into **corroborating** evidence: a high-confidence location rule can support a detector status that other detector families already back, and can never classify an account on its own.
 
 **How.**
 
@@ -478,7 +479,7 @@ The amount is the habitual average × U(0.75, 1.25), rounded down to whole rupee
 * Attack scenarios set **authored city hints** for their own postings (`attacks.py::geo_story`; `geo.HINTS`): the money-mule ring cashes out in Mumbai; the cross-channel hub starts in Delhi and is moved to Kolkata between two outflows, which makes the "impossible travel" signal fire. Hints are cleared by a reset.
 * The UI always prints the label, e.g. "Simulated location · ATM terminal · ±25 m" (`geo.label`).
 
-**Why.** Display and investigation context only. The rule "locations never feed a score or tier" is in the module docstring; the derived signals built on them (cash-out clusters, impossible travel) only appear on the Overview and in incidents (sections 15–16).
+**Why.** Locations began as display and investigation context. Since v12 they are also corroborating evidence, under strict rules written in the module docstrings of `geo/__init__.py` and `geo/intel.py`: a location never sets a payment tier, never changes `risk_policy.yaml`, and never puts an account on early warning or flagged by itself (section 10.11). The derived signals (impossible travel, coordinated cash-out, location-behaviour anomalies) appear on the money map, in incidents and in the account's status reason when they changed it (sections 15.5 and 16).
 
 ### 4.8 Scenarios and the 11 attack patterns
 
@@ -1428,6 +1429,15 @@ Accounts untouched by any change keep the features measured at the previous time
 3. **early_warning** if the early-warning family flags it, or at least 2 families flag it;
 4. otherwise no detector status.
 
+**Location as a corroborating voice (v12, `classify(..., location=True)`).** When the account has **high-confidence** location evidence (section 15.5: impossible travel, an unusual region or a multi-city burst, built only from precise points), that evidence may stand in for the *missing second voice*, and nothing more:
+
+* model evidence ≥ T with onward flow but no other family → **flagged** (location corroborates the model);
+* structural with only one family → **flagged**;
+* one family on its own → **early_warning**;
+* **no family at all → no status**: location alone never classifies an account (`_compute` only consults location for accounts that already have a flagging family).
+
+With `location=False` the rule is exactly the pre-v12 rule (`tests/test_location_intel.py::test_classify_without_location_is_exactly_the_old_rule` checks every combination of families, model evidence and gates). When location changed the answer, the status reason says so and names the rule, observed value, threshold and basis, e.g. "Model evidence 0.90 (RF) ≥ live threshold 0.85; location corroborates: Impossible travel — Delhi → Kolkata: 1,303 km in under a minute = over 78,205 km/h (limit 900 km/h …) [Device GPS · ±30 m] (location is corroborating only)", and `status_map()` carries `location = {rules, score, changed_status}`. The switch is `config/location_policy.yaml → corroboration.enabled`; with it off, location never touches a live status.
+
 `_gates` evaluates the RingWatch-backed checks (*structural*, *onward*) only when they can change the answer, and caches them per graph state, so the posting hook never runs a population scan.
 
 **Vigil's own state is overlaid**, in this precedence:
@@ -1810,6 +1820,7 @@ A **WebSocket** is a long-lived two-way connection between browser and server. V
 | `ambient.changed` | console | `sim/ambient.py::set_enabled` | `{enabled}` |
 | `demo.reset` | console | `api/routes.py::demo_reset` | the seed summary |
 | `copilot.incident` | console | `copilot/incidents.py`, `api/routes_copilot.py` | change (`created`, `updated`, `resolved`, `acknowledged`, `dismissed`, `open`, `procedure`) + the public incident |
+| `geo.location_intel` | console | `geo/intel.py::refresh` (v12) | evidence version, accounts with location evidence, how many corroborate, rule ids fired, time — sent only when the set of location findings changes; the Money Map's location rail refetches `/api/geo/intel` |
 
 Two names appear in code but are never published: `overview.tick` (promised in the docstring of `api/routes_overview.py`) and `intel.updated` (listened for in `Shell.tsx`). The Overview refreshes on the events above instead (Appendix A).
 
@@ -2098,11 +2109,14 @@ The investigation scene (`components/Graph3D.tsx`) uses the server's frozen laye
 
 **The idea.** Show where money moves, where it turns risky and where it leaves the bank, on a map of India, offline, always labelled as SIMULATED.
 
+* **Row alignment (v12.2)**: both Overview rows are exactly aligned — the network card is fixed to `ROW1_H` (668 px) like the tape, the 3D view fills what its header, filters and legend leave (`.net-canvas`, flex; the engine's ResizeObserver resizes the canvas), and Needs attention takes the map card's height.
+* **Test inputs badge (v12.2, `Shell.tsx`)**: the top-bar button reads "Test inputs · N active" (amber) when any scenario has run since the last reset (`/api/scenarios`, refreshed on `scenario.started` / `demo.reset`), with their names on hover — so a red screen is never mistaken for normal traffic. A normal run (background traffic only) creates no fraud: in a 12-minute check after a reset, 185 accounts active, 85 flows, 0 red, the only risky accounts being the seeded Kiran Traders (flagged) and Zenith Exports (early warning).
+* **Location intelligence rail (v12, `LocationIntel.tsx`)**: the right-hand column of the Money Map card (no separate section), with two tabs: **Signals** (below) and **Between states** (state flows). `useGeoIntel` fetches `GET /api/geo/intel` for the window and the current selection (account, posting → its sender, city, cash-out cluster, incident → its first account) and refetches, throttled, on `geo.location_intel`, `ledger.posted`, `intel.account_status`, `attack.run_updated` and `demo.reset`. It shows the counts, the context of the selection (verdict normal / suspicious / unconfirmed, home and usual places, numbered recent moves, each fired rule with observed vs threshold, basis and confidence; or the city's risky operators, ATM cash-out and newcomers; or the cluster's withdrawals and ATMs), the signal cards (click to select and frame), and the normal-geography footer. The flat map draws violet dashed impossible-travel routes (labelled when few or selected), the selected account's moves numbered from its home ring, and a selected cluster's ATMs with a callout; flows dim while a location selection is active. The "Corridors to watch" overlay keeps the busiest corridors, risky first, now with why (fraud-linked / early-warning accounts and rails, or "ordinary"). The rail is fixed to the map's height. The Overview rows grew (network 432 → 560 px, map 408 → 608 px) without changing their order.
 * **One data source for two views** (`useMapData.ts`): the aggregated map for the window and rail (`GET /api/geo/map`), the static reference (`/api/geo/reference`: cities and all 172 ATM terminals, cached in memory), and a live feed of postings for moving particles (from `ledger.posted`; a posting from a `scenario` source is drawn red — a display choice noted in section 4.9). Refreshes are throttled to one every 4 s.
 * **Flat view** (`MoneyMapFlat.tsx`): **d3-geo**'s Mercator projection fitted to India (`geoMercator().fitExtent(..., INDIA)`); land, dots and labels in SVG; arcs and moving particles on a canvas for speed (at most 150 particles, each 1.7 s). A city dot's radius is 2.6 + 7.5 × √(value / max value); colour red if fraud-linked money touched it, amber if suspicious, mint otherwise. Arc thickness is value, colour is the risk of the accounts involved. Zoom is capped at 24× ("land data is simplified to about 3 km: no deeper zoom"); the mouse wheel zooms by `exp(−deltaY × 0.0016)`; keys `+`, `−`, arrows and `0` work. Selecting a posting with a metre-level basis (ATM, device GPS) flies in to 14×; a cluster to 12×; a city to 3.2×. Every ATM terminal appears from 4× zoom; below that only terminals used in the window.
 * **Globe view** (`MoneyMapGlobe.tsx`), loaded lazily: the same GeoJSON is drawn **once** onto an off-screen canvas with an equirectangular projection and used as the sphere's texture (no external image); great-circle arcs lifted by 0.04 + 0.32 × (angle / π); orbit controls; red pulse rings on fraud-linked cities; pauses when hidden or scrolled away; disposes everything on unmount.
 * **Boundary data.** Natural Earth (public domain), **India point-of-view** edition, bundled at build time by `scripts/build_geo_assets.py`, so the map works offline and shows India's official claimed boundary (`docs/THIRD_PARTY_DATA.md`). A production system should use a Survey of India-approved dataset.
-* **v11 overlays and look** (`MoneyMap.tsx`, `MoneyMapFlat.tsx`, `styles/v11.css`): a faint 5° latitude / longitude grid (`d3-geo`'s `geoGraticule`), India filled with a radial gradient and outlined with a blurred glow, and a vignette at the edges. Normal arcs fade in towards their destination (a canvas linear gradient); **risky arcs glow** (`shadowBlur` 10) and carry **dashes that move in the direction of the money** (`lineDashOffset = −(t / 45) mod 14`), so direction is visible without arrows. Hovering an arc finds the nearest one (each quadratic curve sampled at 21 points, within 7 px of its edge) and shows the corridor: from → to, postings, value, risk, top rails. A **"Top corridors" panel** (top left, foldable) lists the 4 busiest city-to-city flows, risky first; clicking one selects the origin city and frames **both** ends. A **city card** (top right) shows the selected city's postings, value, fraud-linked money, at-risk accounts and top flows, with **Ask Vigilance**. A **scale bar** shows a round distance about 90 px long at the map centre (from the projection's pixels per km), and the legend sits in a fold-out "How to read the map".
+* **v11 overlays and look** (`MoneyMap.tsx`, `MoneyMapFlat.tsx`, `styles/v11.css`): a faint 5° latitude / longitude grid (`d3-geo`'s `geoGraticule`), India filled with a radial gradient and outlined with a blurred glow, and a vignette at the edges. Normal arcs fade in towards their destination (a canvas linear gradient); **risky arcs glow** (`shadowBlur` 10) and carry **dashes that move in the direction of the money** (`lineDashOffset = −(t / 45) mod 14`), so direction is visible without arrows. Hovering an arc finds the nearest one (each quadratic curve sampled at 21 points, within 7 px of its edge) and shows the corridor: from → to, postings, value, risk, top rails. Since v12.2 nothing floats over the map: the former "Top corridors" overlay became the rail's **Between states** tab (`LocationIntel.tsx::BetweenStates`, from `state_flows`, section 15.4) and the former city card became the city context in the rail. Clicking a state route frames its main city pair (both ends) and opens the origin city; clearing the selection returns to the whole country. A **scale bar** shows a round distance about 90 px long at the map centre (from the projection's pixels per km), and the legend sits in a fold-out "How to read the map".
 * The flat or globe choice is remembered in `localStorage` (`vigil.ov.mapView`).
 
 ### 14.8 The live tape (`components/tape/LiveTape.tsx`)
@@ -2207,18 +2221,30 @@ For every posting in the window with a simulated location:
 
 * **Cities** are keyed by the posting's `geo_city` (where the sender was; for a credit from outside the bank, the customer's home; for a withdrawal, the ATM). Each city accumulates `tx_count`, `value_paise`, `fraud_linked_paise`, `suspicious_count`; `at_risk_accounts` counts flagged / held / confirmed accounts by **home** city (a city with no postings but an at-risk resident still appears).
 * **Flows** are keyed by (`geo_city`, `peer_geo_city`) when the two differ: count, value, rails, and the worst risk seen (normal < suspicious < fraud).
+* **State flows** (v12.2, `state_flows`): the same postings summed by (state of `geo_city`, state of `peer_geo_city`) when the states differ (abroad shows as "Abroad · Dubai"): count, value, **fraud-linked** and **early-warning** value, accounts, risky accounts, the main city pair (by value, with coordinates) and a risk word; sorted by fraud-linked, then early-warning, then total value; top 12. `tests/test_location_intel.py::test_state_flows_aggregate_city_corridors_by_state`.
 * **ATMs:** a withdrawal stamped `atm_terminal` is matched to its terminal by exact coordinates; each terminal accumulates withdrawals, value and risky value.
 * The four foreign destinations are always listed (grey unless used). The answer keeps the top 40 cities by value and the top 200 flows (fraud first, then by value), plus `clusters` = cash-out clusters since max(window, 1 h) and the collection points, and `synthetic: true`.
 
-### 15.5 Derived signals (display and investigation only)
+### 15.5 Derived signals and location intelligence (`overview/__init__.py`, `geo/intel.py`)
 
-None of these feeds a status, a detector or a tier. They appear on the map, in "Needs attention" and as incident findings (section 16).
+None of these sets a payment tier. Cash-out clusters and collection points are display and investigation signals (map, "Needs attention", incidents). Since v12 the **location intelligence** layer (`backend/vigil/geo/intel.py`, thresholds in `config/location_policy.yaml` plus the reused `copilot_policy.yaml` signals) also produces per-account location evidence that may **corroborate** a live detector status (section 10.11), never decide one.
+
+**Location quality first.** Every rule uses only points that say where the account holder physically is, and treats them by precision:
+
+| Basis | Treated as | Why |
+|---|---|---|
+| `device_gps` (±30 m), `atm_terminal` (±25 m), `branch` (±100 m) | **precise** presence | may give high-confidence evidence |
+| `ip` (±3–15 km) | **coarse** presence | accuracy subtracted; any finding built on it is **low confidence**: shown, never used as evidence |
+| `merchant_pos` | never | it is the merchant's city — a card payment can be card-not-present |
+| `kyc_home` | never | an address, not a presence |
+
+Every distance in a rule is the **effective distance** = haversine − both points' accuracy radii (never below 0). So two GPS fixes 50 m apart are 0 km apart (jitter can never fire), and a ±15 km IP estimate 60 km away is only 45 km away — below the 50 km floor. Sender–recipient distance is never a signal: fraudsters do not need to be near each other.
 
 **Cash-out clusters** (`cash_out_clusters(since)`). *Idea:* several risky accounts withdrawing cash close together in time and place suggests one handler cashing out for a network.
 
 1. Take ATM withdrawals (`geo_basis = 'atm_terminal'`) since `since` whose sender is flagged, held, confirmed fraud or a ring member, in time order.
 2. For each withdrawal *a* not yet used: collect later unused withdrawals *b* with t_b − t_a ≤ **45 min** (`cash_out_window_min`) and haversine(a, b) ≤ **8 km** (`cash_out_radius_km`).
-3. If the group has at least **3** withdrawals (`cash_out_min_withdrawals`), it is a cluster: centre = mean latitude and longitude, radius = the largest distance from the centre (at least 0.3 km), accounts, posting ids, value, first and last time.
+3. If the group has at least **3** withdrawals (`cash_out_min_withdrawals`), it is a cluster: centre = mean latitude and longitude, radius = the largest distance from the centre (at least 0.3 km), accounts, posting ids, value, first and last time. Since v12 each cluster also carries the **ATM terminals** used (matched to the terminal list by exact coordinates), `atm_count`, the **time window in minutes**, every withdrawal (time, account, amount, point), the rule text and the basis ("ATM terminal · ±25 m (simulated)") — what an analyst needs to request footage or alert the ATM network. *Example (reproduced live):* Money-mule network, then Velocity Chain, then Shared Device Cluster → one Mumbai cluster: 4 risky accounts (Zenith Exports, Pooja M, Amit Bose, Dc Hub), 3 ATMs (ATM-MUM-10, -03, -07), radius 2.0 km, ₹3.08 L.
 
 *Example* (`tests/test_v10_overview.py::test_impossible_travel_and_cash_out_cluster`): Zenith, Pooja and Rahul, all flagged, each withdraw ₹20,000 at Mumbai ATMs within seconds → one cluster. In the scripted `s2` scenario there are only two withdrawals (Zenith ₹70,000, Pooja ₹58,000), so no cluster forms. The grouping is greedy and anchored on the first withdrawal, so a long string of withdrawals each 5 km from the previous one is not merged into one cluster.
 
@@ -2226,7 +2252,7 @@ None of these feeds a status, a detector or a tier. They appear on the map, in "
 
 **Impossible travel** (`impossible_travel(since)`). *Idea:* one account paying from two places too far apart for the time between them suggests someone else is using it.
 
-1. Take postings since `since` stamped `device_gps`, ordered by sender and time.
+1. Take postings since `since` whose basis is a **presence** basis (precise: `device_gps`, `atm_terminal`, `branch`; coarse: `ip`), ordered by sender and time (v12; before v12 only `device_gps`).
 2. For each pair of consecutive fixes of the same sender, compute the great-circle distance with the **haversine formula** (Earth radius R = 6,371.0088 km, `geo.haversine_km`):
 
 ```latex
@@ -2235,9 +2261,25 @@ h = \sin^2\!\Big(\frac{\varphi_2-\varphi_1}{2}\Big) + \cos\varphi_1\cos\varphi_2
 
    (φ latitude, λ longitude, in radians).
 
-3. With Δt in hours floored at one second (1 / 3,600 h), flag the pair if **d ≥ 50 km and d / Δt > 900 km/h** (`signals.impossible_travel_kmh`, roughly an airliner's cruising speed). The 50 km floor stops GPS jitter or a move to a neighbouring town from firing.
+3. Subtract both accuracy radii (effective distance d′). With Δt in hours floored at one second (`impossible_travel.min_elapsed_s`), flag the pair if **d′ ≥ 50 km** (`impossible_travel.min_km`, the existing safeguard) **and d′ / Δt > 900 km/h** (`signals.impossible_travel_kmh`, reused, roughly an airliner's cruising speed). The 50 km floor stops GPS jitter or a move to a neighbouring town from firing.
+4. **Confidence** = high when both points are precise, low when either is an IP estimate. Only high-confidence pairs reach incidents and corroboration; `/api/geo/intel` lists low-confidence pairs separately ("low precision: shown, not used as evidence"). Under a minute, the exact seconds between two postings say little, so the text states the honest lower bound — the speed had the move taken a full minute ("over 78,205 km/h" for 1,303 km).
 
-*Worked example (reproduced, with the cross-channel attack's city hints applied).* The hub pays via IMPS from Delhi, its phone is moved to Kolkata, then it pays via UPI. Delhi (28.614° N, 77.209° E) to Kolkata (22.573° N, 88.364° E) is 1,303.8 km between the city centres; the two fixes were 1,304 km apart about one second apart, so the implied speed was about 4.69 million km/h, far above 900: **impossible travel**. Important: the scenario's city hints are applied only when a scenario is started from the UI or API (`sim/scenarios.py::start`); `run_sync` (tests, benchmark) does not set them, so an offline run shows no impossible travel unless the hint is set by hand (Appendix A).
+*Worked example (reproduced, with the cross-channel attack's city hints applied).* The hub pays via IMPS from Delhi, its phone is moved to Kolkata, then it pays via UPI. Delhi (28.614° N, 77.209° E) to Kolkata (22.573° N, 88.364° E) is 1,303.8 km between the city centres; the two fixes were 1,304 km apart about one second apart, so the implied speed is far above 900 km/h (shown as "over 78,205 km/h", the full-minute lower bound): **impossible travel**, high confidence (both Device GPS · ±30 m). Important: the scenario's city hints are applied only when a scenario is started from the UI or API (`sim/scenarios.py::start`); `run_sync` (tests, benchmark) does not set them, so an offline run shows no impossible travel unless the hint is set by hand (Appendix A).
+
+**Location-behaviour anomalies** (`geo/intel.py`, v12). *Idea:* compare an account's current geography with its own normal geography — conservatively.
+
+* **Baseline** = the account's presence points in the last **90 days** before the current window (`anomaly.baseline_days`), one per city, plus its KYC home point (±5 km). Fewer than **5** baseline points (`min_baseline_points`) = no baseline = **never judged** (new accounts are not suspicious for being new to a place).
+* **`LOC_UNUSUAL_REGION`**: a point in the last **24 h** (`window_hours`) in a city absent from the baseline, at least **150 km** (`unusual_region_min_km`, effective) from home **and** from every baseline point. Pune → Mumbai (~120 km) is ordinary travel; Nagpur → Delhi (843 km) is not.
+* **`LOC_MULTI_CITY_BURST`**: at least **3** precise points in distinct cities, each at least **100 km** apart (effective), within **60 minutes**.
+* **`LOC_IMPOSSIBLE_TRAVEL`**: the pairs above.
+
+Each finding carries the rule, confidence, threshold, observed value, points (city, basis, accuracy, label), posting ids and a one-line reason. Per account the evidence record lists the rules, which of them may corroborate (high confidence; `corroboration.min_confidence`), and a capped **location evidence score** (impossible travel 0.6, multi-city 0.5, unusual region 0.4; max 1.0). It is **not** a fraud score; it is shown next to the rules.
+
+**Incremental and cheap.** `refresh()` reads only postings with `seq` greater than the last seen (primary key), appends them to per-account recent lists, and re-evaluates only the touched accounts and those already holding evidence; an account's baseline is read once (index `ix_tx_sender_ts`) and cached until the next reseed (detected via `meta.seeded_at`). The live status key includes the evidence version, so statuses are recomputed only when the findings change. Measured: the stream latency test reads 25.7 ms with the layer against 27.7 ms without it on the same loaded laptop (no measurable cost; the 20 ms budget is missed by both on that machine).
+
+*Example (reproduced live):* after the cross-channel attack, the hub Amit Kaur (home Nagpur, 74 baseline points) has impossible travel Delhi → Kolkata (high) and two unusual-region findings (Delhi 843 km, Kolkata 970 km from the nearest usual point); score 1.0. It was already flagged by five families, so location did not change its status (`changed_status = false`). After the velocity chain, Amit Bose (home Patna) has an unusual region (Mumbai, 1,441 km) and stays at early warning: RF 0.75 is below the threshold and nothing is structural. Ring accounts with too little history (Kiran: 2 baseline points) are never judged on geography. Ordinary activity — the seeded world and 40 ambient payments — produces **no** location evidence (`test_seeded_world_and_ordinary_activity_raise_no_location_evidence`).
+
+**The read model** `summary(window, account | city | cluster)` behind **`GET /api/geo/intel`** returns: high- and low-confidence impossible travel (with account name and status), cash-out clusters (with names), anomalies (rules, score, whether they corroborate and whether they changed the status), the **normal-geography picture** (located postings, precise vs IP-based, accounts, cities, consecutive moves checked, fastest ordinary move, accounts with signals), the thresholds, and context for the selection: an account's home, usual places, last 12 points in order and verdict (normal / suspicious / unconfirmed); a city's operating accounts, risky accounts, ATM cash-out (all and risky), travel touching it and accounts new to it; a cluster's details.
 
 ### 15.6 The live tape (`tape(...)`, `tape_row(...)`)
 
@@ -2297,7 +2339,7 @@ Section 4.7 explains how locations are generated. The parts the read models rely
 * **Home city** (`home_for`): x = the first 8 bytes of SHA-256("home|" + account id) as a number in [0, 1). Tier 1 if x < 0.55 (6 cities), tier 2 if x < 0.85 (8 cities), tier 3 otherwise (8 cities) — `TIER_WEIGHT = {1: 0.55, 2: 0.30, 3: 0.15}`; inside a tier the city index is ⌊(x − lower bound) / share × number of cities⌋. Twelve demo-cast accounts are fixed by `HOME_OVERRIDE` (Ramesh's circle in Bengaluru, Sunita's in Pune).
 * **ATM terminals**: 10 / 8 / 6 per tier 1 / 2 / 3 city within 6 km of the centre: 6 × 10 + 8 × 8 + 8 × 6 = **172**. A withdrawal uses the terminal chosen by a hash of (account, 10-minute time bucket) (`ts[:15]`; the `nearest_atm` docstring says 30 minutes — Appendix A).
 * **Basis and accuracy** labels (the table in section 4.7) and `label()`, which always prints "Simulated location · basis · accuracy".
-* **`HINTS`**: a per-account city override set by a running attack scenario for its own accounts (the mule ring in Mumbai, the cross-channel hub in Delhi then Kolkata), cleared by a reset. It changes where an account's phone and ATM visits are stamped, never a score.
+* **`HINTS`**: a per-account city override set by a running attack scenario for its own accounts (the mule ring in Mumbai, the cross-channel hub in Delhi then Kolkata), cleared by a reset. It changes where an account's phone and ATM visits are stamped, never a score directly; the stamped postings are what the location intelligence layer (section 15.5) reads, exactly as it would read real device and ATM data.
 * **`rail(channel, recipient)`**: the rail to *display*. Historical seed rows store `upi` for every debit; if the recipient is `ext:atm` the display rail is `atm`, if `ext:intl-wire` it is `intl_wire`. The stored channel is never rewritten, because `unique_channels` is a model input (section 10.1).
 
 ### 15.12 Measured latency
@@ -2328,8 +2370,8 @@ Cold cache (TTL cache cleared before each call), median of 5, in-process `TestCl
 |---|---|---|---|---|
 | `ring_formed` | a ring from `overview.rings()` (section 15.3) has **≥ 3 members and ≥ 1 flagged** | all members | the ring's internal 72-hour value | confirmed if any member is `confirmed_fraud`; city |
 | `account_flagged` | an account's live status is `flagged` and it is **not** in a reported ring | the account | sum of its last 20 inflows | title names its role and the number of agreeing families |
-| `cash_out_cluster` | a cash-out cluster (section 15.5) in the last **2 hours** | the withdrawing accounts | the withdrawn value | posting ids, city |
-| `impossible_travel` | an impossible-travel pair (section 15.5) in the last **2 hours** | the account | 0 | the two posting ids |
+| `cash_out_cluster` | a cash-out cluster (section 15.5) in the last **2 hours** | the withdrawing accounts | the withdrawn value | posting ids, city; v12 facts add accounts · ATM terminals · minutes and the rule |
+| `impossible_travel` | a **high-confidence** impossible-travel pair (section 15.5) in the last **2 hours** | the account | 0 | the two posting ids; v12 facts add both points' basis and accuracy, the effective distance and the confidence, and say that location is corroborating only |
 | `payment_held_t3` | an **open** alert with tier 3 (latest 20 alerts with tier ≥ 3) | sender, recipient | the payment amount | `key_extra` = intent id; contained if the intent is `HELD`, `ESCALATED` or `REJECTED` |
 | `tier4_coercion` | the same, tier 4 | sender, recipient | the payment amount | same |
 | `fast_pass_through_new_account` | a pipeline account on the **suspicious path** (section 15.8), not in a ring, not flagged | the account | its total outflow | the pipeline rule text |
@@ -2413,7 +2455,7 @@ Each pass first clears the Overview TTL cache, so it recomputes the live statuse
 
 ### 16.8 What the engine never does
 
-It never changes a live status, a hold, a payment tier or a detector score; it never reads `seed_role` or `seed_attack` (`tests/test_copilot.py::test_copilot_source_never_reads_ground_truth` parses the package source); and it never calls a language model. `tests/test_copilot.py::test_incidents_dedupe_and_reset_clears_copilot_tables` checks that the same findings do not create duplicates and that a reset clears every assistant table; `::test_severity_rubric_is_table_driven` checks the rubric against the policy for every kind.
+It never changes a live status, a hold, a payment tier or a detector score (location corroboration happens in the detection stream, section 10.11, not here); it never reads `seed_role` or `seed_attack` (`tests/test_copilot.py::test_copilot_source_never_reads_ground_truth` parses the package source); and it never calls a language model. `tests/test_copilot.py::test_incidents_dedupe_and_reset_clears_copilot_tables` checks that the same findings do not create duplicates and that a reset clears every assistant table; `::test_severity_rubric_is_table_driven` checks the rubric against the policy for every kind.
 
 ---
 
@@ -2724,7 +2766,7 @@ There are six kinds of check, from fastest to slowest: property tests on the mon
 
 | Gate | How to run it (from the repository root, Windows) | What it proves | Last recorded result |
 |---|---|---|---|
-| Backend test suite | `cd backend; .venv\Scripts\python.exe -m pytest` | Everything in 18.3 and 18.4 | **381 tests collected** in the working tree on 2026-10-13 (374 at commit `490305a` + 6 in `test_vigilance_procedures.py` + 1 in `test_spa_path_traversal.py`). Last full run: **381 / 381 passed** (2026-10-13, working tree; 374/374 at v10). The P0 baseline was 337 passed, "≈ 35 min on the dev laptop, server + browser running" (`docs/verification/baseline_v10.md`). |
+| Backend test suite | `cd backend; .venv\Scripts\python.exe -m pytest` | Everything in 18.3 and 18.4 | **397 tests collected** on 2026-10-14 (374 at commit `490305a` + 6 in `test_vigilance_procedures.py` + 1 in `test_spa_path_traversal.py` + 16 in `test_location_intel.py`). Last full run (2026-10-14): **396 / 397 passed**; the one failure is `test_intel_stream.py::test_latency_budget_under_ambient` (median 33 ms against a 20 ms budget on the loaded laptop). It fails the same way on the code before the location layer (27.7 ms alone), and alone it read 25.7 ms with the layer: a machine-speed budget, not a regression. 381 / 381 passed on 2026-10-13. The P0 baseline was 337 passed, "≈ 35 min on the dev laptop, server + browser running" (`docs/verification/baseline_v10.md`). |
 | One test file or test | `cd backend; .venv\Scripts\python.exe -m pytest tests/test_copilot.py -k prompt_injection` | Fast feedback while editing | — |
 | Smoke test | `backend\.venv\Scripts\python.exe scripts\smoke_demo.py` | The five demo acts and the ledger invariant (18.6) | 8/8 PASS (`baseline_v10.md`, `STATE.md`) |
 | Frontend checks | `node scripts/frontend_checks.mjs` | Safe markdown, UI-action whitelist, carried actions, case links, incident ordering, selection helper (18.5) | 20/20 on 2026-10-13 (working tree; 18 at commit `490305a`) |
@@ -2771,6 +2813,7 @@ Counts are collected tests (parametrised cases counted separately), from `pytest
 | `test_intel_degrade.py` | 1 | Running without the ML libraries | A subprocess blocks `numpy`, `sklearn`, `shap`, `torch`, `joblib`, `scipy`; the app still starts, RF and GNN report `unavailable`, rules and drift still work, a payment is still decided (Tier 0). |
 | `test_intel_shap_signed.py` | 1 | Honest SHAP charts | Base value + Σ signed category contributions ≈ prediction (within 0.02); a quiet account's net effect is negative. |
 | `test_v10_geo_channels.py` | 12 | Simulated locations, rails, cohort | `geo.stamp` is deterministic and never raises; basis and accuracy rules; every label starts "Simulated location · "; ATMs within the radius; the stored channel is never rewritten; the 40-account cohort is deterministic, tagged, collision-free and **never flagged or warned**. |
+| `test_location_intel.py` | 16 | Location intelligence (v12) | Genuine impossible travel is high confidence; normal travel (Mumbai → Pune in 3 h, a flight) and GPS jitter never fire; an IP estimate is low confidence and a 60 km / ±15 km borderline stays below the floor; card-POS and KYC are never presence; unusual region needs a baseline and a real displacement; multi-city burst; `classify` without location equals the pre-v12 rule over every combination; location alone never decides; an 18-minute, 3-ATM Mumbai cash-out clusters with its terminals while unrelated withdrawals (other cities, ordinary accounts, hours apart) do not; the seeded world and 40 ambient payments raise no location evidence; with no geo anomaly every live status is identical with corroboration on or off; the cross-channel scenario end to end (evidence, `geo.location_intel` push, possible-account-takeover incident with location quality, `/api/geo/intel` payload and selections, status audit); the three-scenario Mumbai cash-out feeding the existing incident; state flows summing city corridors state to state, risky first |
 | `test_v10_overview.py` | 6 | Overview read models | Map caps (≤ 40 cities, ≤ 200 flows) and `synthetic: true`; tape paging by `since_id`; connections ≤ 36 per direction and ≤ 3 hops; KPI keys and 12-bucket sparklines; the funnel never widens and no cohort account is on the suspicious path; worst of 5 cold calls < 1,500 ms for 7 endpoints (`:73`); impossible travel Delhi → Kolkata > 900 km/h and a 3-withdrawal Mumbai cash-out cluster (`:90`). |
 | `test_copilot.py` | 18 | The incident engine and the assistant | The risk-policy hash is still `2026.10.07-v3.1+9ba3476c1d` and the assistant policy has no risk keys (`:31`); the severity rubric matches the policy for all 9 kinds (`:38`, 9 cases); incidents are not duplicated and a reset leaves none behind (`:56`); the template assessment validates, shows rupees not paise (`:75`); a model reply is validated, the system's severity wins, and a reply naming `ghost@vigil` or invalid JSON falls back to the template (`:108`); tools have no write verbs, strip `seed_*`, wrap notes as `untrusted_text`, cap size (`:141`); the package source contains no `seed_role`, `seed_attack` or `GEMINI_API_KEY=` (`:152`); **prompt injection in a ledger note cannot trigger an action and a key-like string is redacted** (`:158`); SSE event order, a 422 above 2,000 characters and a 429 within 25 rapid messages (`:177`); `/status` never contains the key (`:192`). |
 | `test_vigilance_procedures.py` | 6 | Procedures (v11) | Every kind has a classified procedure ending in `close`, each step is either in-app or outside (`:23`); the ring procedure auto-completes "watch" and a manual tick is reversible (`:38`); rejecting the held payment completes the hold step (`:65`); a reset clears ticks (`:85`); the offline chat answers from the procedure (`:99`); the newer `AQ.` key form is redacted (`:110`). |
@@ -3203,7 +3246,7 @@ Vigil's own ledger has **no hash chain** (the vendored PRIMA ledger has one, tes
 | Payments | provider label "Simulated payment — no real money moved"; `/api/health` `payment_provider_label` |
 | External registry | provider name "local_registry (SIMULATED)"; provenance status `simulated` |
 | Call / message context | "Simulated call/message context · ContextFlag lexicon"; provenance `simulated`; scenario journey events marked "scenario-injected event" |
-| Locations | every label "Simulated location · basis · accuracy"; `synthetic: true` in `/api/geo/map` and `/api/geo/reference` |
+| Locations | every label "Simulated location · basis · accuracy"; `synthetic: true` in `/api/geo/map`, `/api/geo/reference` and `/api/geo/intel`; location is corroborating only (never alone, never a tier) |
 | Models | `data: "SYNTHETIC"`, metrics labelled "SYNTHETIC VALIDATION", calibrated values "calibrated on synthetic worlds — not a real-world probability", operational use "not used for payment authorisation" (`test_intel_api.py::test_models_are_synthetic_and_honest`) |
 | Policy | `risk_policy.yaml` header: "hand-set, explainable demo defaults … NOT fitted or validated against real fraud data"; severity reason "Hand-set rubric, not validated on real data." |
 | Attack results | "(simulator ground truth)" in the attack-run toast |
@@ -3341,7 +3384,7 @@ backend\.venv\Scripts\python.exe -m pip install torch==2.14.1 --index-url https:
 
 Every variable can also go in `.env` (repository root or `backend/`), which never overrides the real environment (section 20.2). `.env.example` lists the common ones with their defaults.
 
-### 21.5 The two configuration files
+### 21.5 The configuration files
 
 **`config/risk_policy.yaml`** — the payment decision. Every key is explained in section 6.10. Rules for changing it:
 
@@ -3350,7 +3393,9 @@ Every variable can also go in `.env` (repository root or `backend/`), which neve
 * Bump `version`. Even if you forget, the content hash in `policy_version` changes, every new decision records it, and Decision Replay warns about the difference (section 6.11).
 * `tests/test_copilot.py:13` pins the current version string `2026.10.07-v3.1+9ba3476c1d` on purpose ("the assistant work must not have changed the risk policy"). A deliberate policy change must update that constant in the same commit.
 
-**`config/copilot_policy.yaml`** (version `2026.10.13-copilot-v1`) — display heuristics, incident severity and assistant limits. It never feeds a payment tier, a detector or a live status (its header says so; `test_copilot.py:31` checks it has no `network` key). Read once (`overview.policy()`, `lru_cache`): restart after editing. Its `version` is not recorded anywhere (Appendix A).
+**`config/location_policy.yaml`** (version `2026.10.14-location-v1`, v12) — location intelligence. It never feeds a payment tier and never changes `risk_policy.yaml` or its hash. Keys: `presence.precise` (`device_gps`, `atm_terminal`, `branch`), `presence.coarse` (`ip`), `presence.home_accuracy_m` 5,000; `impossible_travel.min_km` 50, `min_elapsed_s` 1; `anomaly.window_hours` 24, `baseline_days` 90, `min_baseline_points` 5, `unusual_region_min_km` 150, `multi_city_min_cities` 3, `multi_city_min_km` 100, `multi_city_window_min` 60; `corroboration.enabled` true, `min_confidence` high, `weights` (impossible travel 0.6, multi-city 0.5, unusual region 0.4). The impossible-travel speed (900 km/h) and the cash-out parameters are **reused** from `copilot_policy.yaml → signals`, not duplicated. Read once (`geo_intel.policy()`, cached): restart after editing. All values are hand-set and not validated on real data.
+
+**`config/copilot_policy.yaml`** (version `2026.10.13-copilot-v1`) — display heuristics, incident severity and assistant limits. It never feeds a payment tier or a detector score; since v12 its impossible-travel speed and cash-out parameters are also read by the location layer, whose high-confidence rules may corroborate a live status (its header says so; `test_copilot.py:31` checks it has no `network` key). Read once (`overview.policy()`, `lru_cache`): restart after editing. Its `version` is not recorded anywhere (Appendix A).
 
 | Key | Value | What it does |
 |---|---|---|
@@ -3550,7 +3595,7 @@ At four levels, all without ground truth. (1) **In the payment decision**, RingW
 Four rules. Labelled-neighbour rules follow money **downstream only**: paying *into* a scam account is never evidence against you (`test_vigil_lifecycle.py::test_victims_are_not_scored_for_paying_a_scam_account`). A model score counts as mule evidence only if the account **moves received money on** (consensus-v2.2, section 10.8). Roles need corroborated mule evidence (section 10.9). Graded runs check that no victim is a false positive (`test_vigil_live.py::test_attack_runs_are_evaluated_against_ground_truth`). One known leak remains on the Overview: a victim at early warning can be pulled into a ring display and appear as "fraud-linked" (section 15.3, Appendix A).
 
 **Q25. What is impossible travel, and how were its thresholds set?**
-One account making payments from two places too far apart for the time between them, which suggests someone else is using it. For consecutive device-GPS postings of the same sender, compute the great-circle (haversine) distance and flag the pair if the distance is **≥ 50 km** and the implied speed is **> 900 km/h** (`overview/__init__.py:364–380`; `config/copilot_policy.yaml → signals.impossible_travel_kmh`). 900 km/h is roughly an airliner's cruising speed; the 50 km floor stops GPS jitter or a trip to the next town from firing. Both numbers are HAND-SET and not validated; the 50 km is a constant in code, not in the policy file. The locations themselves are SIMULATED, the signal is display and investigation only, and it never touches a tier or a status. In the demo the cross-channel hub pays from Delhi and then Kolkata about one second later (1,304 km): an implied 4.7 million km/h (section 15.5). A real system would also need to handle VPN and IP-based locations, device sharing within a family, and travel booked through the bank's own data.
+One account making payments from two places too far apart for the time between them, which suggests someone else is using it. For consecutive presence postings of the same sender (device GPS, ATM terminal, branch; IP only at low confidence), compute the great-circle (haversine) distance, subtract both points' accuracy, and flag the pair if the effective distance is **≥ 50 km** and the implied speed is **> 900 km/h** (`geo/intel.py::travel_findings`; `config/location_policy.yaml → impossible_travel.min_km`; `config/copilot_policy.yaml → signals.impossible_travel_kmh`). High-confidence findings feed the existing "Impossible travel" (possible account takeover) incident and may corroborate a live status (section 10.11). 900 km/h is roughly an airliner's cruising speed; the 50 km floor stops GPS jitter or a trip to the next town from firing. Both numbers are HAND-SET and not validated; since v12 the 50 km is `location_policy.yaml → impossible_travel.min_km`. The locations themselves are SIMULATED; the signal never touches a tier and never classifies an account by itself — a high-confidence finding may only corroborate a status other detector families support (section 10.11). In the demo the cross-channel hub pays from Delhi and then Kolkata about one second later (1,304 km): shown as "over 78,205 km/h", the full-minute lower bound (section 15.5). A real system would also need to handle VPN and IP-based locations, device sharing within a family, and travel booked through the bank's own data.
 
 **Q26. What about slow mules that wait more than an hour before forwarding?**
 They evade `NET_PASS_THROUGH` (60-minute window) and the velocity chain (30 minutes per hop) — a documented failure mode (`docs/MODEL_CARD.md` §6). Other layers still see them: the mule pipeline counts forwarding within 48 hours (section 15.8), drift compares 72 hours with 45 days, and the learned models were trained with 15 % "slow" attacks whose delays are 8 times longer (section 11.2).
@@ -3640,7 +3685,7 @@ Because the slow part of fraud operations is understanding and deciding, not cli
 | 0.10 | GNN recall on unseen shared-device attacks | 11.5 |
 | 0.85 | Initial live "flagged" model threshold | 10.12 |
 | 11 / 11, 0 FP | Live attack check | 4.8, 18.7 |
-| 381 | Backend tests collected in the working tree (all pass) | 18.1 |
+| 397 | Backend tests collected in the working tree (396 pass; the latency budget depends on the machine) | 18.1 |
 | 9 kinds, 35–70 base points | Incident engine | 16.2–16.3 |
 | 19 tools, 4 per answer, 20 messages / min | Assistant limits | 17.5, 17.7 |
 
@@ -3853,7 +3898,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 2 | `README.md:24` | "The script creates the venv, installs dependencies…" | `run_demo.ps1` and `run_demo.sh` install **only** `backend/requirements.txt`, and only when the venv is missing. On a fresh machine the Random Forest, GNN and SHAP show `unavailable` until the ML requirements are installed by hand (section 21.2) |
 | 3 | `README.md:24` | Options `-Reset` / `--reset`, `-Port 8001` | `-Port` (and `-SkipBuild`) exist only in `run_demo.ps1`; `run_demo.sh` accepts only `--reset` and always rebuilds the frontend |
 | 4 | `README.md:28, 41–47`; `docs/KNOWN_LIMITATIONS.md` (v10 part); `docs/guide/VIGIL_FUNCTIONAL_GUIDE.md` | "Copilot", "Copilot incident strip", "Copilot dock" | The assistant is being renamed **Vigilance** in the working tree (UI component `components/vigilance/Vigilance.tsx`, `lib/vigilanceActions.ts`); the Python package (`vigil/copilot/`), the routes (`/api/copilot/…`), the event (`copilot.incident`), the tables (`copilot_*`) and the policy block (`copilot:`) keep the old name. Expected during a rename |
-| 5 | `docs/KNOWN_LIMITATIONS.md:15` | "211 automated tests" | 381 collected in the working tree; 374 at commit `490305a` (section 18.1) |
+| 5 | `docs/KNOWN_LIMITATIONS.md:15` | "211 automated tests" | 397 collected in the working tree; 374 at commit `490305a` (section 18.1) |
 | 6 | `docs/KNOWN_LIMITATIONS.md:39` | "All 142 accounts, ~2,050 historical transactions" | A fresh world has **594 accounts and 31,232 postings** (section 4.1); the 142-account world was v1 |
 | 7 | `docs/KNOWN_LIMITATIONS.md:50` | "PatternMemory … roadmap; the old implementation … was not ported" | Pattern memory **is implemented** (`intel/pattern_memory.py`, `pattern-memory-v3.0`), with prototypes built offline from training worlds (section 10.5) |
 | 8 | `docs/KNOWN_LIMITATIONS.md:46` | "the demo API is unauthenticated and LAN-only" | Unauthenticated: yes. "LAN-only" is **not enforced**: uvicorn binds `0.0.0.0` by default (`settings.py:56`), so the server answers on every network the laptop joins (section 20.10) |
@@ -3872,7 +3917,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 21 | `docs/TARGET_ARCHITECTURE.md:200` (§10) | TaintTrace runs "over all journals … only when a label is added" | It runs over the **forward closure** of the labelled postings, and also re-runs when a new posting touches the closure (section 9.5) |
 | 22 | `docs/TARGET_ARCHITECTURE.md:204–206` (§11) | Out of scope: "3D graphs, GNN, LLM explanations or chat" | All three now exist — the 3D universe and evidence scenes, the relational GAT, the optional Gemini assistant — each outside the payment decision |
 | 23 | `docs/DEMO_SCRIPT.md:38` | Money-mule network: "17 real ledger postings over about 20 s" | `s2` has **17 steps but 14 postings** (5 victim payments, 1 pass-through, 2 splits, 4 smurfing transfers, 2 ATM withdrawals) plus 2 information steps and 1 RingWatch scan (`sim/scenarios.py:112–140`); 17 × 1.1 s ≈ 19 s |
-| 24 | The build records (STATE, v7 and v10) | "Backend tests: 330/330" (v7) and "pytest 374/374" (v10) | Correct when written; 381 tests are collected today |
+| 24 | The build records (STATE, v7 and v10) | "Backend tests: 330/330" (v7) and "pytest 374/374" (v10) | Correct when written; 397 tests are collected today |
 | 25 | `backend/vigil/api/routes_overview.py:4` (docstring) | "Push: `overview.tick` on the console topic tells the page which panels to refresh" | `overview.tick` is never published; the Overview refreshes on ordinary events (section 12.2). Likewise `frontend/src/components/Shell.tsx:85` listens for `intel.updated`, which nothing publishes |
 | 26 | `backend/vigil/geo/__init__.py:148` (`nearest_atm` docstring) | "account + 30-minute bucket" | The caller passes `ts[:15]`, a **10-minute** bucket (`geo/__init__.py:194`) |
 | 27 | `backend/vigil/sim/scenarios.py:205` (`s4` description) | "… clean registry → friction guard applies." | The landlord payment scores 0.045, Tier 0 on the ladder, so the friction guard is never needed and no adjustment is recorded (section 6.9) |
@@ -3881,7 +3926,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 30 | `backend/vigil/engine/lifecycle.py:163` (comment) | "SHADOW MODE: record the recommendation, apply nothing (the bank baseline governs)" | The intent is approved whatever the baseline says; a baseline `decline` or `otp_step_up` is recorded, not enforced (A.2 #11) |
 | 31 | `scripts/benchmark_demo.py:5` (docstring) | "Uses an isolated temp database (never touches data/vigil.db)" | It uses `os.environ.setdefault("VIGIL_DB_PATH", …)` (`:25`): if `VIGIL_DB_PATH` is already set in the shell, the benchmark seeds — that is, wipes and rebuilds — **that** database |
 | 32 | `scripts/smoke_demo.py:18`, `scripts/benchmark_demo.py:26`, `backend/ml/eval_live_world.py:49` | `VIGIL_PAYMENT_PROVIDER=mock` | No code reads this variable; the mock provider is the only provider (`payments/providers.py::get_provider`) |
-| 33 | This guide, sections 1.4 and 2.1 | "374 pytest tests" | True at commit `490305a`; the working tree collects 381 (`test_vigilance_procedures.py` adds 6, `test_spa_path_traversal.py` 1) |
+| 33 | This guide, sections 1.4 and 2.1 | "374 pytest tests" | True at commit `490305a`; the working tree collects 397 (`test_vigilance_procedures.py` adds 6, `test_spa_path_traversal.py` 1, `test_location_intel.py` 16) |
 | 34 | This guide, section 13.6 | `POST /incidents/{id}/brief` body `{deep: bool}` | The body also accepts `fast: bool` ("never call the model"), `api/routes_copilot.py:54–56` |
 | 35 | This guide, section 17.3 | A model reply naming an id that is "not among the incident's accounts and postings" is rejected | `brief.validate` also accepts ids that appear in the facts bundle's timeline (the counterparties of the listed postings), which the model legitimately sees |
 | 36 | This guide, sections 17.2–17.3 | The "Recipient" key fact shows the sender, and the first red flag of the Act 4 assessment is the customer-facing headline | Both were changed in the working tree after those sections were written: `brief.key_facts` now takes the recipient from the alert behind the incident (`brief._held_alert`), and `brief.red_flags` no longer uses the customer's headline. The procedure step "Check the recipient account" still has the problem (A.2 #4) |

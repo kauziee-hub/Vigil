@@ -350,3 +350,4 @@ table.dt th.sortable:hover, table.dt th.sortable.on { color: var(--ink); }
 .det-grid > .panel { margin: 0; }
 .det-intro { font-size: 13px; color: var(--ink-2); line-height: 1.55; background: var(--surface); border-radius: var(--r4); box-shadow: var(--shadow); padding: 14px 18px; margin-top: 12px; }
 .det-intro b { color: var(--ink); }
+.test-btn.active { border-style: solid; border-color: var(--st-watch, #f0b040); color: var(--ink); background: var(--st-watch-bg, rgba(240,176,64,.12)); }

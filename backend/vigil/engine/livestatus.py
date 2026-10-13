@@ -93,7 +93,8 @@ def statuses(ids: Iterable[str] | None = None) -> dict[str, dict[str, Any]]:
                     "role": im.get("role") or (row["role"] if row else None),
                     "families_flagging": int(im.get("families_flagging") or 0),
                     "reason": reason, "families": list(im.get("families") or []),
-                    "since": im.get("since") if im.get("status") == status else None}
+                    "since": im.get("since") if im.get("status") == status else None,
+                    "location": im.get("location")}           # v12: corroborating location evidence (or None)
     return out
 
 

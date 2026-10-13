@@ -243,6 +243,7 @@ def geo_map(window: str = "1h", channel: str = "all") -> dict[str, Any]:
     rows = postings(secs, channel)
     cities: dict[str, dict[str, Any]] = {}
     flows: dict[tuple[str, str], dict[str, Any]] = {}
+    states: dict[tuple[str, str], dict[str, Any]] = {}        # v12: the same money, state to state
     atm_terms = {(t["lat"], t["lng"]): t for t in geo.atm_terminals()}
     atm: dict[str, dict[str, Any]] = {}
     order = {"normal": 0, "suspicious": 1, "fraud": 2}
@@ -268,6 +269,22 @@ def geo_map(window: str = "1h", channel: str = "all") -> dict[str, Any]:
             f["rails"][r["rail"]] += 1
             if order[rk] > order[f["risk"]]:
                 f["risk"] = rk
+            fs, ts_ = _state_of(c), _state_of(pc)
+            if fs and ts_ and fs != ts_:
+                sf = states.setdefault((fs, ts_), {"from_state": fs, "to_state": ts_, "tx_count": 0, "value_paise": 0,
+                                                   "fraud_linked_paise": 0, "suspicious_paise": 0, "accounts": set(),
+                                                   "risky_accounts": set(), "pairs": Counter()})
+                sf["tx_count"] += 1
+                sf["value_paise"] += r["amount_paise"]
+                sf["pairs"][(c, pc)] += r["amount_paise"]
+                sf["accounts"].update((r["sender_id"], r["recipient_id"]))
+                if rk == "fraud":
+                    sf["fraud_linked_paise"] += r["amount_paise"]
+                elif rk == "suspicious":
+                    sf["suspicious_paise"] += r["amount_paise"]
+                if rk != "normal":
+                    sf["risky_accounts"].update(a for a in (r["sender_id"], r["recipient_id"])
+                                                if sts.get(a, {}).get("status") in RISKY | WARN or a in members)
         if r["geo_basis"] == "atm_terminal":
             t = atm_terms.get((r["geo_lat"], r["geo_lng"]))
             if t:
@@ -296,12 +313,31 @@ def geo_map(window: str = "1h", channel: str = "all") -> dict[str, Any]:
         f["rails"] = dict(f["rails"])
         a, b = geo.city(f["from_city"]) or {}, geo.city(f["to_city"]) or {}
         f.update(from_lat=a.get("lat"), from_lng=a.get("lng"), to_lat=b.get("lat"), to_lng=b.get("lng"))
+    state_list = []
+    for sf in states.values():
+        (fc, tc), _ = sf["pairs"].most_common(1)[0]
+        a, b = geo.city(fc) or {}, geo.city(tc) or {}
+        state_list.append({k: v for k, v in sf.items() if k not in {"accounts", "risky_accounts", "pairs"}} | {
+            "accounts": len(sf["accounts"] - {x for x in sf["accounts"] if x.startswith("ext:")}),
+            "risky_accounts": len(sf["risky_accounts"]),
+            "risk": "fraud" if sf["fraud_linked_paise"] else "suspicious" if sf["suspicious_paise"] else "normal",
+            "top_pair": {"from_city": fc, "to_city": tc, "from_lat": a.get("lat"), "from_lng": a.get("lng"),
+                         "to_lat": b.get("lat"), "to_lng": b.get("lng")}})
+    state_list.sort(key=lambda x: (-x["fraud_linked_paise"], -x["suspicious_paise"], -x["value_paise"]))
     since = clock.iso(clock.now() - timedelta(seconds=max(secs, 3600)))
     clusters = [{**c, "kind": "cash_out"} for c in cash_out_clusters(since)] + collection_points()
     return {"window": window, "channel": channel, "generated_ts": clock.now_iso(), "synthetic": True,
             "cities": sorted(cities.values(), key=lambda c: -c["value_paise"])[:40],
-            "flows": flow_list, "atm": sorted(atm.values(), key=lambda a: -a["value_paise"]),
+            "flows": flow_list, "state_flows": state_list[:12], "atm": sorted(atm.values(), key=lambda a: -a["value_paise"]),
             "clusters": clusters, "totals": {"postings": len(rows), "value_paise": _sum(rows)}}
+
+
+def _state_of(city: str | None) -> str | None:
+    """State (or, abroad, 'Abroad · <city>') of a map city — the unit an analyst reasons about across the country."""
+    c = geo.city(city)
+    if not c:
+        return None
+    return c["state"] if c.get("kind") != "foreign" else f"Abroad · {c['city']}"
 
 
 # ── derived signals (display / investigation only) ───────────────────────
@@ -332,10 +368,31 @@ def cash_out_clusters(since_iso: str) -> list[dict[str, Any]]:
             lat = sum(g["geo_lat"] for g in group) / len(group)
             lng = sum(g["geo_lng"] for g in group) / len(group)
             radius = max(geo.haversine_km((lat, lng), (g["geo_lat"], g["geo_lng"])) for g in group)
+            terms = _terminals_at(group)
             out.append({"id": f"CASH-{group[0]['id']}", "center": {"lat": round(lat, 5), "lng": round(lng, 5)},
                         "radius_km": round(max(radius, 0.3), 2), "city": group[0]["geo_city"],
                         "accounts": sorted({g["sender_id"] for g in group}), "tx_ids": [g["id"] for g in group],
-                        "value_paise": _sum(group), "first_ts": group[0]["ts"], "last_ts": group[-1]["ts"]})
+                        "value_paise": _sum(group), "first_ts": group[0]["ts"], "last_ts": group[-1]["ts"],
+                        # v12 location intelligence: what an analyst needs to act on the cluster
+                        "atms": terms, "atm_count": len({t["terminal_id"] for t in terms}) or len(group),
+                        "minutes": round((clock.parse(group[-1]["ts"]).timestamp() - ta) / 60, 1),
+                        "withdrawals": [{"tx_id": g["id"], "ts": g["ts"], "account": g["sender_id"], "amount_paise": g["amount_paise"],
+                                         "lat": g["geo_lat"], "lng": g["geo_lng"]} for g in group],
+                        "rule": f"≥ {cfg['cash_out_min_withdrawals']} risky ATM withdrawals within {cfg['cash_out_radius_km']} km "
+                                f"and {cfg['cash_out_window_min']} min (copilot policy signals)",
+                        "basis": "ATM terminal · ±25 m (simulated)"})
+    return out
+
+
+def _terminals_at(group: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The ATM terminals the withdrawals were made at (terminals are stamped at their exact coordinates)."""
+    by_point = {(round(t["lat"], 6), round(t["lng"], 6)): t for t in geo.atm_terminals()}
+    out, seen = [], set()
+    for g in group:
+        t = by_point.get((round(g["geo_lat"], 6), round(g["geo_lng"], 6)))
+        if t and t["terminal_id"] not in seen:
+            seen.add(t["terminal_id"])
+            out.append({k: t[k] for k in ("terminal_id", "bank", "site", "lat", "lng")})
     return out
 
 
@@ -362,21 +419,11 @@ def collection_points() -> list[dict[str, Any]]:
 
 
 def impossible_travel(since_iso: str) -> list[dict[str, Any]]:
-    kmh = float(policy()["signals"]["impossible_travel_kmh"])
-    rows = db.q("SELECT id, ts, sender_id, geo_city, geo_lat, geo_lng FROM transactions WHERE ts >= ? "
-                "AND geo_basis = 'device_gps' ORDER BY sender_id, ts", (since_iso,))
-    out, last = [], {}
-    for r in rows:
-        p = last.get(r["sender_id"])
-        if p:
-            km = geo.haversine_km((p["geo_lat"], p["geo_lng"]), (r["geo_lat"], r["geo_lng"]))
-            hours = max((clock.parse(r["ts"]).timestamp() - clock.parse(p["ts"]).timestamp()) / 3600, 1 / 3600)
-            if km >= 50 and km / hours > kmh:
-                out.append({"account": r["sender_id"], "from_city": p["geo_city"], "to_city": r["geo_city"],
-                            "km": round(km), "minutes": round(hours * 60, 1), "kmh": round(km / hours),
-                            "tx_ids": [p["id"], r["id"]], "ts": r["ts"]})
-        last[r["sender_id"]] = r
-    return out
+    """High-confidence impossible travel (vigil/geo/intel.py): consecutive PRESENCE points of one account (device GPS,
+    ATM terminal, branch), effective distance (minus both accuracies) ≥ the minimum and implied speed above
+    signals.impossible_travel_kmh. Low-precision (IP) pairs are left out here; /api/geo/intel lists them separately."""
+    from vigil.geo import intel as geo_intel
+    return geo_intel.impossible_travel(since_iso)
 
 
 # ── live transaction tape ────────────────────────────────────────────────

@@ -70,8 +70,10 @@ Every component of the demo falls in exactly one of four buckets.
 
 * **Locations are SIMULATED.** Every account home, device position, ATM terminal and posting location is generated from
   hashes of ids (never from ground-truth labels) and shown with a *basis* and an *accuracy*: "Simulated location · ATM
-  terminal · ±25 m". "Exact" in the UI means precise within the stated basis of the simulation, not a real place. Locations
-  are display / investigation context only: no detector, score or payment tier reads them.
+  terminal · ±25 m". "Exact" in the UI means precise within the stated basis of the simulation, not a real place. No payment
+  tier reads a location. Since v12 the location intelligence layer (impossible travel, coordinated cash-out, unusual
+  region, multi-city burst) is corroborating evidence only: a high-confidence location rule can back up detector families
+  that already flag an account, never classify an account on its own (`config/location_policy.yaml`).
 * **Attack scenarios have authored cities** for their own injected postings (e.g. the money-mule ring cashes out at ATMs
   in Mumbai; the cross-channel hub is moved from Delhi to Kolkata mid-attack so impossible travel can be shown). These
   are part of the scripted story, like the amounts.

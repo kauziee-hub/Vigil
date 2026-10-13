@@ -30,8 +30,8 @@ import { useVigilance } from "../lib/vigilance";
 import { runAction, type ActionDeps } from "../lib/vigilanceActions";
 
 const WINDOWS: Window[] = ["15m", "1h", "24h", "7d"];
-const ROW1_H = 540;     // live network | live transactions
-const ROW2_H = 500;     // money map | needs attention
+const ROW1_H = 668;     // live network | live transactions (v12: bigger network, same orientation)
+const ROW2_H = 700;     // money map + location intelligence | needs attention (v12: bigger map)
 
 function Header({ hasIncidents, top }: { hasIncidents: boolean; top: () => void }) {
   const nav = useNavigate();
@@ -149,13 +149,13 @@ function Overview() {
       <KpiStripV10 onTile={onTile} />
 
       <div className="v11-row r1">
-        <section className="stage net-main" ref={netRef}>
+        <section className="stage net-main" ref={netRef} style={{ height: ROW1_H }}>
           <div className="stage-h">
             <div><div className="t">Live network</div><div className="net-help">Accounts and the payments between them, live. Selecting anything elsewhere frames it here.</div></div>
             <button className="btn xs on" onClick={() => nav("/network")}>Full view</button>
           </div>
           <div className="stage-filter"><EdgeViewSeg value={edgeView} onChange={setEdgeView} /></div>
-          <div style={{ position: "relative" }}>
+          <div className="net-canvas" style={{ position: "relative" }}>
             <LiveUniverse3D mode="live" edgeView={edgeView} autoRotate={!netSel} size="compact" selected={netSel?.id ?? null}
                             onSelect={onNetSelect} onInfo={onInfo} focus={focus} />
             {netSel && <UniverseDrawer id={netSel.id} acct={accounts.current.get(netSel.id) ?? netSel.acct} onClose={() => setNetSel(null)}

@@ -1,7 +1,9 @@
 # Copilot + Overview display policy (overview-v10). Version this file like the risk policy.
 #
-# This file NEVER feeds a payment tier, a detector score or a live account status. It only decides:
-#   * which derived signals the Overview / Copilot show (pipeline, cash-out clusters, impossible travel),
+# This file NEVER feeds a payment tier or a detector score. It decides:
+#   * which derived signals the Overview / Copilot show (pipeline, cash-out clusters, impossible travel) — since v12
+#     the impossible-travel speed and the cash-out parameters below are also REUSED by the location intelligence layer
+#     (config/location_policy.yaml), whose high-confidence rules may corroborate (never decide) a live account status,
 #   * how the incident engine rates severity (a hand-set, explainable rubric — NOT validated on real data),
 #   * Copilot runtime limits.
 # Changing it does not change config/risk_policy.yaml or its hash (tests/test_copilot.py checks this).

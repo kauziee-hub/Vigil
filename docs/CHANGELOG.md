@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v12.2 — aligned Overview, state-to-state view, calm normal run made explicit (2026-10-14, Claude 1)
+
+- **Aligned rows**: the network card and the tape card are both exactly 668 px; the map card and Needs attention share their height; the 3D view fills its card.
+- **Nothing floats over the map**: the "Corridors to watch" overlay is gone; the rail has a **Between states** tab (`geo_map → state_flows`): state-to-state routes, risky first, fraud-linked / early-warning / ordinary split, risky accounts, main city pair, and where most fraud-linked money ends. Clearing a selection returns to the whole country.
+- **Normal run vs test inputs**: measured — background traffic alone creates no fraud (12 minutes after a reset: 185 accounts active, 85 flows, 0 red; only the seeded Kiran Traders flagged and Zenith Exports at early warning). The Test inputs button now reads "Test inputs · N active" after any test input, because those accounts stay flagged until a reset.
+- Docs updated in place (functional and technical guides, demo script, test book), screenshots replaced, unused images removed.
+
+## v12.1 — location intelligence (2026-10-14, Claude 1)
+
+- **Location becomes evidence, carefully** (`backend/vigil/geo/intel.py`, `config/location_policy.yaml`): impossible travel (precision-aware: effective distance after subtracting both points' accuracy, high / low confidence), coordinated cash-out clusters (now with ATM terminals, time window, withdrawals, rule), and location-behaviour anomalies (unusual region against the account's own 90-day geography, multi-city burst). Only presence bases count (device GPS, ATM terminal, branch; IP at low confidence); card-POS and KYC addresses never do; sender–recipient distance is never a signal.
+- **Corroborating only**: a high-confidence location rule can stand in for the missing second voice in the live status rule (`intel/stream.classify(..., location=True)`), never create a status alone, never touch a payment tier or `risk_policy.yaml`. With location off the rule is byte-for-byte the old one (tested over every combination). When it changes a status, the reason names the rule, observed value, threshold and basis; `status_map()` carries `location`.
+- **Incidents**: impossible travel feeds the existing possible-account-takeover alert, clusters the existing cash-out alert, both with location quality in their facts (titles unchanged).
+- **API / live**: `GET /api/geo/intel` (signals, normal-geography picture, thresholds, selection context); WebSocket `geo.location_intel` when findings change.
+- **Money Map**: a Location intelligence rail inside the card (no new section) reacting to the selection; violet impossible-travel routes, numbered account moves from home, cluster ATMs with a callout; "Corridors to watch" now say why; the city card became a purposeful city context in the rail. Overview orientation unchanged; network and map taller.
+- **Tests**: `tests/test_location_intel.py` (16 with v12.2's state-flow test); demo test book Suite L (6 checks).
+
 ## v12 — demo test book (2026-10-13, Claude 1)
 
 - **Demo test book** (`docs/DEMO_TEST_BOOK.md`, PDF `docs/Vigil_Demo_Test_Book.pdf`): every test input, the result it must give, where to look and what it proves, in seven suites — the PRIMA tier ladder (one payment per tier), policy behaviour (pressure words alone, corroboration, large-but-normal, velocity, the circuit-breaker cap), all 11 attack patterns with their detection result and Vigilance alert, the feedback loop (confirmed report → TaintTrace → the same payment held → incidents and the 12-step procedure → release), controls (false-positive control, shadow mode), all patterns back to back, and the cash-out cluster combination. A 15-minute demo order with checkpoints and a troubleshooting table.

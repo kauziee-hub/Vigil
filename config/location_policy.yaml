@@ -1,0 +1,39 @@
+# Location intelligence policy (v12). Version this file like the risk policy.
+#
+# Location is CORROBORATING evidence only. It never sets a payment tier, never changes config/risk_policy.yaml
+# (or its hash), and can never on its own put an account on early warning or flagged: a location rule only adds a
+# corroborating voice to detector families that already fired (see vigil/intel/stream.classify). Every location
+# signal is computed from the SIMULATED locations stored on each posting (basis + accuracy) and is labelled so.
+#
+# Reused from config/copilot_policy.yaml (not duplicated here): signals.impossible_travel_kmh (speed limit) and the
+# cash-out cluster parameters (cash_out_min_withdrawals / cash_out_radius_km / cash_out_window_min).
+
+version: "2026.10.14-location-v1"
+
+# Which location bases say where the ACCOUNT HOLDER physically is. merchant_pos is the merchant's city (a card
+# payment can be card-not-present) and kyc_home is an address, not a presence: neither is ever used as evidence.
+presence:
+  precise: [device_gps, atm_terminal, branch]     # ±25–100 m
+  coarse: [ip]                                    # ±3–15 km: used conservatively (accuracy subtracted, low confidence)
+  home_accuracy_m: 5000                           # the KYC home point is city-level
+
+impossible_travel:
+  min_km: 50                 # the existing safeguard: below this (after subtracting both accuracies) nothing is travel
+  min_elapsed_s: 1           # elapsed-time floor so two fixes in the same second do not divide by zero
+
+anomaly:
+  window_hours: 24           # "current" activity examined
+  baseline_days: 90          # the account's normal geography: presence points older than the window, within this
+  min_baseline_points: 5     # fewer than this = no baseline = no anomaly (new accounts are never judged on geography)
+  unusual_region_min_km: 150 # a new city this far (after accuracy) from home and from every baseline point
+  multi_city_min_cities: 3   # ≥ N distinct cities …
+  multi_city_min_km: 100     # … each at least this far apart (after accuracy) …
+  multi_city_window_min: 60  # … within this many minutes
+
+corroboration:
+  enabled: true              # false = location never touches a live status (display and incidents only)
+  min_confidence: high       # only rules built from precise points corroborate; low-confidence (IP) rules are shown, not used
+  weights:                   # the location evidence score (0–1, capped) shown with the rules; it is NOT a fraud score
+    LOC_IMPOSSIBLE_TRAVEL: 0.6
+    LOC_MULTI_CITY_BURST: 0.5
+    LOC_UNUSUAL_REGION: 0.4

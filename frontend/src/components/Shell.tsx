@@ -55,6 +55,12 @@ export function Shell({ children }: { children: ReactNode }) {
       .catch((e) => { setMode(null); setModeAvailable(e?.status === 404 ? false : null); });
   }, []);
   const loadMetrics = useDebounced(() => { api.metrics().then(setMetrics).catch(() => undefined); }, 1500);
+  // How many test inputs (injected patterns, the coerced journey, scripted payments) have run since the last reset.
+  // Their accounts stay flagged until a reset — the badge says so, so a red screen is never mistaken for normal traffic.
+  const [testRuns, setTestRuns] = useState<string[]>([]);
+  const loadTestRuns = useDebounced(() => {
+    api.scenarios().then((s) => setTestRuns(s.filter((x) => x.state !== "idle").map((x) => x.name))).catch(() => undefined);
+  }, 800);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastSeq = useRef(0);
@@ -83,6 +89,7 @@ export function Shell({ children }: { children: ReactNode }) {
       }
     }
     if (e.type === "ambient.changed" || e.type === "demo.reset" || e.type === "intel.updated") loadHealth();
+    if (e.type === "scenario.started" || e.type === "demo.reset") loadTestRuns();
     if (e.type === "mode.changed") {
       const d = e.data as Partial<ModeView>;
       if (d && d.mode) { setMode((m) => ({ since: null, note: "", ...m, ...d } as ModeView)); setModeAvailable(true); }
@@ -96,7 +103,7 @@ export function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (conn !== "open" && opened.current) return;
     if (conn === "open") opened.current = true;
-    loadHealth(); refreshMode(); api.metrics().then(setMetrics).catch(() => undefined);
+    loadHealth(); refreshMode(); api.metrics().then(setMetrics).catch(() => undefined); loadTestRuns();
   }, [conn, loadHealth, refreshMode]);
 
   // light is the default (v5); "dark" is the alternative
@@ -143,9 +150,12 @@ export function Shell({ children }: { children: ReactNode }) {
               ))}
             </nav>
             <div className="tb-right">
-              <button className="test-btn" onClick={() => setTestOpen(true)} title="Demo-only test inputs (Alt+T)">
+              <button className={`test-btn ${testRuns.length ? "active" : ""}`} onClick={() => setTestOpen(true)}
+                      title={testRuns.length
+                        ? `Test inputs active since the last reset: ${testRuns.join(", ")}. Their accounts stay flagged until you reset the demo world (Test inputs → Reset). Background traffic on its own creates no fraud. (Alt+T)`
+                        : "Demo-only test inputs (Alt+T). None has run since the last reset: everything on screen is normal traffic plus the seeded case."}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M10 3v6L4.5 18.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3" /></svg>
-                <span>Test inputs</span>
+                <span>{testRuns.length ? `Test inputs · ${testRuns.length} active` : "Test inputs"}</span>
               </button>
               <Link className={`icon-btn ${healthy ? "ok" : "warn"}`} to="/health" title={statusTitle} aria-label="System health">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>

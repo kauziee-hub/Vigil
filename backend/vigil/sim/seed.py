@@ -91,6 +91,8 @@ def _seed(anchor: datetime | None = None) -> dict[str, Any]:
     db.wipe()
     taint.invalidate()
     geo.HINTS.clear()
+    from vigil.geo import intel as geo_intel
+    geo_intel.reset()
 
     def at(**delta: float) -> str:
         return clock.iso(anchor - timedelta(**delta))

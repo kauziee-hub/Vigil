@@ -1,8 +1,10 @@
 """SIMULATED locations for the Overview money map (overview-v10 P1).
 
 Every location here is synthetic and derived deterministically from hashes of account / transaction ids — never
-from ground-truth labels (`seed_role`, `seed_attack`). Locations are display and investigation context ONLY: no
-detector, score or payment tier reads them.
+from ground-truth labels (`seed_role`, `seed_attack`). Locations never set a payment tier. Since v12 the location
+intelligence layer (vigil/geo/intel.py, config/location_policy.yaml) derives impossible travel, coordinated cash-out and
+location-behaviour anomalies from them; a high-confidence location rule may CORROBORATE a detector status that other
+detector families already support, and can never classify an account on its own.
 
 Each stamped posting carries a *basis* (how a real bank would know the place) and an *accuracy* (how precise that
 basis is), so the UI can always say "Simulated location · ATM terminal · ±25 m" instead of pretending to be exact.

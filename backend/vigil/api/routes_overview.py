@@ -37,6 +37,16 @@ async def geo_reference():
             "channels": [{"id": c, "label": overview.RAIL_LABEL[c]} for c in geo.CHANNELS], "synthetic": True}
 
 
+@router.get("/geo/intel")
+async def geo_intel(window: Window = "1h", account: str | None = Query(None, max_length=120),
+                    city: str | None = Query(None, max_length=60), cluster: str | None = Query(None, max_length=80)):
+    """Location intelligence for the Money Map (v12): impossible travel (high / low confidence), coordinated cash-out
+    clusters, location-behaviour anomalies with rule / threshold / observed / basis / accuracy, the normal-geography
+    picture, and context for the selected account / city / cluster. Simulated locations; corroborating evidence only."""
+    from vigil.geo import intel as geo_intel_mod
+    return geo_intel_mod.summary(overview.window_s(window), account=account, city=city, cluster=cluster)
+
+
 @router.get("/tx/tape")
 async def tx_tape(limit: int = Query(100, ge=1, le=300), since_id: str | None = None, channel: str = "all",
                   only: Literal["all", "suspicious", "fraud"] = "all", q: str | None = Query(None, max_length=60),

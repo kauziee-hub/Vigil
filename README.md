@@ -34,7 +34,7 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 | Governance | `/governance` | Policy, tier ladder, model versions, decision records, shadow mode |
 | Trusted contact | `/contact/arjun` | Open on a phone on the same Wi-Fi |
 
-**Test inputs** (top bar or Alt + T) is a small drawer of demo-only inputs: a customer payment, inject one of eleven mule-network patterns, a coerced journey, report a confirmed scam, traffic / mode / reset. Product screens carry no simulation controls. Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Every test input with its expected result and what it proves: [docs/DEMO_TEST_BOOK.md](docs/DEMO_TEST_BOOK.md) (PDF: `docs/Vigil_Demo_Test_Book.pdf`), re-verified by `scripts/test_book_check.py`.
+**Test inputs** (top bar or Alt + T) is a small drawer of demo-only inputs: a customer payment, inject one of eleven mule-network patterns, a coerced journey, report a confirmed scam, traffic / mode / reset. Product screens carry no simulation controls. Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The Money Map carries a **location intelligence** rail (impossible travel, coordinated cash-out, unusual geography; corroborating evidence only — `config/location_policy.yaml`). Every test input with its expected result and what it proves: [docs/DEMO_TEST_BOOK.md](docs/DEMO_TEST_BOOK.md) (PDF: `docs/Vigil_Demo_Test_Book.pdf`), re-verified by `scripts/test_book_check.py`.
 
 Payments settle on a **simulated payment rail** behind a provider port (a bank plugs its own rail in there). No real money moves and no gateway keys are needed.
 

@@ -22,7 +22,7 @@ The product screens show no simulation controls. Everything you drive for the de
 - The **Vigilance bar** on top: the open alerts, most urgent first, each classified ("Medium · Suspected mule account · Kiran Traders · ₹64.5K · next step · time left").
 - The **KPI strip**: money moved, fraud-linked money, accounts at risk, stopped before paying, left the bank, new accounts (each against the previous window; click a tile to filter).
 - The **live network** beside the **live transaction tape**: every posting with the rail and the city; red / amber rows are fraud-linked / early-warning.
-- The **money map** (simulated locations, India point-of-view boundary) beside **Needs attention**: city dots sized by value, arcs between cities (risky ones glow with moving dashes), the "Top corridors" panel, a spark for each new posting. Toggle **Globe** for a moment, then back to **Flat**.
+- The **money map** (simulated locations, India point-of-view boundary) beside **Needs attention**: city dots sized by value, arcs between cities (risky ones glow with moving dashes), the rail's **Between states** tab (where money crosses state lines, risky first), a spark for each new posting. Toggle **Globe** for a moment, then back to **Flat**.
 - Below: **Situation brief**, **Money by channel**, **Close monitoring** and the **Mule pipeline** (new accounts: opened → funded → active → passing through → exited).
 
 Analysis lives on its own pages: **Detection** (every chart explained, every run, full account scoring) and **Network** (lenses, live activity streams).

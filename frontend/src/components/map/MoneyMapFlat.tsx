@@ -4,10 +4,12 @@
 // Arc thickness = value, colour = risk of the accounts involved (red = an account is flagged / held / confirmed /
 // in a detected ring, amber = early warning); risky arcs glow and carry dashes moving in the direction of the money.
 // A particle = one real new posting arriving over the WebSocket. Hovering an arc shows its corridor.
+// Location intelligence overlays (v12, from /api/geo/intel): violet dashed routes between impossible-travel points,
+// the selected account's recent moves numbered in order from its home ring, and the ATMs of a selected cash-out cluster.
 import { geoGraticule, geoMercator, geoPath } from "d3-geo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import world from "../../assets/geo/india_pov.geo.json";
-import type { GeoMap, MapCity, MapCluster } from "../../api/v10";
+import type { GeoIntel, GeoMap, LocFinding, MapCity, MapCluster } from "../../api/v10";
 import { RAIL_LABEL, type Rail } from "../../api/v10";
 import { formatPaiseShort } from "../../lib/format";
 import type { Selection } from "../../lib/selection";
@@ -19,8 +21,8 @@ const INDIA = FEATURES.find((f) => f.properties.iso === "IND") as Feat;
 const COUNTRIES = FEATURES.filter((f) => f.properties.layer === "country" && f.properties.iso !== "IND");
 const STATES = FEATURES.filter((f) => f.properties.layer === "state");
 
-export interface MapLayers { flows: boolean; fraud: boolean; atm: boolean; collection: boolean; labels: boolean }
-export const DEFAULT_LAYERS: MapLayers = { flows: true, fraud: true, atm: true, collection: true, labels: true };
+export interface MapLayers { flows: boolean; fraud: boolean; atm: boolean; collection: boolean; location: boolean; labels: boolean }
+export const DEFAULT_LAYERS: MapLayers = { flows: true, fraud: true, atm: true, collection: true, location: true, labels: true };
 
 const RISK_COLOR = { normal: "rgba(79,214,184,", suspicious: "rgba(240,176,64,", fraud: "rgba(240,82,82," } as const;
 const MAX_PARTICLES = 150;
@@ -46,9 +48,10 @@ function useSize(ref: React.RefObject<HTMLDivElement>) {
 
 const reduceMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPosting, height = 470 }: {
+export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPosting, height = 470, intel = null }: {
   data: GeoMap | null; reference: GeoReference | null; layers: MapLayers; selected: Selection | null;
   onSelect: (s: Selection | null) => void; onPosting: (fn: (p: LivePosting) => void) => () => void; height?: number;
+  intel?: GeoIntel | null;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -123,6 +126,8 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
       ctx.clearRect(0, 0, w, h);
       const geo: ArcGeo[] = [];
       let risky = false;
+      // a location selection (account / cash-out cluster) dims the flows so its route / ATMs read clearly
+      ctx.globalAlpha = intel && (selected?.kind === "account" || selected?.kind === "cluster") ? 0.22 : 1;
       if (data && layers.flows) {
         // normal flows first (quiet, fading in towards the destination), risky flows on top (glow + moving dashes)
         const ordered = [...data.flows].sort((x, y) => (x.risk === "normal" ? 0 : 1) - (y.risk === "normal" ? 0 : 1));
@@ -163,6 +168,7 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
           }
         }
       }
+      ctx.globalAlpha = 1;
       // selected posting: highlighted arc + accuracy circles
       if (selected?.kind === "tx" && selected.lat != null && selected.lng != null) {
         const a = P(selected.lng, selected.lat);
@@ -221,7 +227,7 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     const vis = () => kick();
     document.addEventListener("visibilitychange", vis);
     return () => { cancelAnimationFrame(raf); window.clearInterval(iv); document.removeEventListener("visibilitychange", vis); };
-  }, [data, layers, selected, w, h, P, t]);
+  }, [data, layers, selected, w, h, P, t, intel]);
 
   // zoom / pan
   const zoomAt = useCallback((factor: number, mx: number, my: number) => {
@@ -245,23 +251,25 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
   const drag = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean } | null>(null);
   const reset = () => setT({ k: 1, x: 0, y: 0 });
 
+  // clearing the selection returns to the whole country
+  useEffect(() => { if (!selected) setT({ k: 1, x: 0, y: 0 }); }, [selected]);
   // fly to a selection that has coordinates
   useEffect(() => {
     if (!selected || selected.lat == null || selected.lng == null) return;
     const p = proj([selected.lng, selected.lat]);
     if (!p) return;
-    const q = selected.kind === "city" && selected.peer?.lat != null && selected.peer?.lng != null
+    const q = (selected.kind === "city" || selected.kind === "account") && selected.peer?.lat != null && selected.peer?.lng != null
       ? proj([selected.peer.lng, selected.peer.lat]) : null;
     if (q) {                                                     // a corridor: frame both cities
-      // keep it between the corridors panel (left) and the city card (right): ~250 px each side
-      const k = Math.min(6, Math.max(1, Math.min(Math.max(220, w - 520) / (Math.abs(p[0] - q[0]) + 40), (h - 60) / (Math.abs(p[1] - q[1]) + 60))));
+      // nothing floats over the map any more: frame both ends in the middle, with room for their labels
+      const k = Math.min(6, Math.max(1, Math.min((w - 160) / (Math.abs(p[0] - q[0]) + 60), (h - 80) / (Math.abs(p[1] - q[1]) + 80))));
       const cx = (p[0] + q[0]) / 2, cy = (p[1] + q[1]) / 2;
-      setT({ k, x: w / 2 - k * cx, y: h / 2 - k * cy });
+      setT(k <= 1.05 ? { k: 1, x: 0, y: 0 } : { k, x: w / 2 - k * cx, y: h / 2 - k * cy });   // whole country: default view
       return;
     }
     const precise = /±\d+ m\b/.test(selected.label ?? "");      // ATM / device GPS: show street level
     // a city is shown at region level (zooming OUT of a street-level view if needed); points keep a deeper zoom
-    const target = selected.kind === "city" ? 3.2 : selected.kind === "cluster" ? 12 : precise ? 14 : 2.4;
+    const target = selected.kind === "city" ? 3.2 : selected.kind === "cluster" ? (selected.id.startsWith("CASH-") ? 20 : 12) : precise ? 14 : 2.4;
     const k = selected.kind === "city" ? target : Math.max(tRef.current.k, target);
     setT({ k, x: w / 2 - k * p[0], y: h / 2 - k * p[1] });
   }, [selected?.kind, selected?.id, selected?.lat, selected?.lng, selected?.peer?.lat, proj, w, h]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -307,6 +315,33 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     selPins.push({ x, y, rpx: Math.max(4, (meters / 1000) * pxPerKm(selected.lat, selected.lng)), label: selected.label ?? "" });
   }
 
+  // ── location intelligence overlays (screen space) ──
+  const selAcct = selected?.kind === "account" ? selected.id : selected?.accounts?.[0];
+  const travels = (intel?.impossible_travel ?? []).map((tf) => {
+    const [a, b] = tf.points;
+    const pa = P(a.lng, a.lat), pb = P(b.lng, b.lat);
+    const mx = (pa[0] + pb[0]) / 2, my = (pa[1] + pb[1]) / 2, dx = pb[0] - pa[0], dy = pb[1] - pa[1];
+    const c: [number, number] = [mx + dy * 0.18, my - dx * 0.18];
+    return { tf, pa, pb, c, on: selAcct === tf.account };
+  });
+  const showTravelLabels = travels.length <= 2 || travels.some((t) => t.on);
+  const acctSel = intel?.selected?.kind === "account" ? intel.selected : null;
+  const route = acctSel ? acctSel.route.map((p) => ({ p, xy: P(p.lng, p.lat) })) : [];
+  const home = acctSel?.home ? P(acctSel.home.lng, acctSel.home.lat) : null;
+  const clusterSel = intel?.selected?.kind === "cluster" ? intel.selected : null;
+  const clusterAtms = clusterSel ? clusterSel.atms.map((a) => ({ a, xy: P(a.lng, a.lat) })) : [];
+  const hitTravel = (mx: number, my: number): LocFinding | null => {
+    for (const t of travels) {
+      for (let i = 0; i <= 20; i++) {
+        const s2 = i / 20;
+        const x = (1 - s2) ** 2 * t.pa[0] + 2 * (1 - s2) * s2 * t.c[0] + s2 * s2 * t.pb[0];
+        const y = (1 - s2) ** 2 * t.pa[1] + 2 * (1 - s2) * s2 * t.c[1] + s2 * s2 * t.pb[1];
+        if (Math.hypot(x - mx, y - my) < 7) return t.tf;
+      }
+    }
+    return null;
+  };
+
   // nearest arc within a few pixels (sampled along each quadratic curve)
   const hitArc = (mx: number, my: number): ArcGeo | null => {
     let best: ArcGeo | null = null, bd = 7;
@@ -343,6 +378,14 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
       setHover({ x: mx, y: my, html: <CityTip c={c} /> });
       return;
     }
+    const tr = hitTravel(mx, my);
+    if (tr) {
+      setHover({ x: mx, y: my, html: <><b>Impossible travel · {tr.from_city} → {tr.to_city}</b>
+        <div>{tr.name ?? tr.account}</div>
+        <div className="bad">{(tr.km ?? 0).toLocaleString("en-IN")} km in {(tr.minutes ?? 0) < 1 ? "under a minute" : `${Math.round(tr.minutes ?? 0)} min`} · {tr.speed_text ?? `${(tr.kmh ?? 0).toLocaleString("en-IN")} km/h`}</div>
+        <div className="dim">{tr.points.map((p) => p.label.replace("Simulated location · ", "")).join(" → ")}</div></> });
+      return;
+    }
     const cl = clusters.find((c) => Math.hypot(c.sx - mx, c.sy - my) <= c.rpx);
     const arc = !cl && layers.flows ? hitArc(mx, my) : null;
     if (arc) {
@@ -368,6 +411,13 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     if (drag.current?.moved) return;
     const r = wrap.current!.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const tr = hitTravel(mx, my);
+    if (tr) {
+      const [a, b] = tr.points;
+      onSelect({ kind: "account", id: tr.account, accounts: [tr.account], label: `${tr.from_city} → ${tr.to_city}`, lat: a.lat, lng: a.lng,
+                 peer: { lat: b.lat, lng: b.lng } });
+      return;
+    }
     const hit = screen.find((s) => s.on && Math.hypot(s.x - mx, s.y - my) <= Math.max(8, s.r + 3));
     if (hit) { onSelect({ kind: "city", id: hit.c.city, lat: hit.c.lat, lng: hit.c.lng, label: hit.c.city }); return; }
     const cl = clusters.find((c) => Math.hypot(c.sx - mx, c.sy - my) <= c.rpx);
@@ -433,6 +483,29 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
         {clusters.map((c) => c.kind === "cash_out"
           ? <g key={c.id}><circle cx={c.sx} cy={c.sy} r={c.rpx} className="cluster cash" /><text x={c.sx} y={c.sy + 3} className="cluster-n">{c.tx_ids?.length ?? ""}</text></g>
           : <path key={c.id} d={`M${c.sx} ${c.sy - 7}L${c.sx + 7} ${c.sy}L${c.sx} ${c.sy + 7}L${c.sx - 7} ${c.sy}Z`} className={`coll ${c.status === "flagged" || c.status === "held" || c.status === "confirmed_fraud" ? "risky" : ""}`} />)}
+        {clusterAtms.map(({ a, xy }) => (
+          <g key={a.terminal_id}><circle cx={xy[0]} cy={xy[1]} r={7} className="loc-atm-ring" />
+            <rect x={xy[0] - 3} y={xy[1] - 3} width={6} height={6} className="atm risky" /></g>))}
+        {clusterSel?.center && (() => {
+          const [cx, cy] = P(clusterSel.center.lng, clusterSel.center.lat);
+          const tx = Math.min(cx + 46, w - 250);
+          return (<g className="loc-callout">
+            <circle cx={cx} cy={cy} r={16} /><line x1={cx + 16} y1={cy - 4} x2={tx - 4} y2={cy - 24} />
+            <text x={tx} y={cy - 30}>{`${clusterSel.withdrawals.length} risky withdrawals · ${clusterSel.atm_count} ATMs`}</text>
+            <text x={tx} y={cy - 16} className="dim">{`within ${clusterSel.radius_km} km · ${Math.max(1, Math.round(clusterSel.minutes))} min · ${formatPaiseShort(clusterSel.value_paise)}`}</text>
+          </g>);
+        })()}
+        {travels.map((t, i) => (
+          <g key={i} className={`loc-travel ${t.on ? "on" : ""}`}>
+            <path d={`M${t.pa[0]} ${t.pa[1]}Q${t.c[0]} ${t.c[1]} ${t.pb[0]} ${t.pb[1]}`} />
+            <circle cx={t.pa[0]} cy={t.pa[1]} r={4} /><circle cx={t.pb[0]} cy={t.pb[1]} r={5} className="end" />
+            {showTravelLabels && <text x={(t.pa[0] + 2 * t.c[0] + t.pb[0]) / 4} y={(t.pa[1] + 2 * t.c[1] + t.pb[1]) / 4 - 6}>
+              {`${(t.tf.km ?? 0).toLocaleString("en-IN")} km · ${(t.tf.minutes ?? 0) < 1 ? "<1 min" : `${Math.round(t.tf.minutes ?? 0)} min`}`}</text>}
+          </g>))}
+        {home && route.length > 0 && <g className="loc-home"><circle cx={home[0]} cy={home[1]} r={9} /><text x={home[0] - 12} y={home[1] + 4} textAnchor="end">home</text></g>}
+        {route.length > 1 && <polyline className="loc-route" points={route.map((r) => r.xy.join(",")).join(" ")} />}
+        {route.map((r, i) => (
+          <g key={r.p.tx_id} className="loc-step"><circle cx={r.xy[0]} cy={r.xy[1]} r={7} /><text x={r.xy[0]} y={r.xy[1] + 3}>{i + 1}</text></g>))}
         {selPins.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r={p.rpx} className="acc-circle" />

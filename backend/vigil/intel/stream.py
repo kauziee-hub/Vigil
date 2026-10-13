@@ -134,7 +134,7 @@ def _flagging(snap: live.Snapshot, account_id: str) -> list[str]:
 
 
 def classify(risk: float | None, fam: str | None, flagging: Iterable[str], threshold: float,
-             structural: bool = False, onward: bool = True) -> str | None:
+             structural: bool = False, onward: bool = True, location: bool = False) -> str | None:
     """The live detector-status rule (pure; shared with ml/eval_live_status.py).
 
     flagged:       strongest model evidence >= threshold AND another family flags; OR
@@ -145,6 +145,11 @@ def classify(risk: float | None, fam: str | None, flagging: Iterable[str], thres
     what a scam victim or a salaried customer shows (ML_VALIDATION_REPORT §7), rules alone a busy merchant, and a
     lone GNN / RF opinion is what the ambient stream produced on an ordinary customer (receive ₹1,366, pay ₹1,882
     minutes later: GNN 0.93, no other family). Such single flags stay visible on the account page.
+
+    location (v12, config/location_policy.yaml): a HIGH-confidence location rule (impossible travel, unusual region,
+    multi-city burst) is one extra CORROBORATING voice - never a family, never a status on its own. It can only stand
+    in for the missing second voice: model evidence above the threshold with no other family; structural evidence with
+    one family; one family alone (-> early warning). With location=False the rule is exactly the pre-v12 rule.
     """
     flagging = list(flagging)
     above = risk is not None and risk >= threshold
@@ -153,6 +158,12 @@ def classify(risk: float | None, fam: str | None, flagging: Iterable[str], thres
     if structural and len(flagging) >= 2:
         return "flagged"
     if "early_warning" in flagging or len(flagging) >= 2:
+        if location and ((above and onward) or structural):
+            return "flagged"
+        return "early_warning"
+    if location and flagging:
+        if (above and onward and fam in flagging) or structural:
+            return "flagged"
         return "early_warning"
     return None
 
@@ -198,19 +209,46 @@ def onward(account_id: str) -> bool:
     return _rw(account_id)[1]
 
 
-def _gates(account_id: str, risk: float | None, fam: str | None, flagging: list[str], threshold: float) -> dict[str, bool]:
+def _location(account_id: str) -> dict[str, Any] | None:
+    """High-confidence location evidence for the account (vigil/geo/intel.py), or None. Never raises."""
+    try:
+        from vigil.geo import intel as geo_intel
+        return geo_intel.corroborating(account_id)
+    except Exception:
+        return None
+
+
+def _with_location(reason: str, status: str | None, risk: float | None, fam: str | None, flagging: list[str],
+                   threshold: float, account_id: str, loc: dict[str, Any] | None) -> str:
+    """Append the location rule to the reason ONLY when it changed the status (audit trail: which rule, why)."""
+    if not loc or status is None:
+        return reason
+    base = classify(risk, fam, flagging, threshold, **_gates(account_id, risk, fam, flagging, threshold))
+    if base == status:
+        return reason
+    from vigil.geo import intel as geo_intel
+    others = ", ".join(SHORT.get(f, f) for f in flagging)
+    lead = (f"Model evidence {risk:.2f} ({SHORT.get(fam or '', fam)}) >= live threshold {threshold:.2f}"
+            if status == "flagged" and risk is not None and risk >= threshold else f"Detector signals: {others}")
+    return f"{lead}; {geo_intel.explain(loc)} (location is corroborating only)"
+
+
+def _gates(account_id: str, risk: float | None, fam: str | None, flagging: list[str], threshold: float,
+           location: bool = False) -> dict[str, bool]:
     """Evaluate the RingWatch-backed gates only when they can change the answer."""
-    model_route = risk is not None and risk >= threshold and any(f != fam for f in flagging)
-    return {"structural": len(flagging) >= 2 and structural(account_id),
-            "onward": onward(account_id) if model_route else True}
+    model_route = risk is not None and risk >= threshold and (any(f != fam for f in flagging) or (location and bool(flagging)))
+    return {"structural": (len(flagging) >= 2 or (location and len(flagging) >= 1)) and structural(account_id),
+            "onward": onward(account_id) if model_route else True, "location": location}
 
 
 def detector_status(snap: live.Snapshot, account_id: str, threshold: float) -> tuple[str | None, str]:
     """flagged / early_warning / None from the detector snapshot alone (no Vigil state), with its reason."""
     risk, fam = model_evidence(snap, account_id)
     flagging = _flagging(snap, account_id)
-    status = classify(risk, fam, flagging, threshold, **_gates(account_id, risk, fam, flagging, threshold))
-    return status, detector_reason(snap, account_id, threshold, status, risk, fam, flagging)
+    loc = _location(account_id)
+    status = classify(risk, fam, flagging, threshold, **_gates(account_id, risk, fam, flagging, threshold, loc is not None))
+    reason = detector_reason(snap, account_id, threshold, status, risk, fam, flagging)
+    return status, _with_location(reason, status, risk, fam, flagging, threshold, account_id, loc)
 
 
 def detector_reason(snap: live.Snapshot, account_id: str, threshold: float, status: str | None,
@@ -308,6 +346,7 @@ def _compute(snap: live.Snapshot, now_t: float, held: dict[str, str], confirmed:
     T = STATE.threshold
     window_start = now_t - LIVE_WINDOW_MINUTES * 60
     feats, rf, gnn, flags = snap.feats, snap.rf, snap.gnn, snap.flags
+    locmap = _location_map()
     out: dict[str, dict[str, Any]] = {}
     for a in live.GRAPH.accounts:
         if live.SRC.is_external(a):
@@ -317,6 +356,7 @@ def _compute(snap: live.Snapshot, now_t: float, held: dict[str, str], confirmed:
         risk = fam = None
         flagging: list[str] = []
         det = None
+        loc_changed = False
         if a in feats:
             r1, g1 = rf.get(a), gnn.get(a)
             if r1 is not None and (g1 is None or r1[1] >= g1[1]):
@@ -327,7 +367,10 @@ def _compute(snap: live.Snapshot, now_t: float, held: dict[str, str], confirmed:
             if fl:
                 flagging = [f for f in live.INTEL_FAMILIES if fl.get(f)]
             if flagging:
-                det = classify(risk, fam, flagging, T, **_gates(a, risk, fam, flagging, T))
+                loc = locmap.get(a)
+                det = classify(risk, fam, flagging, T, **_gates(a, risk, fam, flagging, T, loc is not None))
+                if loc is not None:      # audit: did location change the answer? (the rule without it, same gates)
+                    loc_changed = det != classify(risk, fam, flagging, T, **_gates(a, risk, fam, flagging, T))
         age = None
         if a in confirmed:
             status = "confirmed_fraud"
@@ -346,8 +389,27 @@ def _compute(snap: live.Snapshot, now_t: float, held: dict[str, str], confirmed:
                 status = "idle"
         r4 = None if risk is None else round(risk, 4)
         out[a] = {"status": status, "risk": r4, "model_risk": r4, "role": None, "families_flagging": len(flagging),
-                  "reason": None, "detector_status": det, "_fam": fam, "_flagging": flagging, "_age": age}
+                  "reason": None, "detector_status": det, "_fam": fam, "_flagging": flagging, "_age": age,
+                  "_loc": locmap.get(a) if flagging else None, "_loc_changed": loc_changed}
     return out
+
+
+def _location_map() -> dict[str, dict[str, Any]]:
+    """Accounts whose HIGH-confidence location evidence may corroborate (empty when disabled). Never raises."""
+    try:
+        from vigil.geo import intel as geo_intel
+        geo_intel.refresh()
+        return {a: e for a, e in geo_intel.STATE.evidence.items() if e["corroborates"]}
+    except Exception:
+        return {}
+
+
+def _location_version() -> int:
+    try:
+        from vigil.geo import intel as geo_intel
+        return geo_intel.refresh()
+    except Exception:
+        return 0
 
 
 def _reason(snap: live.Snapshot, a: str, v: dict[str, Any], held: dict[str, str], confirmed: dict[str, str]) -> str:
@@ -361,6 +423,7 @@ def _reason(snap: live.Snapshot, a: str, v: dict[str, Any], held: dict[str, str]
         r = held.get(a, "Active scoped hold on an outgoing payment")
     elif st in ("flagged", "early_warning"):
         r = detector_reason(snap, a, STATE.threshold, st, v["model_risk"], v.get("_fam"), v.get("_flagging") or [])
+        r = _with_location(r, st, v["model_risk"], v.get("_fam"), v.get("_flagging") or [], STATE.threshold, a, v.get("_loc"))
     elif st == "new":
         age = v.get("_age")
         r = f"Account opened {age:.1f} days ago" if age is not None else "Account opened recently"
@@ -434,7 +497,7 @@ def _sync(snap: live.Snapshot, publish: bool) -> tuple[dict[str, dict[str, Any]]
     fresh = _ensure_epoch(snap)
     now_t = clock.now().timestamp()
     held, confirmed, vkey = _vigil_state()
-    key = (snap.key, id(snap), STATE.threshold, vkey, int(now_t // 5))
+    key = (snap.key, id(snap), STATE.threshold, vkey, int(now_t // 5), _location_version())
     if key == STATE.view_key:
         return STATE.view, []
     view = _compute(snap, now_t, held, confirmed)
@@ -532,7 +595,9 @@ def status_map() -> dict[str, dict[str, Any]]:
             vsnap, held, confirmed = STATE.view_ctx
             out = {a: {"status": v["status"], "risk": v["risk"], "model_risk": v["model_risk"], "role": v["role"],
                        "families_flagging": v["families_flagging"], "reason": _reason(vsnap, a, v, held, confirmed),
-                       "families": list(v.get("_flagging") or []), "since": STATE.since.get(a)}
+                       "families": list(v.get("_flagging") or []), "since": STATE.since.get(a),
+                       "location": ({"rules": v["_loc"]["corroborating_rules"], "score": v["_loc"]["score"],
+                                     "changed_status": bool(v.get("_loc_changed"))} if v.get("_loc") else None)}
                    for a, v in view.items()}
             STATE.view_out = cached = (view, out)
         return dict(cached[1])

@@ -152,7 +152,10 @@ def findings() -> list[dict[str, Any]]:
                                  f"{c['first_ts'][11:16]} and {c['last_ts'][11:16]} UTC (simulated ATM locations).",
                     "facts": [f"{inr(c['value_paise'])} withdrawn within {c['radius_km']} km",
                               f"between {c['first_ts'][11:16]} and {c['last_ts'][11:16]} UTC",
-                              "Simulated ATM terminal locations (±25 m)"],
+                              "Simulated ATM terminal locations (±25 m)",
+                              f"{len(c['accounts'])} risky accounts · {c.get('atm_count', len(c['tx_ids']))} ATM terminal(s) · "
+                              f"{c.get('minutes', 0):.0f}-minute window",
+                              f"Rule: {c.get('rule', 'cash-out cluster')}"],
                     "confirmed": False, "ts": c["last_ts"], "city": c["city"]})
     for t in overview.impossible_travel(since2h):
         span = "under a minute" if t["minutes"] < 1 else f"{t['minutes']:.0f} min"
@@ -164,7 +167,10 @@ def findings() -> list[dict[str, Any]]:
                     "situation": f"{who}'s device paid from {t['from_city']} and then from {t['to_city']} ({t['km']} km "
                                  f"apart) within {span} — faster than any travel ({limit} km/h limit).",
                     "facts": [f"{t['km']} km apart, implied speed {t['kmh']} km/h (limit {limit} km/h)",
-                              "Same account, consecutive device-GPS fixes (simulated)"],
+                              "Same account, consecutive presence fixes (device GPS / ATM terminal; simulated)",
+                              f"Location quality: {' → '.join(p['label'].replace('Simulated location · ', '') for p in t.get('points', []))}"
+                              f" · {t.get('effective_km', t['km'])} km after subtracting both accuracies · confidence {t.get('confidence', 'high')}",
+                              "Location is corroborating evidence: it can support, never decide, an account's status"],
                     "confirmed": False, "ts": t["ts"], "city": t["to_city"]})
     for al in db.q("SELECT a.*, i.state FROM alerts a LEFT JOIN transaction_intents i ON i.id = a.intent_id "
                    "WHERE a.tier >= 3 AND a.status = 'open' ORDER BY a.ts DESC LIMIT 20"):

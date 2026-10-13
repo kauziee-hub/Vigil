@@ -33,9 +33,54 @@ export interface MapCluster {
   accounts: string[]; value_paise: number; city: string | null; first_ts?: string; last_ts?: string; tx_ids?: string[];
   senders?: number; account?: string; status?: AccountStatus; rule?: string;
 }
+export interface StateFlow {
+  from_state: string; to_state: string; tx_count: number; value_paise: number; fraud_linked_paise: number;
+  suspicious_paise: number; accounts: number; risky_accounts: number; risk: Risk;
+  top_pair: { from_city: string; to_city: string; from_lat: number; from_lng: number; to_lat: number; to_lng: number };
+}
 export interface GeoMap {
   window: Window; channel: string; generated_ts: string; synthetic: true; cities: MapCity[]; flows: MapFlow[];
+  state_flows?: StateFlow[];
   atm: MapAtm[]; clusters: MapCluster[]; totals: { postings: number; value_paise: number };
+}
+
+// ── v12 location intelligence (GET /api/geo/intel) — simulated locations, corroborating evidence only ──
+export interface GeoPoint { tx_id: string; ts: string; city: string; lat: number; lng: number; basis: string; acc_m: number; label: string }
+export type LocRule = "LOC_IMPOSSIBLE_TRAVEL" | "LOC_UNUSUAL_REGION" | "LOC_MULTI_CITY_BURST";
+export interface LocFinding {
+  rule: LocRule; account: string; name?: string; status?: AccountStatus; confidence: "high" | "low"; reason: string;
+  tx_ids: string[]; ts: string; points: GeoPoint[];
+  from_city?: string; to_city?: string; km?: number; effective_km?: number; minutes?: number; kmh?: number; speed_text?: string; threshold_kmh?: number;
+  city?: string; home_city?: string | null; home_km?: number | null; nearest_baseline_km?: number; baseline_cities?: string[];
+  baseline_points?: number; cities?: string[]; threshold?: string; observed?: string;
+}
+export interface CashOutCluster extends MapCluster {
+  atms: { terminal_id: string; bank: string; site: string; lat: number; lng: number }[]; atm_count: number; minutes: number;
+  withdrawals: { tx_id: string; ts: string; account: string; amount_paise: number; lat: number; lng: number }[];
+  account_names: string[]; basis: string;
+}
+export interface LocAnomaly { account: string; name: string; status: AccountStatus; score: number; corroborates: boolean;
+  contributed: boolean; rules: LocFinding[] }
+export interface LocSelectedAccount {
+  kind: "account"; account: string; name: string; status: AccountStatus; home_city: string | null;
+  home: { lat: number; lng: number } | null; usual_cities: string[]; baseline_points: number; has_baseline: boolean;
+  route: GeoPoint[]; evidence: { rules: LocFinding[]; score: number; corroborates: boolean } | null;
+  verdict: "normal" | "suspicious" | "unconfirmed"; travel: LocFinding[];
+}
+export interface LocSelectedCity {
+  kind: "city"; city: string; accounts_here: number; precise_here: number;
+  risky_accounts: { account: string; name: string; status: AccountStatus; postings: number; value_paise: number }[];
+  atm_withdrawals: number; atm_value_paise: number; atm_risky: number; atm_risky_value_paise: number;
+  travel: LocFinding[]; clusters: string[]; newcomers: { account: string; name: string; home_city: string | null }[];
+}
+export interface GeoIntel {
+  generated_ts: string; since: string; policy_version: string; synthetic: true; corroboration_enabled: boolean;
+  thresholds: { impossible_travel_kmh: number; min_km: number; unusual_region_min_km: number; multi_city: string;
+    cash_out: { cash_out_min_withdrawals: number; cash_out_radius_km: number; cash_out_window_min: number } };
+  impossible_travel: LocFinding[]; low_confidence: LocFinding[]; cash_out: CashOutCluster[]; anomalies: LocAnomaly[];
+  normal: { located_postings: number; precise_postings: number; coarse_postings: number; accounts: number; cities: number;
+    moves_checked: number; fastest_normal_kmh: number | null; accounts_with_signals: number };
+  selected?: LocSelectedAccount | LocSelectedCity | ({ kind: "cluster" } & Omit<CashOutCluster, "kind">);
 }
 
 export interface TxGeo { city: string | null; lat: number | null; lng: number | null; basis: string | null;
@@ -132,6 +177,8 @@ export const v10 = {
   kpis: (window: Window, channel: string, accounts?: string[]) =>
     get<Kpis>(`/api/overview/kpis?${qs({ window, channel, accounts: accounts?.join(",") })}`),
   map: (window: Window, channel: string) => get<GeoMap>(`/api/geo/map?${qs({ window, channel })}`),
+  geoIntel: (window: Window, sel: { account?: string; city?: string; cluster?: string } = {}) =>
+    get<GeoIntel>(`/api/geo/intel?${qs({ window, ...sel })}`),
   tape: (o: { limit?: number; since_id?: string; channel?: string; only?: string; q?: string; accounts?: string[] }) =>
     get<{ rows: TapeRow[] }>(`/api/tx/tape?${qs({ ...o, accounts: o.accounts?.join(",") })}`),
   connections: (txId: string) => get<Connections>(`/api/tx/${encodeURIComponent(txId)}/connections`),

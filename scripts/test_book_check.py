@@ -7,6 +7,8 @@
 It uses the same HTTP API the screens use (Test inputs drawer, customer device, case page), so a PASS
 means the presenter will see exactly what the book says. Each suite starts from "Reset demo world"
 (about 25 s), which DISCARDS every posting, decision and attack run since seeding — hence --yes.
+Suites A, B, D and E make payments directly, so time-of-day rules use the real hour: between 00:00 and 05:00 IST the
+"unusual hour" signal (book, golden rule 4) moves some tiers. Run them in the daytime.
 Background traffic is paused during a suite so it cannot add signals; it is switched back on at the end.
 
 Exit code 0 = every expected result held. Results are also written as JSON (--out).
@@ -308,6 +310,40 @@ class Book:
         self.record("G1", "Cash-out cluster", {"incidents": [
             {k: i.get(k) for k in ("severity", "kind_label", "subject", "title", "situation", "respond_within")} for i in inc]})
 
+    def suite_l(self) -> None:
+        """L — location intelligence (v12): normal geography, impossible travel, coordinated cash-out, corroboration."""
+        print("\nSuite L — location intelligence")
+        self.reset()
+        g = self.get("/geo/intel", window="1h")
+        self.check("L1", "fresh world: no location signals", not g["impossible_travel"] and not g["anomalies"] and not g["cash_out"],
+                   f"{len(g['impossible_travel'])} travel · {len(g['anomalies'])} anomalies · {len(g['cash_out'])} clusters")
+        self.record("L1", "Normal geography after a reset", {"normal": g["normal"]})
+        self.run_scenario("atk_cross_channel")
+        g = self.get("/geo/intel", window="1h")
+        t = g["impossible_travel"][0] if g["impossible_travel"] else {}
+        print("  L2  Cross-Channel Burst → impossible travel")
+        self.check("L2", "impossible travel Delhi → Kolkata, high confidence",
+                   (t.get("from_city"), t.get("to_city"), t.get("confidence")) == ("Delhi", "Kolkata", "high"),
+                   f"{t.get('from_city')} → {t.get('to_city')} · {t.get('km')} km · {t.get('speed_text')} · {t.get('confidence')}")
+        sel = self.get("/geo/intel", window="1h", account=t.get("account", "")).get("selected", {})
+        self.check("L2", "the account's geography is 'suspicious' with its usual places", sel.get("verdict") == "suspicious"
+                   and bool(sel.get("usual_cities")), f"{sel.get('verdict')} · home {sel.get('home_city')} · usual {sel.get('usual_cities')}")
+        inc = [i for i in self.incidents("open") if i["kind"] == "impossible_travel"]
+        self.check("L2", "Possible-account-takeover alert raised", bool(inc), inc[0]["title"] if inc else "missing")
+        self.record("L2", "Impossible travel", {"finding": t, "selected": sel, "incident": inc[0] if inc else None})
+        for sid in ("s2", "atk_velocity_chain", "atk_shared_device"):
+            self.run_scenario(sid)
+        g = self.get("/geo/intel", window="1h")
+        c = next((x for x in g["cash_out"] if x["city"] == "Mumbai"), {})
+        print("  L3  Money-mule network + Velocity Chain + Shared Device → coordinated cash-out")
+        self.check("L3", "Mumbai cash-out cluster with its ATMs", bool(c) and c.get("atm_count", 0) >= 2 and len(c.get("accounts", [])) >= 3,
+                   f"{len(c.get('accounts', []))} accounts · {c.get('atm_count')} ATMs · radius {c.get('radius_km')} km · "
+                   f"₹{c.get('value_paise', 0) // 100:,}")
+        anoms = [(a["name"], [r["rule"] for r in a["rules"]], a["status"], a["contributed"]) for a in g["anomalies"]]
+        self.check("L3", "location never classifies alone (every account with location evidence has detector families)",
+                   all(a[2] in {"flagged", "early_warning", "held", "confirmed_fraud"} for a in anoms), anoms)
+        self.record("L3", "Coordinated cash-out and anomalies", {"cluster": c, "anomalies": anoms, "normal": g["normal"]})
+
     def suite_e(self) -> None:
         """E — governance and controls: false-positive control, shadow mode."""
         print("\nSuite E — controls")
@@ -330,7 +366,7 @@ class Book:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base", default="http://127.0.0.1:8000")
-    ap.add_argument("--only", default="A,B,C,D,E,F,G", help="comma-separated suites")
+    ap.add_argument("--only", default="A,B,C,D,E,F,G,L", help="comma-separated suites")
     ap.add_argument("--out", default=str(Path(__file__).resolve().parents[1] / "data" / "test_book_results.json"))
     ap.add_argument("--yes", action="store_true", help="confirm: each suite resets the demo world")
     a = ap.parse_args()
@@ -341,7 +377,8 @@ def main() -> int:
     health = book.get("/health")
     print(f"Vigil at {a.base} · policy {health['policy_version']} · {health['accounts']} accounts")
     suites: dict[str, Callable[[], None]] = {"A": book.suite_a, "B": book.suite_b, "C": book.suite_c,
-                                             "D": book.suite_d, "E": book.suite_e, "F": book.suite_f, "G": book.suite_g}
+                                             "D": book.suite_d, "E": book.suite_e, "F": book.suite_f, "G": book.suite_g,
+                                             "L": book.suite_l}
     t0 = time.time()
     try:
         for s in a.only.split(","):
