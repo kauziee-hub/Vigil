@@ -31,7 +31,7 @@
 * **Score cells:** `.score-cell`, a 64 px bar plus a mono value coloured by band. Sortable headers use `th.sortable` with an arrow.
 
 ## v5 — operations center (current, 2026-10-12)
-Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). References: `docs/archive/references/reference_v5/*`. Implementation: `frontend/src/styles/tokens.css` (light tokens + `[data-theme="dark"]`) and `frontend/src/styles/v5.css` (loaded after `app.css`).
+Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). Implementation: `frontend/src/styles/tokens.css` (light tokens + `[data-theme="dark"]`) and `frontend/src/styles/v5.css` (loaded after `app.css`).
 * Field `#eef1f3` with a soft mint radial glow; cards white, 20 px radius, two-layer soft shadow, no borders; tiles 18 px.
 * Navigation: one pill bar in the top bar; the active item has a mint gradient (`#7cecd5 → #4fd6b8`) with dark mint ink. Buttons are pills; primary is near-black `#0f1419`.
 * Status colours are unchanged in meaning (watch amber, high orange, critical red, held violet, confirmed fraud crimson), tuned for white.
@@ -42,7 +42,7 @@ Supersedes v4's dark graphite as the default (v4 becomes the dark toggle). Refer
 
 ## v4 — institutional (current, 2026-10-09; supersedes the v3 visual language below)
 
-User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): "Not the green UI. Make it a professional, matured UI. Neat it up. Fully functional, no fake stuff." v3's *functionality* (live universe, command center, streams, score tables, attack runs, all nine areas) is kept; its *look* (green-black field, mint accent, glow, translucent glass, display hero, letter-spaced eyebrows) is replaced.
+User direction: "Not the green UI. Make it a professional, matured UI. Neat it up. Fully functional, no fake stuff." v3's *functionality* (live universe, command center, streams, score tables, attack runs, all nine areas) is kept; its *look* (green-black field, mint accent, glow, translucent glass, display hero, letter-spaced eyebrows) is replaced.
 
 | Decision | v4 rule |
 |---|---|
@@ -62,7 +62,7 @@ User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): 
 
 Owner: Claude 3 (frontend). Applies to every bank-side screen. The customer device (`/pay`, the phone inside Transaction Guard) is a light consumer card; the trusted-contact phone (`/contact/:token`) uses the v3 dark field with one large alert card.
 
-Goal (user direction 2026-10-07, `AGENT_HANDOFF/prompts/04_USER_refined_mule_repo_2026-10-07.md`): reach the level of the refined money-mule reference — its live 3D transaction universe, analytics and look — and bring Vigil's PRIMA layer (pre-commit assessment, interventions, replay, counterfactuals, provenance, governance) into the same system. Calm and readable; no neon noise.
+Goal (user direction 2026-10-07): reach the level of the refined money-mule reference — its live 3D transaction universe, analytics and look — and bring Vigil's PRIMA layer (pre-commit assessment, interventions, replay, counterfactuals, provenance, governance) into the same system. Calm and readable; no neon noise.
 
 Implementation: `frontend/src/styles/tokens.css` (tokens), `frontend/src/styles/app.css` (components), `frontend/src/components/ui.tsx` (primitives), `frontend/src/lib/status.ts` (status scales), `frontend/src/lib/universe3d.ts` (live universe engine), `frontend/src/lib/graphStyle.ts` (evidence-scene grammar), `frontend/src/components/charts.tsx` (Chart.js wrapper).
 
@@ -164,6 +164,6 @@ A light theme exists (`data-theme="light"`) with the same roles.
 * **Risk over time on the account page** has no stored score history for model families, so it samples the backend's own values each time they are re-computed while the page is open, and says so.
 * **Before `intel.tx_scored` is served,** the streams carry each party's *current* live status from the universe (RingWatch + Vigil state), are seeded with the newest postings of the live window and the newest PRIMA alerts, and say so in their footers.
 * **Bundles:** three.js only in the Overview / Network chunks; Chart.js (208 kB) only when a chart mounts; Cytoscape only on the 2D fallback.
-* **Screenshots** (`docs/archive/screenshots/ui_v3/`) are captured headless with an isolated Chromium at 1600 × 1000 (390 × 844 for the contact phone).
+* **Screenshots** are captured headless with an isolated Chromium at 1600 × 1000 (390 × 844 for the contact phone).
 
 History: v2 decisions (run 2–3: role shapes, scene caching, shared customer device, tier-coloured final score, printed value kinds, risk-evolution labelling, alert-window gap) remain in force; see git history of this file (`3aaa7ae`) for the v2 text.

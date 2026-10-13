@@ -1,6 +1,8 @@
 # Demo script — final demonstration (~12 minutes)
 
-Every step below was run end to end on the live backend (last verified 2026-10-13). The results shown are what the system produced, not mock-ups. Records: `AGENT_HANDOFF/runs/`.
+Every step below was run end to end on the live backend (last verified 2026-10-13). The results shown are what the system produced, not mock-ups.
+
+For every test input with its expected result and what it proves (tier ladder, policy behaviour, all 11 attack patterns, the feedback loop, controls), see the **demo test book**: `docs/DEMO_TEST_BOOK.md` / `docs/Vigil_Demo_Test_Book.pdf`. One command re-verifies it: `backend/.venv/Scripts/python.exe scripts/test_book_check.py --yes`.
 
 The product screens show no simulation controls. Everything you drive for the demo comes from **Test inputs** (top bar, or **Alt + T**). This is a small drawer of minimal inputs, in the style of PRIMA's `/ops` page. Every input is a real API call.
 

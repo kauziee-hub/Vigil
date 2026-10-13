@@ -15,3 +15,8 @@ __pycache__/
 
 # TypeScript incremental build info (tsc -b)
 *.tsbuildinfo
+
+# Local-only: agent build records, superseded material, dev tooling
+AGENT_HANDOFF/
+_local/
+.claude/

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v12 — demo test book (2026-10-13, Claude 1)
+
+- **Demo test book** (`docs/DEMO_TEST_BOOK.md`, PDF `docs/Vigil_Demo_Test_Book.pdf`): every test input, the result it must give, where to look and what it proves, in seven suites — the PRIMA tier ladder (one payment per tier), policy behaviour (pressure words alone, corroboration, large-but-normal, velocity, the circuit-breaker cap), all 11 attack patterns with their detection result and Vigilance alert, the feedback loop (confirmed report → TaintTrace → the same payment held → incidents and the 12-step procedure → release), controls (false-positive control, shadow mode), all patterns back to back, and the cash-out cluster combination. A 15-minute demo order with checkpoints and a troubleshooting table.
+- **`scripts/test_book_check.py`** replays every case through the HTTP API and checks it (117 checks).
+- **Test inputs drawer (additive):** a "More tiers" row so every tier has a one-click input, and an **Expected:** line under the chosen preset and the selected pattern. The original presets are unchanged.
+
 ## v8 — operations center, close monitoring, explained Detection, functional guide (2026-10-13, Claude 1)
 
 - **Overview = live activity only**, nothing duplicated elsewhere: KPI strip (postings, value moved, accounts at risk, open interventions, new accounts, last detection run: click to frame the attack in the network) → **full-width, taller live network** → Needs attention (each account with its reason, status-since time and how many families agree) beside **Close monitoring** → **Money moving now** (payments per 30 s by origin, value, risky postings, channels, largest payments) beside **New accounts** (opened in the last 30 days, inflow since opening, large-inflow and shared-device flags). SHAP and detector families moved to Detection; decisions by tier stay on Governance / Health.
@@ -21,7 +27,7 @@
 
 ## v10 — Overview money map, live tape, mule pipeline, Copilot (2026-10-13, Claude 1, branch `overview-v10`)
 
-Plan: `AGENT_HANDOFF/prompts/10_OVERVIEW_V10_MASTER_PLAN.md`. Baseline and regression numbers: `AGENT_HANDOFF/baseline_v10.md`, `regression_v10.md`.
+Baseline and regression numbers: `docs/verification/baseline_v10.md`, `regression_v10.md`.
 - **Data (P1):** simulated locations on every posting (basis + accuracy), hash-derived homes in 22 cities, 172 generated ATM terminals, rails (UPI / IMPS / NEFT / RTGS / card / ATM / wallet / international wire; a rail selector on the phone), a 40-account legitimate onboarding cohort and an `ext:intl-wire` sink — all appended after the main seed (world digest unchanged; 0 status changes; 11/11 attacks, 0 FP).
 - **APIs (P2):** money map, tape, connections, KPIs, rings, pipeline, exits, channels, brief, attention, signals; all read-only, worst cold call 21 ms.
 - **Overview (P3–P6, P9):** money map (flat + lazy globe, India point-of-view Natural Earth boundary, bundled offline), virtualised live tape + connections drawer, shared selection, compact 3D network, KPI strip with deltas and sparklines, needs attention with ₹ in / out, situation brief, mule pipeline, money by channel, incident mode, collection points.
@@ -33,7 +39,7 @@ Plan: `AGENT_HANDOFF/prompts/10_OVERVIEW_V10_MASTER_PLAN.md`. Baseline and regre
 - **Razorpay removed.** Payments settle on a simulated rail behind the provider port. Gone: gateway probe, keys, checkout, confirm/fallback routes, `-Mock` flag.
 - **Overview focused** on what needs action and why: KPI strip, network + needs attention, SHAP drivers, detector families, last detection run, traffic. Account scoring moved to Detection; live activity moved to Network.
 - **Attacks verified live.** All 11 patterns detected, 0 false positives, every injected mule surfaced. Circular-ring originator now flagged (closed loop through ≥ 2 accounts counts as structural evidence): 3/4 → 4/4.
-- **Neater repository:** `docs/screenshots/` (current), `docs/archive/` (superseded plans, audits, old screenshots, references); README rewritten for the current product.
+- **Neater repository:** superseded plans, audits and old screenshots moved out of the published docs; README rewritten for the current product.
 
 ## v6 — identity, iPhone device, graph edge filter, overview architecture (2026-10-12, Claude 1)
 
@@ -53,7 +59,7 @@ Plan: `AGENT_HANDOFF/prompts/10_OVERVIEW_V10_MASTER_PLAN.md`. Baseline and regre
 
 ## v4 — professional UI + functional audit (2026-10-09, Claude 1)
 
-User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): not the green UI; professional, mature, neat; fully functional, nothing fake.
+User direction: not the green UI; professional, mature, neat; fully functional, nothing fake.
 
 - **Recovery:** both v3 run-2 agents were stopped by the account usage limit. Their work was recovered (`claude2/v3-run2-wip`, `claude3/v3-run2-wip`) and merged (`a8be146`, `99c4955`).
 - **Design system v4** (`8c10d32`): neutral graphite field, one steel-blue accent, IBM Plex Sans/Mono, flat hairline panels, 3–8 px radii, sentence case, icon navigation, a real light theme. No gradients, glow, blur, starfield or green. `docs/DESIGN_SYSTEM.md` §v4.
@@ -67,7 +73,7 @@ User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): 
 
 ### Claude 1 (lead)
 - Captured 19 screenshots of every v1 page/state (`docs/ui_current/`) and wrote `docs/UI_CURRENT_STATE.md`.
-- Initialised git (baseline `6ea2941`), systematic `AGENT_HANDOFF/` (MASTER_PROMPT index, AGENT_LEDGER, runs/).
+- Initialised git (baseline `6ea2941`).
 - Froze v2 contracts: provenance, detector results/consensus, SHAP, drift, pattern memory, roles, model registry, decision replay, counterfactuals, shadow-mode fields, 3D graph scene (`backend/vigil/contracts.py`, `frontend/src/api/types.ts`, `frontend/src/api/client.ts`).
 - `docs/FINAL_PARALLEL_PLAN.md`: 9-item information architecture, status colour scale, ownership, interfaces, merge protocol.
 - Optional vigil.intel router hook in app.py; scenarios.touched_accounts().
@@ -88,8 +94,7 @@ User direction (`AGENT_HANDOFF/prompts/06_USER_professional_ui_2026-10-09.md`): 
 - Ambient stream fix (found on the live world after Claude 2's merge: 130 of 140 accounts flagged by some detector, ordinary customers labelled "coordinator" with GNN 0.93). Cause: the background stream made one payment every 3 s, ~100x each account's own history, which the drift/early-warning/GNN detectors correctly read as abnormal; measured from a clean world: 29 ordinary customers drift-HIGH after 10 min, 104 of 133 after 40 min. Fix: the stream is now routine-preserving — a payment is made only if both accounts stay at or below their busiest 72 h block of the previous 45 days, otherwise the tick is skipped (`STATE["skipped"]`); default interval 3 s → 20 s (the 133-account world supports ~70 such payments per 72 h). After 800 ticks: 0 ordinary customers flagged by any detector. New test enforces both the per-account invariant and "no ordinary customer flagged" after 400 ticks. 269 tests + smoke 8/8.
 - Merged Claude 3 run 3 (`88823fb`): the institutional frontend — 9 areas (Overview, Transaction Guard, Network Intelligence 3D, Detection & Models, Investigations with Decision Replay / risk evolution / counterfactuals / provenance, Interventions, Governance & Audit, Scenario Lab, System Health), trusted-contact phone, design system (`docs/DESIGN_SYSTEM.md`), 20 screenshots (`docs/ui_v2/`). Build green (main 395 kB; 3D and 2D graph lazy-loaded).
 - `GET /api/interventions?min_tier=` (Claude 3 request); the queue merges every Tier ≥ 2 alert with the newest 100 so holds never drop out of view (`00f3920`).
-- Fixes from the lead's browser walkthrough of the merged build: browsers kept the cached v1 shell (index.html now `Cache-Control: no-cache`, `d6e83ae`); Decision Replay spark path invalid SVG (`4c5b750`); Scenario Lab "Decisions produced" stale after re-running a 1-step scenario (`a3b9ac9`). Walkthrough results: Acts 1–5, control, shadow mode, Transaction Guard live payment all pass (details in `AGENT_HANDOFF/runs/20261007-0110_claude3_frontend-redesign-run3.md`). 271 tests.
+- Fixes from the lead's browser walkthrough of the merged build: browsers kept the cached v1 shell (index.html now `Cache-Control: no-cache`, `d6e83ae`); Decision Replay spark path invalid SVG (`4c5b750`); Scenario Lab "Decisions produced" stale after re-running a 1-step scenario (`a3b9ac9`). Walkthrough results: Acts 1–5, control, shadow mode, Transaction Guard live payment all pass. 271 tests.
 - Merged Claude 2 run 4 (`c029fb6`, roles-v2.1 / consensus-v2.1): found in the walkthrough — an ordinary customer (ramesh) was shown as a mule "Distributor" with "moderate" agreement after the control rent payment, from early warning + drift alone. Now agreement above "weak" and any mule role require a mule-evidence family (RF, GNN, pattern memory, RingWatch, registry listing). SYNTHETIC VALIDATION on 30 test worlds: "≥ moderate" precision 0.44 → 0.875 at recall 0.865 → 0.858; non-mules given a role 279 → 33 (merchants 153 → 0); no retraining (no fitted artefact changed). Live: ramesh weak / unclassified, kiran strong / collector. UI wording follows (`3e7984a`). 286 tests.
 
 ## v1 — MVP (2026-10-06)
-See `AGENT_HANDOFF/runs/20261006-2112_claude1_v1-build.md`.

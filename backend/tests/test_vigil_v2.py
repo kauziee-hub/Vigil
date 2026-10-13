@@ -127,7 +127,7 @@ def test_ambient_stream_keeps_every_account_within_its_own_routine(world):
 
     from vigil.sim import cohort_v10
     # the stream's population: ordinary seeded customers (the v10 onboarding cohort is not part of the stream; its
-    # single-model scores right after seeding are reported in AGENT_HANDOFF/regression_v10.md §3)
+    # single-model scores right after seeding are reported in docs/verification/regression_v10.md §3)
     v10 = set(cohort_v10.account_ids())
     legit = [r["id"] for r in db.q("SELECT id FROM accounts WHERE seed_role = 'legit' AND kind = 'customer'") if r["id"] not in v10]
     for _ in range(400):

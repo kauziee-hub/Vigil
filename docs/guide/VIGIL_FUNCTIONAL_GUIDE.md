@@ -1,6 +1,6 @@
 # Vigil functional guide
 
-13 October 2026 · v11 (same content as the Claude Doc)
+13 October 2026 · v12 (the Claude Doc content plus the v12 Test inputs additions and the demo test book pointer)
 
 Vigil checks every payment before money moves and watches the bank's accounts for money-mule rings. This guide explains every screen in plain words: what it shows, how to read it, why it matters, and how to show it in a demo. Screenshots are from the live app on 13 Oct 2026 after a full demo run.
 
@@ -1072,15 +1072,17 @@ Use it when you want a scenario that is not in Test inputs (for example the fals
 
 **Test inputs (top bar, or Alt + T) is the only place with demo controls; every button is a real API call that drives the real system.** Escape or Close hides it.
 
-![Test inputs drawer](img/test_inputs_drawer.png)
+![Test inputs drawer with the More tiers row and the Expected lines](img/test_inputs_drawer_v12.png)
 
 | # | Section | Controls | What happens |
 | --- | --- | --- | --- |
-| 1 | Customer payment | Presets: *Everyday · grocer ₹500*, *Risky recipient · ₹45,000*, *Large but legitimate · ₹1,20,000* (rent deposit to the landlord). Paying as (Ramesh / Sunita), Amount, To, Note, Simulated call / message context. **Open on customer device** (goes to Payments with the phone filled in; you press Pay) or **Submit directly** (decides it here and shows the tier, score and a link to the case). | A real payment intent through the full pre-commit path. |
-| 2 | Inject a mule-network pattern | A list of the 11 network patterns (Money-mule network plus 10 single patterns, section 17) and **Inject**. While it runs: progress, Pause / Resume. When it ends: "detected 3 of 4 injected accounts, no false positives, 0.0 s to detection". | Real ledger postings streamed over 10–20 s, scored live, then graded against the answer key. |
+| 1 | Customer payment | Presets: *Everyday · grocer ₹500*, *Risky recipient · ₹45,000*, *Large but legitimate · ₹1,20,000* (rent deposit to the landlord); a second row, **More tiers**, adds *T0 · new payee ₹8,000*, *T1 · pressure words only*, *T3 · registry-confirmed mule* and *T3 · risky + pressure words*, so every tier has a one-click input. Under the chosen preset an **Expected:** line gives the tier and score it must produce. Paying as (Ramesh / Sunita), Amount, To, Note, Simulated call / message context. **Open on customer device** (goes to Payments with the phone filled in; you press Pay) or **Submit directly** (decides it here and shows the tier, score and a link to the case). | A real payment intent through the full pre-commit path. |
+| 2 | Inject a mule-network pattern | A list of the 11 network patterns (Money-mule network plus 10 single patterns, section 17) and **Inject**; an **Expected:** line under the list gives the detection result and the Vigilance alert for the selected pattern. While it runs: progress, Pause / Resume. When it ends: "detected 3 of 4 injected accounts, no false positives, 0.0 s to detection". | Real ledger postings streamed over 10–20 s, scored live, then graded against the answer key. |
 | 3 | Coerced payment (digital-arrest journey) | **Run journey**; a link to the trusted contact's phone. | Sunita: new device → payee added → limit raised → threatening call (simulated) → 95% of her savings → Tier 4 and Arjun alerted. |
 | 4 | Report a confirmed scam | **Find ring source** (finds the first payment into Kiran Traders from a victim), then **Report as confirmed scam**. | A bank-confirmed fraud label is created; TaintTrace re-runs and says how many accounts hold traced value. The next payment to any of them is floored at Tier 3. |
 | 5 | Environment | **Pause / Resume background traffic**, **Switch to SHADOW / ACTIVE**, **Reset demo world** (asks to confirm). A link to the Scenario lab. | Reset restores the identical starting world: every posting, decision, label, hold, attack run and watchlist entry since seeding is discarded. |
+
+**For a systematic run, use the demo test book** (`docs/DEMO_TEST_BOOK.md`, also as a PDF): every input, the result it must give, where to look and what it proves, organised as suites (tier ladder, policy behaviour, all 11 attacks, the feedback loop, controls), re-verified by `scripts/test_book_check.py`.
 
 Tip: inject one pattern at a time, and reset before a new one when you want the cleanest result. Several attacks in a row without a reset still work, but the world has changed by then (section 17 explains one case where that matters).
 

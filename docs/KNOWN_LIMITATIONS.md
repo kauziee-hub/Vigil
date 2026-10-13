@@ -80,7 +80,7 @@ Every component of the demo falls in exactly one of four buckets.
   rail on the phone (UPI, IMPS, NEFT, RTGS, card, wallet). Per-rail limits are not enforced.
 * **Onboarding cohort.** 40 legitimate new accounts (students, salaried, freelancers, shop owners) were appended after the
   main seed so the mule pipeline has ordinary new customers in it. One of them gets a high Random Forest score (new and
-  active) and is never flagged because no second family agrees — see `AGENT_HANDOFF/regression_v10.md`.
+  active) and is never flagged because no second family agrees — see `docs/verification/regression_v10.md`.
 * **Derived signals** (cash-out cluster, impossible travel, collection point, mule pipeline "suspicious path") are display
   heuristics in `config/copilot_policy.yaml`. They never change a status or a payment tier.
 * **Incident severity is a hand-set rubric** (base by kind + ₹ at stake + accounts + confirmed + recency − contained). It is

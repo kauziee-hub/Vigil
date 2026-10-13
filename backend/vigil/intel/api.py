@@ -1,4 +1,4 @@
-"""Detection-intelligence REST API (docs/archive/plans/FINAL_PARALLEL_PLAN.md §4.2). Included optionally by vigil/app.py.
+"""Detection-intelligence REST API (docs/design/FINAL_PARALLEL_PLAN.md §4.2). Included optionally by vigil/app.py.
 
     GET /api/intel/accounts/{account_id}              -> AccountIntel
     GET /api/intel/scores                             -> IntelScores   (cached per graph version)

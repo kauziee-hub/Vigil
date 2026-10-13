@@ -59,7 +59,6 @@ A ScopedHold applies **only to this intent's amount**. Inbound money is never he
 
 ```
 Fraud Detection/
-├─ AGENT_HANDOFF/           prompts, outputs, STATE.md (resume point for any agent)
 ├─ config/risk_policy.yaml  THE policy: weights, thresholds, windows, ladder (versioned)
 ├─ backend/
 │  ├─ prima/                vendored lineage library (unchanged) — TaintTrace math

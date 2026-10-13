@@ -255,7 +255,7 @@ class ErrorBody(BaseModel):
     details: Optional[dict[str, Any]] = None
 
 
-# ══ v2 contracts (frozen 2026-10-06 by Claude 1 — see docs/archive/plans/FINAL_PARALLEL_PLAN.md) ══
+# ══ v2 contracts (frozen 2026-10-06 by Claude 1 — see docs/design/FINAL_PARALLEL_PLAN.md) ══
 
 # ── Detection intelligence (implemented by Claude 2 in vigil/intel/**) ─────
 DetectorFamily = Literal[
@@ -456,7 +456,7 @@ class GraphScene(BaseModel):
 RiskDecision.model_rebuild()
 
 
-# ══ v3 live-platform contracts (frozen 2026-10-07 by Claude 1 — see docs/archive/plans/V3_LIVE_PLATFORM_PLAN.md) ══
+# ══ v3 live-platform contracts (frozen 2026-10-07 by Claude 1 — see docs/design/V3_LIVE_PLATFORM_PLAN.md) ══
 AccountStatus = Literal["normal", "idle", "new", "early_warning", "flagged", "held", "confirmed_fraud", "external"]
 
 

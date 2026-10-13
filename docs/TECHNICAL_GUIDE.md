@@ -110,7 +110,7 @@ On shutdown it stops the incident task and the ambient stream and closes the dat
 **How it works.**
 
 * uvicorn runs an **asyncio event loop** on one thread. An `async def` FastAPI handler runs directly on that loop. A plain `def` handler would instead be sent to a **thread pool** and could run at the same time as another handler.
-* Vigil has exactly one SQLite connection (`backend/vigil/db.py`, `_conn`, opened with `check_same_thread=False, isolation_level=None`). If two threads used it at once, their transactions could interleave. So every route is `async def`, and no handler `await`s in the middle of database work. Database access is therefore serialised on the event-loop thread without any locks. `AGENT_HANDOFF/STATE.md` lists "Don't add sync `def` routes" as a key fact.
+* Vigil has exactly one SQLite connection (`backend/vigil/db.py`, `_conn`, opened with `check_same_thread=False, isolation_level=None`). If two threads used it at once, their transactions could interleave. So every route is `async def`, and no handler `await`s in the middle of database work. Database access is therefore serialised on the event-loop thread without any locks. The project's build notes list "Don't add sync `def` routes" as a key fact.
 * Work that runs "in the background" is made of **asyncio tasks on the same thread**, not extra threads:
   * the ambient payment stream (`sim/ambient.py::_loop`, one tick every `VIGIL_AMBIENT_INTERVAL` seconds, default 3);
   * scenario runners (`sim/scenarios.py::_execute`, one step every `STEP_DELAY_S` = 1.1 s);
@@ -175,7 +175,7 @@ Ambient and scenario intents follow the same path; the only difference is that t
 | `scripts/` | `smoke_demo.py`, `benchmark_demo.py`, `frontend_checks.mjs`, `build_geo_assets.py`. |
 | `docs/` | Architecture, model card, validation report, limitations, benchmarks, design system, demo script, functional guide, this guide. |
 | `data/` | Git-ignored: `vigil.db` (+ `-wal`, `-shm`), raw map downloads. |
-| `AGENT_HANDOFF/` | Every prompt, run record and `STATE.md` (how the project was built with AI agents). |
+| `docs/design/`, `docs/verification/` | The frozen design plans the code cites, and the v10 baseline / regression records. |
 
 ---
 
@@ -452,7 +452,7 @@ The amount is the habitual average × U(0.75, 1.25), rounded down to whole rupee
 * Built **after** the main seed with its own generator, every posting tagged `source='cohort_v10'`; ids look like `first.last.NN@vigil`, a shape nothing else produces. The world digest test excludes them, so the pre-existing world stays byte-identical.
 * Heavy activity is kept out of the 72-hour live window (`live_cut = anchor − 80 h`). 60 % make one small payment 6–60 hours before the anchor.
 * Hard negatives on purpose: a freelancer paid by 6 clients who keeps the money; a shop with 8 regular buyers and fast but legitimate turnover; six benign shared-device pairs ("family phone", "shop counter phone") — two accounts per device, below the three the shared-device rule needs.
-* Excluded from attack pools and from the ambient stream. `AGENT_HANDOFF/regression_v10.md` records why: the first version leaked cohort accounts into the attack pools, shifted every attack onto different accounts and produced two false positives; the fix excluded them, and detection returned to the baseline (11/11 detected, 0 false positives) without touching any threshold.
+* Excluded from attack pools and from the ambient stream. `docs/verification/regression_v10.md` records why: the first version leaked cohort accounts into the attack pools, shifted every attack onto different accounts and produced two false positives; the fix excluded them, and detection returned to the baseline (11/11 detected, 0 false positives) without touching any threshold.
 
 ### 4.7 Simulated locations (`backend/vigil/geo/`)
 
@@ -478,7 +478,7 @@ The amount is the habitual average × U(0.75, 1.25), rounded down to whole rupee
 * Attack scenarios set **authored city hints** for their own postings (`attacks.py::geo_story`; `geo.HINTS`): the money-mule ring cashes out in Mumbai; the cross-channel hub starts in Delhi and is moved to Kolkata between two outflows, which makes the "impossible travel" signal fire. Hints are cleared by a reset.
 * The UI always prints the label, e.g. "Simulated location · ATM terminal · ±25 m" (`geo.label`).
 
-**Why.** Display and investigation context only. The rule "locations never feed a score or tier" is in `AGENT_HANDOFF/STATE.md` and in the module docstring; the derived signals built on them (cash-out clusters, impossible travel) only appear on the Overview and in incidents (sections 15–16).
+**Why.** Display and investigation context only. The rule "locations never feed a score or tier" is in the module docstring; the derived signals built on them (cash-out clusters, impossible travel) only appear on the Overview and in incidents (sections 15–16).
 
 ### 4.8 Scenarios and the 11 attack patterns
 
@@ -514,7 +514,7 @@ The amount is the habitual average × U(0.75, 1.25), rounded down to whole rupee
 | `atk_smurfing` Smurfing | An account receives 80,000 and makes 7 transfers of 9,400–9,900 (just under ₹10,000). | the structuring account |
 | `atk_dormant` Dormant activation | `dormant.savings` (quiet 76 days) receives 55,000 + 60,000 + 48,000 and sends 1,50,000 to another bank. | dormant.savings |
 
-**Live result (baseline record `AGENT_HANDOFF/baseline_v10.md`, live server, reset → inject → graded run):** 11 of 11 patterns detected, 0 false positives. Partial by design: the money-mule network flags 3 of 4 (Rahul stays at early warning) and the velocity chain 3 of 5 (head and tail at early warning).
+**Live result (baseline record `docs/verification/baseline_v10.md`, live server, reset → inject → graded run):** 11 of 11 patterns detected, 0 false positives. Partial by design: the money-mule network flags 3 of 4 (Rahul stays at early warning) and the velocity chain 3 of 5 (head and tail at early warning).
 
 ### 4.9 Attack runs and grading (`sim/runs.py`)
 
@@ -1129,7 +1129,7 @@ where *spent* is "no longer attributable for any reason" and includes `retagged`
 
 **Cache.** The result is cached under the key `(label count, latest label id, latest seq)`. If the labels have not changed and none of the new postings touch an account in the closure, nothing can change any attribution, so the cached result is returned and only its position is advanced. Otherwise it recomputes (restricted to the closure). `POST /api/labels` forces a run.
 
-**Measured.** On world v3 the restriction took a run from 2,026 ms to 13 ms (`AGENT_HANDOFF/STATE.md`, v3); the benchmark for this guide measured p50 19.7 ms over 115 journals; the reproduced Act 3 trace took 27 ms with 115 journals and a closure of 9 accounts. `tests/test_vigil_live.py::test_restricted_taint_trace_equals_full_trace` checks the restricted trace equals the full-ledger trace; `test_taint_cache_survives_unrelated_postings` checks the cache.
+**Measured.** On world v3 the restriction took a run from 2,026 ms to 13 ms (v3 build record); the benchmark for this guide measured p50 19.7 ms over 115 journals; the reproduced Act 3 trace took 27 ms with 115 journals and a closure of 9 accounts. `tests/test_vigil_live.py::test_restricted_taint_trace_equals_full_trace` checks the restricted trace equals the full-ledger trace; `test_taint_cache_survives_unrelated_postings` checks the cache.
 
 **Not used: incremental LIBR.** The vendored library also contains `prima/attribution/incremental.py`, an `IncrementalLineage` class that keeps the LIBR position up to date one posting at a time (exact for LIBR only, because LIBR's consumption depends only on totals per rank). It is tested (25 tests in `test_incremental_lineage.py`, plus ordering and seeding tests) but **Vigil does not call it**; the batch engine restricted to the closure is already fast enough at demo scale.
 
@@ -1821,7 +1821,7 @@ Section 5.3 describes the mechanism: `ledger.post` calls `hooks.emit(row)`, whic
 
 **What one call costs.** `on_posting` → `live.CACHE.current(allow_full=False)` (incremental refresh, section 10.10) → `_sync` (recompute the status map, diff it against the last published one, publish changes) → build and publish `intel.tx_scored`. `scored_ms` in the event is the measured time.
 
-**Measured for this guide (honest note).** On 2026-10-13 the laptop was running about 2.2 times slower than its own benchmark earlier the same day (risk-evaluation p50 8.8 ms against 4.06 ms in section 6.13). Under that load the hook measured a median of 54–72 ms and the budget test **failed** (median 54 ms against 20 ms). Whether it passes on an idle machine was not re-checked; `AGENT_HANDOFF/baseline_v10.md` records a full green suite earlier that day.
+**Measured for this guide (honest note).** On 2026-10-13 the laptop was running about 2.2 times slower than its own benchmark earlier the same day (risk-evaluation p50 8.8 ms against 4.06 ms in section 6.13). Under that load the hook measured a median of 54–72 ms and the budget test **failed** (median 54 ms against 20 ms). Whether it passes on an idle machine was not re-checked; `docs/verification/baseline_v10.md` records a full green suite earlier that day.
 
 **A subtle ordering issue.** For payments that go through an intent, `lifecycle._settle` calls `ledger.post` *inside its own* `db.tx()`. `ledger.post`'s inner transaction joins the outer one, so `GRAPH.add_transaction` and the hook run **before** the outer `COMMIT` (the payment-attempt update and the `PAYMENT_SUCCEEDED` transition follow). If anything after the hook raised, the database would roll back but the in-memory edge and the published `intel.*` events would remain. In practice nothing there fails, but "post-commit" is only literally true for direct `ledger.post` calls (Appendix A).
 
@@ -2274,7 +2274,7 @@ The drawer also returns both account cards (status, model risk, role, reason, ho
 
 **Worked example (fresh world, reproduced).** Kiran Traders, 9 days old: in ₹64,500, out ₹63,000, all to Zenith within 14–20 minutes of each inflow, so forwarded 97.7 % ≥ 70 %, inflow ≥ ₹20,000, age ≤ 30 → stage `passing_through`, **suspicious path**; not `exited`, because Zenith is not a sink. Funnel for the 60-day window: opened 46, funded 42, active 39, passing through 1, exited 0. The 40 onboarding-cohort accounts all stop before "passing through" (`tests/test_v10_overview.py`).
 
-**Why a display heuristic.** It is written in `config/copilot_policy.yaml`, never feeds a status or tier, and was adjusted once (shop purchases were wrongly counted as forwarding; `AGENT_HANDOFF/regression_v10.md` §5).
+**Why a display heuristic.** It is written in `config/copilot_policy.yaml`, never feeds a status or tier, and was adjusted once (shop purchases were wrongly counted as forwarding; `docs/verification/regression_v10.md` §5).
 
 ### 15.9 Exits, channel mix and the situation brief
 
@@ -2724,7 +2724,7 @@ There are six kinds of check, from fastest to slowest: property tests on the mon
 
 | Gate | How to run it (from the repository root, Windows) | What it proves | Last recorded result |
 |---|---|---|---|
-| Backend test suite | `cd backend; .venv\Scripts\python.exe -m pytest` | Everything in 18.3 and 18.4 | **381 tests collected** in the working tree on 2026-10-13 (374 at commit `490305a` + 6 in `test_vigilance_procedures.py` + 1 in `test_spa_path_traversal.py`). Last full run: **381 / 381 passed** (2026-10-13, working tree; 374/374 at v10). The P0 baseline was 337 passed, "≈ 35 min on the dev laptop, server + browser running" (`AGENT_HANDOFF/baseline_v10.md`). |
+| Backend test suite | `cd backend; .venv\Scripts\python.exe -m pytest` | Everything in 18.3 and 18.4 | **381 tests collected** in the working tree on 2026-10-13 (374 at commit `490305a` + 6 in `test_vigilance_procedures.py` + 1 in `test_spa_path_traversal.py`). Last full run: **381 / 381 passed** (2026-10-13, working tree; 374/374 at v10). The P0 baseline was 337 passed, "≈ 35 min on the dev laptop, server + browser running" (`docs/verification/baseline_v10.md`). |
 | One test file or test | `cd backend; .venv\Scripts\python.exe -m pytest tests/test_copilot.py -k prompt_injection` | Fast feedback while editing | — |
 | Smoke test | `backend\.venv\Scripts\python.exe scripts\smoke_demo.py` | The five demo acts and the ledger invariant (18.6) | 8/8 PASS (`baseline_v10.md`, `STATE.md`) |
 | Frontend checks | `node scripts/frontend_checks.mjs` | Safe markdown, UI-action whitelist, carried actions, case links, incident ordering, selection helper (18.5) | 20/20 on 2026-10-13 (working tree; 18 at commit `490305a`) |
@@ -2832,8 +2832,8 @@ Both scripts set `VIGIL_PAYMENT_PROVIDER=mock`, a variable nothing in the code r
 
 **The idea.** Before and after every change that might move detection, run all 11 attack patterns and compare with a recorded baseline. If anything changes, find out why before accepting it.
 
-* **The baseline** (`AGENT_HANDOFF/baseline_v10.md`, 2026-10-13, captured before any v10 change): pytest 337 passed, world digest passes, build green, smoke 8/8, risk-policy version `2026.10.07-v3.1+9ba3476c1d`, and the live 11-pattern table: every pattern detected, 0 false positives; money-mule network 3 of 4 flagged (Rahul at early warning); velocity chain 3 of 5 (head and tail at early warning); circular ring 4 of 4; the other eight 1 of 1 (shared device 5 of 5).
-* **The regression report** (`AGENT_HANDOFF/regression_v10.md`) is the honest record of the one time it changed. The first post-P1 run produced 2 false positives (cohort accounts `aarav.das.75` in fan-in and `anika.khan.37` in volume spike) and velocity chain fell to 1 of 5. **Cause:** the new onboarding cohort joined `sim/attacks.py::pool()`'s ordered list of ordinary customers and shifted every attack onto different accounts. **Fix:** exclude the cohort from attack pools and the ambient population — "not a detection change", no threshold, weight, rule or model touched. Result: identical to the baseline. The report also records 0 of 553 pre-existing accounts changing status, 3 of 40 cohort accounts with a single model score ≥ 0.5 (only `dhruv.sen.74` above the live threshold 0.85, never flagged because no second family agrees), the rail mix (521 accounts with 1 channel, 32 with 2, none with 3 or more, so the multi-channel signal cannot fire from the new rails), and the pipeline heuristic change (section 15.8).
+* **The baseline** (`docs/verification/baseline_v10.md`, 2026-10-13, captured before any v10 change): pytest 337 passed, world digest passes, build green, smoke 8/8, risk-policy version `2026.10.07-v3.1+9ba3476c1d`, and the live 11-pattern table: every pattern detected, 0 false positives; money-mule network 3 of 4 flagged (Rahul at early warning); velocity chain 3 of 5 (head and tail at early warning); circular ring 4 of 4; the other eight 1 of 1 (shared device 5 of 5).
+* **The regression report** (`docs/verification/regression_v10.md`) is the honest record of the one time it changed. The first post-P1 run produced 2 false positives (cohort accounts `aarav.das.75` in fan-in and `anika.khan.37` in volume spike) and velocity chain fell to 1 of 5. **Cause:** the new onboarding cohort joined `sim/attacks.py::pool()`'s ordered list of ordinary customers and shifted every attack onto different accounts. **Fix:** exclude the cohort from attack pools and the ambient population — "not a detection change", no threshold, weight, rule or model touched. Result: identical to the baseline. The report also records 0 of 553 pre-existing accounts changing status, 3 of 40 cohort accounts with a single model score ≥ 0.5 (only `dhruv.sen.74` above the live threshold 0.85, never flagged because no second family agrees), the rail mix (521 accounts with 1 channel, 32 with 2, none with 3 or more, so the multi-channel signal cannot fire from the new rails), and the pipeline heuristic change (section 15.8).
 * **Automated versions of the same check:** `test_intel_world_v3.py::test_attack_run_is_detected_live_without_false_positives` (all 11 patterns through the live stream as graded runs) and `test_intel_live.py::test_each_attack_pattern_is_corroborated_without_spill_over` (10 patterns, ≥ 3 families, no spill-over). These run the scenarios back to back with `run_sync`, without the 1.1 s step delay of the UI.
 * **`ml/eval_live_world.py`** records the same attacks plus the ambient stream at 0 / 600 / 1,800 postings in a throw-away database. It is evaluation code: it reads `seed_role` and the ground-truth mule lists, which the detection path never does.
 
@@ -2929,7 +2929,7 @@ There is **no budget for a whole payment** (create + pay + settle), no throughpu
 | **`/api/live/universe`** | **1.1–1.7 s** (≈ 0.8 s SQLite, ≈ 0.5 s `livestatus.statuses` with a full RingWatch scan) | loaded |
 | One incident-engine pass | 33–60 ms fresh world; 57–177 ms after attack scenarios | loaded |
 
-**History of the important improvements** (from `docs/CHANGELOG.md`, `AGENT_HANDOFF/STATE.md` and run records):
+**History of the important improvements** (from `docs/CHANGELOG.md` and the build records):
 
 | Change | Before → after |
 |---|---|
@@ -2937,7 +2937,7 @@ There is **no budget for a whole payment** (create + pay + settle), no throughpu
 | RingWatch population scan: label and exposure lookups computed once (v4, `f230e09`) | 228 ms → 44 ms |
 | Demo reset re-warms detection intelligence (v4) | first payment after a reset 675 ms → 17 ms |
 | Incremental detection refresh (v3 run 2, `2b186e2`) | per-posting work limited to dirty accounts (section 10.10) |
-| v1 world (142 accounts) vs world v3 (553+ accounts) | risk-evaluation p95 1.09 ms (`AGENT_HANDOFF/runs/20261006-2112_claude1_v1-build.md`) → 7.05 ms (2026-10-07) |
+| v1 world (142 accounts) vs world v3 (553+ accounts) | risk-evaluation p95 1.09 ms (v1 build record) → 7.05 ms (2026-10-07) |
 
 ### 19.3 Where the time goes in one payment
 
@@ -3091,7 +3091,7 @@ Nothing real is stored. Every statement below about "personal data" describes wh
 1. **Where the key is read.** `copilot/config.py:17–23`: the first non-empty of `GEMINI_API_KEY`, `GEMINI_API`, `GOOGLE_API_KEY` in the process environment. No key → the assistant runs offline (section 17).
 2. **The `.env` loader** (`settings.py:25–39`). A 10-line parser reads `KEY=VALUE` lines from `.env` at the repository root, then `backend/.env`, and calls `os.environ.setdefault`, so **a real environment variable always wins** over the file. It runs once, when `vigil.settings` is first imported, so editing `.env` needs a server restart. It is **skipped entirely when `VIGIL_NO_DOTENV=1`** (added in the working tree, `settings.py:37`).
 3. **Tests never see a key.** `backend/tests/conftest.py:12–14` sets `VIGIL_NO_DOTENV=1` and deletes the three key variables before anything is imported. Tests that need "a key" set the fake value `stub-not-a-real-key` and inject a stub client (`test_copilot.py:114, 166`).
-4. **Never committed.** `.gitignore` line 1 is `.env`; `git check-ignore` confirms both `.env` and `backend/.env` are ignored; `git log --all` shows neither file was ever committed. Only `.env.example` is tracked, and its `GEMINI_API_KEY=` is empty. `AGENT_HANDOFF/STATE.md` repeats the rule ("never push `.env`").
+4. **Never committed.** `.gitignore` line 1 is `.env`; `git check-ignore` confirms both `.env` and `backend/.env` are ignored; `git log --all` shows neither file was ever committed. Only `.env.example` is tracked, and its `GEMINI_API_KEY=` is empty. The project rule is "never push `.env`".
 5. **Never sent anywhere but Google, never echoed.** The key travels only in the `x-goog-api-key` request header (`copilot/gemini.py:80, 114`), never in a URL (URLs end up in logs). `config.status()` returns booleans, model names and counters only (`test_copilot.py::test_status_never_exposes_the_key`, `:192`). The assistant package's source must not contain `GEMINI_API_KEY=` (`:152`).
 6. **Scrubbed from model output.** Every streamed chunk and every saved answer passes through the `SECRET` pattern (Google `AIza…` and `AQ.…` keys, `sk-…`, Razorpay `rzp_test_` / `rzp_live_`, and `api_key` / `secret` / `token` followed by `:` or `=` and 12+ characters) → `[redacted]` (section 17.4; tests `test_copilot.py:158`, `test_vigilance_procedures.py:110`). A key split across two streamed chunks would slip past the per-chunk filter; the final saved message is scrubbed as a whole.
 
@@ -3316,7 +3316,7 @@ backend\.venv\Scripts\python.exe -m pip install torch==2.14.1 --index-url https:
 * **Start from nothing:** stop the server, delete `data/vigil.db` (and `-wal`, `-shm`); the next start seeds a fresh world because the `accounts` table is empty (`seed.ensure_seeded`).
 * **Frontend development with hot reload:** start the backend (`cd backend; .venv\Scripts\python.exe -m vigil.app`), then `cd frontend; npm run dev` and open `http://localhost:5173`. Vite proxies `/api` and `/ws` to `VIGIL_BACKEND` (default `http://127.0.0.1:8000`) (`frontend/vite.config.ts`).
 * **The trusted contact on a phone:** open the printed `http://<laptop-ip>:8000/contact/arjun` on a phone on the same Wi-Fi.
-* **Screenshots / browser automation:** use `http://127.0.0.1:8000` (the Playwright profile has a saved 33 % zoom for `localhost`, `AGENT_HANDOFF/STATE.md`).
+* **Screenshots / browser automation:** use `http://127.0.0.1:8000` (the Playwright profile has a saved 33 % zoom for `localhost`).
 * **Retrain the models:** `cd backend; .venv\Scripts\python.exe ml\train_all.py` (about 17 minutes; `--quick` writes nothing; section 11.1).
 
 ### 21.4 Environment variables
@@ -3389,8 +3389,8 @@ Every variable can also go in `.env` (repository root or `backend/`), which neve
 2. Restart the server. Check `GET /api/policy` shows the new values (the frontend reads it, so no frontend change is needed).
 3. Run `scripts/smoke_demo.py`: the five acts have fixed expected tiers (Tier 0, 2, 3, 4 and ≤ 1). If one moved, either the change is wrong or the demo script must change too.
 4. Run the full pytest suite. Expect `test_copilot.py::test_risk_policy_hash_unchanged_and_copilot_policy_separate` to fail until you update `RISK_POLICY_VERSION_AT_P0`, deliberately.
-5. Re-run the live 11-pattern attack check and compare with `AGENT_HANDOFF/baseline_v10.md` (the network rules feed RingWatch, which feeds the structural route to "flagged", section 10.11).
-6. Record what changed and why (the project keeps this in `docs/CHANGELOG.md` and `AGENT_HANDOFF/`).
+5. Re-run the live 11-pattern attack check and compare with `docs/verification/baseline_v10.md` (the network rules feed RingWatch, which feeds the structural route to "flagged", section 10.11).
+6. Record what changed and why (the project keeps this in `docs/CHANGELOG.md`).
 
 ### 21.7 Recipe: add a payment-decision rule
 
@@ -3461,7 +3461,7 @@ Heavier, because the family must work on training worlds and live, incrementally
 | The demo still tells the same story | `backend\.venv\Scripts\python.exe scripts\smoke_demo.py` |
 | Frontend types and build | `cd frontend; npm run build` |
 | Frontend safety checks | `node scripts/frontend_checks.mjs` |
-| Detection unchanged | the live 11-pattern check, compared with `AGENT_HANDOFF/baseline_v10.md` |
+| Detection unchanged | the live 11-pattern check, compared with `docs/verification/baseline_v10.md` |
 | The world unchanged | `tests/test_world_digest.py` (part of the suite) |
 | Speed | `backend\.venv\Scripts\python.exe scripts\benchmark_demo.py` on an idle machine |
 
@@ -3501,7 +3501,7 @@ The questions the decision asks are local — one account, its 72-hour window, o
 Three layers. Every posting is one row with both sides, written in one transaction with integer paise (`bool` rejected), so a debit without a credit is impossible (section 3.6). The sum of all balances is exactly 0 after seeding and after every scenario (`ledger.system_total()`, checked by `test_vigil_lifecycle.py::test_seed_is_deterministic_and_balanced`, `test_vigil_v2.py::test_attack_scenarios_are_deterministic_and_balanced` and the smoke test). And the tracing library's property tests generate random flows and check conservation for every one (`tests/lineage/test_attribution.py::test_conservation_holds_for_any_flow_and_any_rule`).
 
 **Q10. Is the demo cherry-picked?**
-The world is deterministic and pinned: a SHA-256 over 30,983 pre-v10 postings and 553 accounts must match (`tests/test_world_digest.py`), a reset restores every table byte for byte, and scripted scenarios pin the hour so the tiers are the same at 01:00 and 14:00 (sections 3.10, 4.8). The results are reported with their imperfections: the money-mule network is 3 of 4 flagged and the velocity chain 3 of 5 (the rest at early warning), and the one time a change shifted detection (2 false positives from the onboarding cohort) is written up with its cause and fix (`AGENT_HANDOFF/regression_v10.md`). What *is* chosen by us is the attacks themselves — which is why none of this is real-world accuracy (Q19).
+The world is deterministic and pinned: a SHA-256 over 30,983 pre-v10 postings and 553 accounts must match (`tests/test_world_digest.py`), a reset restores every table byte for byte, and scripted scenarios pin the hour so the tiers are the same at 01:00 and 14:00 (sections 3.10, 4.8). The results are reported with their imperfections: the money-mule network is 3 of 4 flagged and the velocity chain 3 of 5 (the rest at early warning), and the one time a change shifted detection (2 false positives from the onboarding cohort) is written up with its cause and fix (`docs/verification/regression_v10.md`). What *is* chosen by us is the attacks themselves — which is why none of this is real-world accuracy (Q19).
 
 ### 22.2 Data science and models
 
@@ -3562,7 +3562,7 @@ Because structuring means *just below* a reporting or review threshold, and ordi
 A `confirmed_mule` listing floors the payment at Tier 3 — a hold of *this payment's amount* for bank review, never an account freeze (section 6.8). The decision's provenance names the source ("local_registry (SIMULATED)") and its last-updated time, so an analyst can see the decision rests on the registry. A wrong `reported` listing adds 0.65 × 0.25 = 0.1625 to the score, which alone is only Tier 1 (a heads-up). Registry errors propagating is listed as a known failure mode (`docs/MODEL_CARD.md` §6).
 
 **Q29. How do you treat a brand-new customer with no history?**
-Behaviour rules need at least 5 past payments for the amount outlier (section 6.5), so a new customer is mostly judged on the recipient's network, the journey and any context. On the detection side, new and active accounts are exactly what the models find suspicious: 3 of the 40 legitimate cohort accounts have a single model score ≥ 0.5 and one reaches the 0.85 live threshold, but none is flagged because no second family agrees (`AGENT_HANDOFF/regression_v10.md` §3; `test_v10_geo_channels.py::test_cohort_accounts_are_not_flagged`). That is the corroboration rule doing its job.
+Behaviour rules need at least 5 past payments for the amount outlier (section 6.5), so a new customer is mostly judged on the recipient's network, the journey and any context. On the detection side, new and active accounts are exactly what the models find suspicious: 3 of the 40 legitimate cohort accounts have a single model score ≥ 0.5 and one reaches the 0.85 live threshold, but none is flagged because no second family agrees (`docs/verification/regression_v10.md` §3; `test_v10_geo_channels.py::test_cohort_accounts_are_not_flagged`). That is the corroboration rule doing its job.
 
 **Q30. Can Vigil harm a legitimate customer?**
 It is designed to keep harm small: Tier 1 is a heads-up, Tier 2 asks for a purpose, Tier 3 holds only *this payment's amount* for review, the customer can cancel at any time, inbound money is never held, and there is no account-freeze function anywhere (section 5.5; even the vendored ledger has a test, `test_there_is_no_freeze_account_function`). The friction guard caps established clean relationships at Tier 1, and the CircuitBreaker needs sender-side evidence (section 6.8). Customer text never accuses (`BANNED_CUSTOMER_WORDS`). The honest residual risks: a false Tier 3 delays a legitimate payment until a person reviews it (the 30-minute review window is shown but not enforced), and a keyword can mis-fire ("first instalment" matches "fir", section 6.6).
@@ -3839,7 +3839,7 @@ Plain-English meanings of the terms used in this guide, in alphabetical order. T
 
 ## Appendix A. Differences between docs and code, and possible bugs
 
-**How this list was made.** Every document in `docs/`, `README.md` and the main `AGENT_HANDOFF/` records was compared with the code and the committed artefacts on branch `overview-v10` (commit `490305a` plus the uncommitted working tree), on 13 October 2026. The rule throughout this guide applies: **the code is the truth**, and a document that disagrees with it is listed here, not silently corrected. Every "Appendix A" reference in sections 0–17 is covered below.
+**How this list was made.** Every document in `docs/`, `README.md` and the main build records was compared with the code and the committed artefacts on branch `overview-v10` (commit `490305a` plus the uncommitted working tree), on 13 October 2026. The rule throughout this guide applies: **the code is the truth**, and a document that disagrees with it is listed here, not silently corrected. Every "Appendix A" reference in sections 0–17 is covered below.
 
 **The working tree was moving while this was written.** The assistant (`backend/vigil/copilot/`), the Overview and several frontend files were being edited in parallel (for example `copilot/brief.py` changed at about 13:38 local time). Where an item was fixed or changed during writing, it says so. Re-check any item against the current code before quoting it.
 
@@ -3857,7 +3857,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 6 | `docs/KNOWN_LIMITATIONS.md:39` | "All 142 accounts, ~2,050 historical transactions" | A fresh world has **594 accounts and 31,232 postings** (section 4.1); the 142-account world was v1 |
 | 7 | `docs/KNOWN_LIMITATIONS.md:50` | "PatternMemory … roadmap; the old implementation … was not ported" | Pattern memory **is implemented** (`intel/pattern_memory.py`, `pattern-memory-v3.0`), with prototypes built offline from training worlds (section 10.5) |
 | 8 | `docs/KNOWN_LIMITATIONS.md:46` | "the demo API is unauthenticated and LAN-only" | Unauthenticated: yes. "LAN-only" is **not enforced**: uvicorn binds `0.0.0.0` by default (`settings.py:56`), so the server answers on every network the laptop joins (section 20.10) |
-| 9 | `docs/MODEL_CARD.md:76` | "Risk-evaluation latency p95 ≈ 1 ms" | That was the v1 world (`AGENT_HANDOFF/runs/20261006-2112_claude1_v1-build.md`: p95 1.09 ms). On world v3: p95 7.05 ms (`docs/BENCHMARK_RESULTS.md`, 2026-10-07) and 8.78 ms (this guide, section 6.13) |
+| 9 | `docs/MODEL_CARD.md:76` | "Risk-evaluation latency p95 ≈ 1 ms" | That was the v1 world (v1 build record: p95 1.09 ms). On world v3: p95 7.05 ms (`docs/BENCHMARK_RESULTS.md`, 2026-10-07) and 8.78 ms (this guide, section 6.13) |
 | 10 | `docs/MODEL_CARD.md` Appendix A; `docs/ML_VALIDATION_REPORT.md` §2–§9 | v2.1 versions, thresholds and metrics (e.g. thresholds RF 0.588 / GNN 0.474 / pattern 0.724; GNN P / R 0.98 / 0.91; rules P / R 0.26 / 0.35) | The committed artefacts are **v3.0** (`validation_v2.json:3`, `trained_at 2026-10-07T04:57:08Z`): thresholds 0.5357 / 0.5833 / 0.7306; GNN 0.963 / 0.926; rules 0.202 / 0.394. Full comparison in section 11.10 |
 | 11 | `docs/ML_VALIDATION_REPORT.md` §8 (`:294–301`) | Old protocol 0.87 / 0.91 / 0.89; honest-feature flag rate 57 % | On the v3.0 worlds: 0.899 / 0.901 / 0.900, and on honest features precision 0.044 with a **74.6 %** flag rate (section 11.7) |
 | 12 | `docs/ML_VALIDATION_REPORT.md` §6 and `backend/models/validation_v2_full_loao.json` | The full-budget leave-one-family-out run | The file's `trained_at` is `2026-10-06T20:18:42Z`: it belongs to the **v2.1** artefacts and was not re-run for v3.0 (section 11.5) |
@@ -3872,7 +3872,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 21 | `docs/TARGET_ARCHITECTURE.md:200` (§10) | TaintTrace runs "over all journals … only when a label is added" | It runs over the **forward closure** of the labelled postings, and also re-runs when a new posting touches the closure (section 9.5) |
 | 22 | `docs/TARGET_ARCHITECTURE.md:204–206` (§11) | Out of scope: "3D graphs, GNN, LLM explanations or chat" | All three now exist — the 3D universe and evidence scenes, the relational GAT, the optional Gemini assistant — each outside the payment decision |
 | 23 | `docs/DEMO_SCRIPT.md:38` | Money-mule network: "17 real ledger postings over about 20 s" | `s2` has **17 steps but 14 postings** (5 victim payments, 1 pass-through, 2 splits, 4 smurfing transfers, 2 ATM withdrawals) plus 2 information steps and 1 RingWatch scan (`sim/scenarios.py:112–140`); 17 × 1.1 s ≈ 19 s |
-| 24 | `AGENT_HANDOFF/STATE.md:42, 59` and `:30` | "Backend tests: 330/330" (v7) and "pytest 374/374" (v10) | Correct when written; 381 tests are collected today |
+| 24 | The build records (STATE, v7 and v10) | "Backend tests: 330/330" (v7) and "pytest 374/374" (v10) | Correct when written; 381 tests are collected today |
 | 25 | `backend/vigil/api/routes_overview.py:4` (docstring) | "Push: `overview.tick` on the console topic tells the page which panels to refresh" | `overview.tick` is never published; the Overview refreshes on ordinary events (section 12.2). Likewise `frontend/src/components/Shell.tsx:85` listens for `intel.updated`, which nothing publishes |
 | 26 | `backend/vigil/geo/__init__.py:148` (`nearest_atm` docstring) | "account + 30-minute bucket" | The caller passes `ts[:15]`, a **10-minute** bucket (`geo/__init__.py:194`) |
 | 27 | `backend/vigil/sim/scenarios.py:205` (`s4` description) | "… clean registry → friction guard applies." | The landlord payment scores 0.045, Tier 0 on the ladder, so the friction guard is never needed and no adjustment is recorded (section 6.9) |

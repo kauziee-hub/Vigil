@@ -13,11 +13,42 @@ const PAYERS = [
   { id: "sunita@vigil", label: "Sunita Rao (retired, 67)" },
 ];
 const PAYEES = ["meena.grocer@vigil", "kiran.traders@vigil", "landlord.iyer@vigil", "medplus.pharma@vigil", "rk.legal.services@vigil"];
-const PRESETS = [
-  { label: "Everyday · grocer ₹500", payer: "ramesh@vigil", to: "meena.grocer@vigil", amount: "500", note: "groceries" },
-  { label: "Risky recipient · ₹45,000", payer: "ramesh@vigil", to: "kiran.traders@vigil", amount: "45000", note: "advance for goods" },
-  { label: "Large but legitimate · ₹1,20,000", payer: "ramesh@vigil", to: "landlord.iyer@vigil", amount: "120000", note: "deposit + October rent" },
+const COERCION = "Caller says he is from CBI, do not tell anyone, transfer immediately";
+const POLICE = "Caller says he is from the police, keep this secret, pay now or you will be arrested";
+// `expect` is what docs/DEMO_TEST_BOOK.md records for each input after a reset (scripts/test_book_check.py re-verifies it).
+type Preset = { label: string; payer: string; to: string; amount: string; note: string; ctx?: string; expect: string };
+const PRESETS: Preset[] = [
+  { label: "Everyday · grocer ₹500", payer: "ramesh@vigil", to: "meena.grocer@vigil", amount: "500", note: "groceries",
+    expect: "Tier 0 · approved instantly · score 0.00" },
+  { label: "Risky recipient · ₹45,000", payer: "ramesh@vigil", to: "kiran.traders@vigil", amount: "45000", note: "advance for goods",
+    expect: "Tier 2 · customer confirms the purpose · score 0.34 (Tier 3 hold once a scam into Kiran is confirmed, section 4)" },
+  { label: "Large but legitimate · ₹1,20,000", payer: "ramesh@vigil", to: "landlord.iyer@vigil", amount: "120000", note: "deposit + October rent",
+    expect: "Tier 0 · large amount noted, no friction · score 0.05" },
 ];
+const MORE_PRESETS: Preset[] = [
+  { label: "T0 · new payee ₹8,000", payer: "ramesh@vigil", to: "medplus.pharma@vigil", amount: "8000", note: "medicines",
+    expect: "Tier 0 · first-time payee + unusual amount are noted, not enough to interrupt · score 0.07" },
+  { label: "T1 · pressure words only", payer: "sunita@vigil", to: "rk.legal.services@vigil", amount: "50000", note: "fees", ctx: COERCION,
+    expect: "Tier 1 · heads-up, customer may continue · score 0.20 (words alone never hold a payment)" },
+  { label: "T3 · registry-confirmed mule", payer: "ramesh@vigil", to: "quickloan.agent@vigil", amount: "15000", note: "loan processing fee",
+    expect: "Tier 3 · held · score 0.32 is Tier 2 on the ladder; the confirmed-mule floor lifts it to Tier 3" },
+  { label: "T3 · risky + pressure words", payer: "ramesh@vigil", to: "kiran.traders@vigil", amount: "45000", note: "advance for goods", ctx: POLICE,
+    expect: "Tier 3 · held · score 0.54 (two independent kinds of evidence agree: +0.10)" },
+];
+// Expected outcome of each injected pattern after a reset (detection run graded against simulator ground truth).
+const PATTERN_EXPECT: Record<string, string> = {
+  s2: "3 of 4 mules flagged, the 4th at early warning · Vigilance: Critical · Ring formed (Mumbai)",
+  atk_fan_in: "Swift Collect flagged as a collector · Vigilance: High · Account flagged",
+  atk_fan_out: "Bulk Payouts flagged as a distributor · Vigilance: High · Account flagged",
+  atk_circular: "all 4 ring members flagged · Vigilance: Critical · Ring formed (Ahmedabad)",
+  atk_velocity_chain: "3 of 5 flagged, first and last at early warning · Vigilance: Critical · Ring formed (Kolkata)",
+  atk_cross_channel: "the hub flagged · Vigilance: High · Account flagged + Medium · Impossible travel (Delhi → Kolkata)",
+  atk_shared_device: "all 5 flagged · Vigilance: Critical · Device farm + Critical · Ring formed (Mumbai)",
+  atk_behavioural_drift: "the drifting account flagged · Vigilance: Medium · Account flagged",
+  atk_volume_spike: "Fresh Wallet flagged · Vigilance: Medium · Account flagged",
+  atk_smurfing: "the structuring account flagged as a distributor · Vigilance: High · Account flagged",
+  atk_dormant: "Dormant Savings flagged as a collector · Vigilance: Medium · Account flagged",
+};
 
 function err(e: unknown) { return e instanceof ApiError ? e.message : String(e); }
 
@@ -29,6 +60,7 @@ export function TestConsole({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState("500");
   const [note, setNote] = useState("groceries");
   const [ctx, setCtx] = useState("");
+  const [preset, setPreset] = useState<Preset | null>(null);
   const [scen, setScen] = useState<ScenarioStatus[]>([]);
   const [pattern, setPattern] = useState("s2");
   const [run, setRun] = useState<AttackRun | null>(null);
@@ -51,6 +83,10 @@ export function TestConsole({ onClose }: { onClose: () => void }) {
 
   const network = scen.filter((s) => s.category === "attack" || s.id === "s2");
   const running = scen.find((s) => s.state === "running" || s.state === "paused");
+
+  const choose = (p: Preset) => { setPayer(p.payer); setTo(p.to); setAmount(p.amount); setNote(p.note); setCtx(p.ctx ?? ""); setPreset(p); };
+  const edited = preset && (preset.payer !== payer || preset.to !== to || preset.amount !== amount || (preset.ctx ?? "") !== ctx);
+  useEffect(() => { if (edited) setPreset(null); }, [edited]);
 
   const openOnDevice = () => {
     const q = new URLSearchParams({ as: payer, to, amount, note });
@@ -131,9 +167,16 @@ export function TestConsole({ onClose }: { onClose: () => void }) {
             <h4><span className="n">1</span>Customer payment</h4>
             <div className="row wrap tight">
               {PRESETS.map((p) => (
-                <button key={p.label} className="btn xs" onClick={() => { setPayer(p.payer); setTo(p.to); setAmount(p.amount); setNote(p.note); setCtx(""); }}>{p.label}</button>
+                <button key={p.label} className="btn xs" onClick={() => choose(p)}>{p.label}</button>
               ))}
             </div>
+            <div className="row wrap tight">
+              <span className="tc-res">More tiers:</span>
+              {MORE_PRESETS.map((p) => (
+                <button key={p.label} className="btn xs" onClick={() => choose(p)}>{p.label}</button>
+              ))}
+            </div>
+            {preset && <div className="tc-res">Expected: <b>{preset.expect}</b></div>}
             <div className="tc-row">
               <label className="field">Paying as
                 <select className="select" value={payer} onChange={(e) => setPayer(e.target.value)}>
@@ -169,6 +212,7 @@ export function TestConsole({ onClose }: { onClose: () => void }) {
               </select>
               <button className="btn primary" disabled={busy === "inject" || !!running} onClick={inject}>{busy === "inject" ? "…" : "Inject"}</button>
             </div>
+            {PATTERN_EXPECT[pattern] && <div className="tc-res">Expected: <b>{PATTERN_EXPECT[pattern]}</b> · no false positives</div>}
             {running && <div className="tc-res"><b>{running.name}</b> · {running.state} · step {running.step}/{running.total_steps}
               {running.state === "running"
                 ? <> · <a href="#" onClick={(e) => { e.preventDefault(); api.scenarioPause(running.id).then(loadScen); }}>pause</a></>

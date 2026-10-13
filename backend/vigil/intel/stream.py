@@ -10,7 +10,7 @@ event-loop thread; suspended while seeding). For each posting it
        * `intel.account_status` (AccountStatusChange) for every account whose status changed, with a reason;
        * `intel.tx_scored` (TxScored) for the posting itself, with both parties' status and model evidence.
 
-Status semantics and precedence (docs/archive/plans/V3_LIVE_PLATFORM_PLAN.md):
+Status semantics and precedence (docs/design/V3_LIVE_PLATFORM_PLAN.md):
     confirmed_fraud > held > flagged > early_warning > new > normal > idle      (external accounts: "external")
   * confirmed_fraud — recipient of a BANK-CONFIRMED fraud label (`fraud_labels`, read-only). A
     `reported_unverified` label does not make an account "confirmed".

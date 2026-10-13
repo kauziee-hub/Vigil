@@ -34,7 +34,7 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 | Governance | `/governance` | Policy, tier ladder, model versions, decision records, shadow mode |
 | Trusted contact | `/contact/arjun` | Open on a phone on the same Wi-Fi |
 
-**Test inputs** (top bar or Alt + T) is a small drawer of demo-only inputs: a customer payment, inject one of eleven mule-network patterns, a coerced journey, report a confirmed scam, traffic / mode / reset. Product screens carry no simulation controls. Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+**Test inputs** (top bar or Alt + T) is a small drawer of demo-only inputs: a customer payment, inject one of eleven mule-network patterns, a coerced journey, report a confirmed scam, traffic / mode / reset. Product screens carry no simulation controls. Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Every test input with its expected result and what it proves: [docs/DEMO_TEST_BOOK.md](docs/DEMO_TEST_BOOK.md) (PDF: `docs/Vigil_Demo_Test_Book.pdf`), re-verified by `scripts/test_book_check.py`.
 
 Payments settle on a **simulated payment rail** behind a provider port (a bank plugs its own rail in there). No real money moves and no gateway keys are needed.
 
@@ -61,10 +61,11 @@ backend/prima/        vendored PRIMA lineage engine (LIBR / pro-rata tracing wit
 backend/tests/        pytest suite (lineage, lifecycle, scenarios, API, invariants, intel, live detection)
 frontend/             Vite + React + TypeScript; three.js live network — built and served by the backend
 config/risk_policy.yaml   the only place weights, thresholds and windows live (versioned)
-scripts/              smoke test and latency benchmark
-docs/                 demo script, architecture, design system, ML validation, model card, limitations, positioning, screenshots
-docs/archive/         superseded plans, audits and earlier screenshot sets (kept for the record)
-AGENT_HANDOFF/        every prompt, run record and the current STATE.md, so any agent can continue
+scripts/              smoke test, latency benchmark, demo test-book checker
+docs/                 demo script + test book, functional / technical guides (Markdown + PDF), architecture, design system, ML validation, model card, limitations, positioning
+docs/guide/           functional guide (Markdown) and its screenshots
+docs/design/          the frozen design plans the code cites (contracts, status semantics)
+docs/verification/    the v10 baseline and regression records
 ```
 
 ## Tests and benchmark

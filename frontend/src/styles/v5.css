@@ -1,4 +1,4 @@
-/* v5 — operations center (light, soft cards, pill navigation). References: docs/archive/references/reference_v5/*.
+/* v5 — operations center (light, soft cards, pill navigation).
    Loaded after app.css: overrides v4 visuals; v4 layout rules (grids, tables, replay, drawers …) stay in force. */
 body {
   font-size: var(--fs-base);

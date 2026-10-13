@@ -1,4 +1,4 @@
-/* Vigil design tokens v5 — "operations center" (docs/DESIGN_SYSTEM.md §v5, references docs/archive/references/reference_v5/*).
+/* Vigil design tokens v5 — "operations center" (docs/DESIGN_SYSTEM.md §v5).
    Light field, white soft cards (20 px radius, soft shadow), pill navigation and buttons, near-black primary,
    mint/aqua accent for active states, dark highlight cards for the live network. Hue still encodes STATUS;
    the mint accent never means "safe". Inter (UI) + IBM Plex Mono (identifiers and figures). */
