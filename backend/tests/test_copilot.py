@@ -64,8 +64,12 @@ def test_incidents_dedupe_and_reset_clears_copilot_tables(client, world):
     again = incidents.list_incidents("open")
     assert len(again) == len(first)                              # same findings → no duplicates
     assert len({i["dedupe_key"] for i in again}) == len(again)
+    old_ids = {i["id"] + i["created_ts"] for i in again}
     seed.seed()
-    assert world.scalar("SELECT COUNT(*) FROM copilot_incidents") == 0
+    # nothing from before the reset survives (the background engine may legitimately re-raise an alert from the
+    # freshly seeded world straight away, e.g. the seeded flagged collector — that is a new incident, not a leftover)
+    left = world.q("SELECT id, created_ts FROM copilot_incidents")
+    assert not ({r["id"] + r["created_ts"] for r in left} & old_ids)
 
 
 def test_brief_template_validates_and_offline_fallback(client):
@@ -77,9 +81,14 @@ def test_brief_template_validates_and_offline_fallback(client):
     r = client.post(f"/api/copilot/incidents/{inc['id']}/brief").json()
     b = r["brief"]
     assert b["llm_used"] is False and r["thread_id"]
-    assert brief.Brief.model_validate(b)                          # same schema as the LLM path
-    for t in b["what_to_do"]:
-        assert t["ui_action"] is None or t["ui_action"]["type"] in brief.UI_ACTIONS
+    assert brief.Brief.model_validate(b)                          # same narrative schema as the LLM path
+    assert b["classification"] and b["respond_within"] and b["key_facts"] and b["red_flags"]
+    assert b["recommendation"] and b["summary"] and "open_questions" not in b
+    assert "paise" not in json.dumps(b)                           # money is shown in rupees
+    ns = b["next_step"]
+    assert ns is None or ns["ui_action"] is None or ns["ui_action"]["type"] in brief.UI_ACTIONS
+    fast = client.post(f"/api/copilot/incidents/{inc['id']}/brief", json={"fast": True}).json()["brief"]
+    assert fast["headline"] == b["headline"]                     # cached narrative served instantly
 
 
 class StubLLM:
@@ -103,23 +112,27 @@ def test_llm_brief_is_validated_whitelisted_and_falls_back(client, monkeypatch):
     incidents.evaluate()
     inc = incidents.list_incidents("open")[0]
     monkeypatch.setenv("GEMINI_API_KEY", "stub-not-a-real-key")
-    good = {"headline": "H", "what_happened": ["a"], "why_it_matters": "w", "severity": {"level": "low", "reason": "r"},
-            "confidence": {"level": "medium", "reason": "c"}, "unknown_key": 1,
-            "what_to_do": [{"action": "freeze it", "rationale": "x", "ui_action": {"type": "freeze_account", "target": "x"}},
-                           {"action": "look", "rationale": "y", "ui_action": {"type": "show_in_network", "target": inc["entities"][0]}}],
-            "open_questions": [], "evidence": [{"label": "made up", "ref": {"kind": "account", "id": "ghost@vigil"}}]}
+    good = {"headline": "H", "summary": f"{inc['entities'][0]} moved 6300000 paise.", "red_flags": ["fan-in"],
+            "risk_if_ignored": "r", "recommendation": "watch it", "severity": {"level": "low", "reason": "r"},
+            "confidence": {"level": "medium", "reason": "c"}, "unknown_key": 1}
     gemini.set_client(StubLLM(gen=json.dumps(good)))
     b = client.post(f"/api/copilot/incidents/{inc['id']}/brief").json()["brief"]
     assert b["llm_used"] is True and "unknown_key" not in b
-    assert b["what_to_do"][0]["ui_action"] is None                 # not whitelisted → plain text
-    assert b["what_to_do"][1]["ui_action"]["type"] == "show_in_network"
+    assert "paise" not in b["summary"] and "₹63,000" in b["summary"]  # paise left by the model → rupees
     assert b["severity"]["level"] == inc["severity"]               # the system's severity, not the model's
-    assert b["evidence"] == []                                     # invented ids dropped
+    assert b["classification"] and b["key_facts"]                  # deterministic parts always present
+    assert all(e["ref"]["id"] in inc["entities"] + inc["tx_ids"] for e in b["evidence"])
+    # a reply naming an account that is not in the facts is rejected → deterministic template
+    world_inc = incidents.get(inc["id"])
+    world_inc["summary"]["brief"] = None
+    from vigil import db
+    db.execute("UPDATE copilot_incidents SET summary_json = ? WHERE id = ?", (db.dumps(world_inc["summary"]), inc["id"]))
+    gemini.set_client(StubLLM(gen=json.dumps({**good, "summary": "ghost@vigil sent money"})))
+    assert client.post(f"/api/copilot/incidents/{inc['id']}/brief").json()["brief"]["llm_used"] is False
     incidents.evaluate()
     world_inc = incidents.get(inc["id"])
     gemini.set_client(StubLLM(gen="not json"))
     world_inc["summary"]["brief"] = None
-    from vigil import db
     db.execute("UPDATE copilot_incidents SET summary_json = ? WHERE id = ?", (db.dumps(world_inc["summary"]), inc["id"]))
     b2 = client.post(f"/api/copilot/incidents/{inc['id']}/brief").json()["brief"]
     assert b2["llm_used"] is False                                 # malformed reply → deterministic template

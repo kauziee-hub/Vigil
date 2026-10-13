@@ -2,6 +2,8 @@
 
 Oct 13, 2026 · @Kausik GH · updated for Overview v10 (money map, live tape, mule pipeline, Copilot)
 
+> **The current version is the Claude Doc** (https://claude.ai/code/artifact/bf16f71c-e278-4271-ac55-27e269ca9bac): it has the v11 Overview chapter (Vigilance bar on top, network | tape, map | needs attention) and a new chapter 5 on **Vigilance** (the v10 "Copilot", renamed), with chapters renumbered to 18 and the v11 screenshots `img/v11_*`. This Markdown copy still describes v10; the technical side of v11 is in `docs/TECHNICAL_GUIDE.md`.
+
 Vigil checks every payment before money moves and watches the bank's accounts for money-mule rings. This guide explains every screen in plain words: what it shows, how to read it, why it matters, and how to show it in a demo. Screenshots are from the live app on 13 Oct 2026 after a full demo run; the Overview screenshots (section 4) are from the v10 build.
 
 ## 1. Vigil in plain words

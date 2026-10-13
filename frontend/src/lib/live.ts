@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "../api/client";
 import type { AttackRun, LiveStats } from "../api/types";
-import { useConsoleEvents } from "../components/Shell";
+import { useConsoleEvents } from "../components/consoleBus";
 import { isUnavailable } from "./hooks";
 
 /** Leading + trailing throttle: run now, and at most once more after `ms` if called again meanwhile. */

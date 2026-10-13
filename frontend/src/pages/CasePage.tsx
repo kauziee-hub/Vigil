@@ -15,6 +15,7 @@ import { MoneyTrace } from "../components/MoneyTrace";
 import { CounterfactualLadder, DecisionReplayView, ProvenanceTable, RiskEvolution } from "../components/Replay";
 import { SceneThumb } from "../components/SceneThumb";
 import { useConsoleEvents } from "../components/Shell";
+import { AskVigilance } from "../components/vigilance/Vigilance";
 import { Async, Bar, ErrorNote, Glyph, KV, Loading, Metric, PageHead, Panel, Pill, Seg, Sim, StatePill, Tabs, TierPill } from "../components/ui";
 import { duration, formatDateTime, formatINR, formatStamp, formatTime, handle } from "../lib/format";
 import { sceneFromEvidence } from "../lib/graphStyle";
@@ -94,6 +95,8 @@ export function CasePage() {
         actions={<>
           {held && <button className="btn sm ok" disabled={busy} onClick={() => act("release")}>Release hold</button>}
           {held && <button className="btn sm danger" disabled={busy} onClick={() => act("reject")}>Reject payment</button>}
+          <AskVigilance entities={[d.sender_id, d.recipient_id]}
+                        prompt={`Explain case ${d.decision_id}: ${handle(d.sender_id)} paying ${handle(d.recipient_id)} ${formatINR(d.amount_paise)}. Why this tier, who is the recipient, and what should I do next?`} />
           <Link className="btn sm" to={`/governance/decision/${d.decision_id}`}>Decision record</Link>
           <Link className="btn sm ghost" to={`/network?focus=${encodeURIComponent(d.recipient_id)}`}>Recipient network ↗</Link>
         </>} />

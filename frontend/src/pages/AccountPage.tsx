@@ -16,6 +16,7 @@ import { AccountAlerts, GroundTruth, LiveStatusLine, useAccountLive } from "../c
 import { RiskEvolution } from "../components/Replay";
 import { SceneThumb } from "../components/SceneThumb";
 import { useConsoleEvents } from "../components/Shell";
+import { AskVigilance } from "../components/vigilance/Vigilance";
 import { WatchButton, useWatched } from "../components/Watchlist";
 import { Async, ErrorNote, KV, Loading, PageHead, Panel, Pill, Seg, Sim, StatePill, TierPill, Unavailable } from "../components/ui";
 import { clean, evValue, formatINR, formatStamp, formatTime, handle, humanKey } from "../lib/format";
@@ -125,6 +126,7 @@ export function AccountPage() {
           <span>{a.persona ?? a.kind}</span>
         </span>}
         actions={<>
+          <AskVigilance entities={[a.id]} prompt={`Tell me about ${a.id}: is it behaving like a mule, where did its money come from and go, and what should I do?`} />
           {a.kind !== "external" && watched.available && <WatchButton accountId={a.id} pinned={watched.pinned} askNote onChange={() => watched.reload()} />}
           <Link className="btn sm" to={`/network?focus=${encodeURIComponent(a.id)}&hops=1`}>3D network · 1-hop</Link>
           <Link className="btn sm ghost" to={`/network?focus=${encodeURIComponent(a.id)}&hops=2`}>2-hop</Link>

@@ -50,6 +50,22 @@ Every component of the demo falls in exactly one of four buckets.
 * PatternMemory (similarity to known ring shapes) — roadmap; the old implementation read ground truth and was not ported.
 * Cross-institution tracing (value leaving the bank is reported as "left perimeter").
 
+## Added in v11 (Vigilance) — what is real, illustrative, unvalidated
+
+* **The procedures are illustrative.** `copilot/playbooks.py` models a bank SOP on commonly cited Indian requirements
+  (PMLA STR to FIU-IND within 7 working days; RBI Fraud Risk Management Master Directions 2024, FMR within 14 days; RBI
+  6 July 2017 customer liability; 1930 / CFCFRMS). It is not legal advice and not any real bank's procedure. Respond-within
+  targets (15 min / 1 h / 4 h / 24 h) are demo service levels, not regulation.
+* **Vigilance never acts in the bank.** Freezes, liens, STR / FMR filing, KYC and customer calls are outside steps the
+  analyst ticks; the only writes Vigilance makes are its own records (ticks, acknowledge / dismiss / reopen, threads) and
+  a watchlist entry after the analyst confirms.
+* **Assessments and chat with Gemini can be wrong.** Classification, severity, key facts and the procedure are always
+  computed by code; the model only phrases the narrative and is rejected if it names an account or posting not in the
+  facts. Chat answers are not checked that way and are labelled "verify before acting".
+* **Free Gemini keys are rate-limited.** When the limit is hit, answers fall back to live-data templates with a note.
+* **Held-payment and coercion incidents stay open** after the bank releases or rejects (the procedure step completes;
+  the incident is closed by acknowledging it).
+
 ## Added in v10 (Overview money map + Copilot) — what is real, simulated, unvalidated
 
 * **Locations are SIMULATED.** Every account home, device position, ATM terminal and posting location is generated from

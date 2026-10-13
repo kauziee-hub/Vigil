@@ -59,7 +59,7 @@ incidents:
 
 copilot:
   enabled_default: true
-  tool_budget_per_turn: 6
+  tool_budget_per_turn: 4    # free Gemini tier: few calls per answer
   max_user_chars: 2000
   max_thread_messages: 40
   rate_limit_per_min: 20
@@ -69,3 +69,4 @@ copilot:
   default_model_deep: "gemini-3.1-pro-preview"
   daily_token_cap: 300000
   timeout_s: 30
+  thinking_level: "low"      # Gemini 3.x: keep internal reasoning short so answers fit the output budget

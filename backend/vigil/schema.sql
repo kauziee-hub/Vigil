@@ -304,3 +304,13 @@ CREATE TABLE IF NOT EXISTS watchlist (
   added_by TEXT NOT NULL DEFAULT 'operator',
   added_at TEXT NOT NULL
 );
+
+-- v11: Vigilance procedures — steps an analyst ticked by hand (automatic steps are derived, never stored).
+CREATE TABLE IF NOT EXISTS copilot_playbook_steps (
+  incident_id TEXT NOT NULL,
+  step_id TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  done_ts TEXT NOT NULL,
+  done_by TEXT NOT NULL DEFAULT 'analyst',
+  PRIMARY KEY (incident_id, step_id)
+);

@@ -9,6 +9,16 @@
 - **Fixes:** live status changes keep their reason on the Overview; positioning no longer says the model layer is "in progress"; recipient risk-evolution title; toast link to the attack history.
 - **Functional guide** (beginner level, 67 screenshots, demo script, live attack-check table): a Claude Doc; screenshots in `docs/guide/img/`.
 
+## v11 — Vigilance, the requested Overview orientation, a better map, two guides (2026-10-13, Claude 1, branch `overview-v10`)
+
+- **Vigilance** (the v10 Copilot, renamed and rebuilt as a fraud-operations agent): every alert is classified (label, typology, severity, respond-within target) with a one-sentence situation in rupees; a ranked Vigilance bar on top of the Overview, toasts when an alert is raised or escalated, and one chat box whose alert cards open a **case** — an assessment (red flags from the detection rules or the payment decision's analyst reasons, key facts, risk if ignored, recommendation, confidence; Gemini only phrases the narrative and is validated) and the bank **procedure** in four phases (`copilot/playbooks.py`: contain → investigate → report → recover & close, citing PMLA STR / FIU-IND, RBI FMR, RBI 2017 customer liability, 1930 / CFCFRMS; steps tick themselves when Vigil sees the outcome or are ticked by the analyst). STR grounds draft. Global dock: it stays open on every page and carries map / network actions back to the Overview; "Ask Vigilance" on the account and case pages.
+- **Gemini on a free key:** the key may be `GEMINI_API_KEY`, `GEMINI_API` or `GOOGLE_API_KEY`, in `.env` or `backend/.env`; Gemini 3.x thinking kept low so answers fit; few tool calls; offline fallback on rate limits.
+- **Overview orientation:** Vigilance bar → KPI strip → live network | live transactions → money map | needs attention → situation brief | money by channel → close monitoring | mule pipeline.
+- **Money map:** risky corridors glow with dashes moving in the money's direction, hover a corridor for its details, "Top corridors" panel, city card with Ask Vigilance, grid, glow, distance scale; corridor clicks frame both ends.
+- **Fixes:** SPA path traversal (could have served `backend/.env`; now refused, with a test); the held-payment procedure opened the sender's page as "the recipient"; the coerced-payment assessment used the customer's message as a red flag; offline chat matched "str" inside other words.
+- **Docs:** the functional guide (Claude Doc) gained the new Overview chapter and a Vigilance chapter; a full technical guide (`docs/TECHNICAL_GUIDE.md`, 23 sections + Appendix A, and a 13-tab Claude Doc with diagrams and screenshots).
+- **Tests:** 381 backend tests (+6 procedures, +1 traversal), all pass; frontend checks 20/20.
+
 ## v10 — Overview money map, live tape, mule pipeline, Copilot (2026-10-13, Claude 1, branch `overview-v10`)
 
 Plan: `AGENT_HANDOFF/prompts/10_OVERVIEW_V10_MASTER_PLAN.md`. Baseline and regression numbers: `AGENT_HANDOFF/baseline_v10.md`, `regression_v10.md`.

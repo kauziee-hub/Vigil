@@ -2,7 +2,7 @@
 // No test framework download needed: esbuild (shipped with Vite) bundles this file; react-dom/server renders it.
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Incident } from "../src/api/v10";
-import { runAction, type ActionDeps } from "../src/lib/copilotActions";
+import { needsOverview, runAction, type ActionDeps } from "../src/lib/vigilanceActions";
 import { sortIncidents } from "../src/lib/incidents";
 import { SafeMarkdown } from "../src/lib/safeMarkdown";
 import { selectionAccounts } from "../src/lib/selection";
@@ -46,6 +46,12 @@ check("select_entity with a tx id opens connections", runAction({ type: "select_
 check("show_on_map city selects the city", runAction({ type: "show_on_map", target: "Mumbai" }, deps) && calls.at(-1) === "select:city:Mumbai");
 check("watch_account only asks for confirmation", runAction({ type: "watch_account", target: "kiran.traders@vigil" }, deps) && calls.at(-1) === "confirm-watch:kiran.traders@vigil");
 check("filter_tape sanitises its target", runAction({ type: "filter_tape", target: "drop table" }, deps) && calls.at(-1) === "tape:all");
+check("off the Overview, map / network / tape actions are carried there; pages and watch run in place",
+  needsOverview({ type: "show_on_map", target: "Mumbai" }) && needsOverview({ type: "open_connections", target: "TX-1" }) &&
+  needsOverview({ type: "select_entity", target: "TX-031200" }) && !needsOverview({ type: "select_entity", target: "kiran.traders@vigil" }) &&
+  !needsOverview({ type: "open_page", target: "/investigations/decision/D-1" }) && !needsOverview({ type: "watch_account", target: "a@vigil" }));
+check("case page links are whitelisted", runAction({ type: "open_page", target: "/investigations/decision/DEC-000123" }, deps) && calls.at(-1) === "nav:/investigations/decision/DEC-000123"
+  && runAction({ type: "open_page", target: "/investigations/decision/../../x" }, deps) === false);
 
 // 4. incident strip ordering and selection helper
 const inc = (id: string, severity: Incident["severity"], updated: string) => ({ id, severity, updated_ts: updated }) as Incident;

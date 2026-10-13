@@ -1,4 +1,4 @@
-"""The Copilot's READ-ONLY tools (function declarations for Gemini + Python implementations).
+"""Vigilance's READ-ONLY tools (function declarations for Gemini + Python implementations).
 
 Rules enforced here, not in the prompt:
 * no write tool exists — nothing here can hold, release, freeze, approve, label or watch;
@@ -32,6 +32,8 @@ def _clean(value: Any) -> Any:
                 out[k] = {"untrusted_text": v[:300]}
             else:
                 out[k] = _clean(v)
+            if str(k).endswith("_paise") and isinstance(v, (int, float)) and not isinstance(v, bool):
+                out[str(k)[:-6] + "_inr"] = overview._inr(int(v))      # the model prints rupees, never paise
         return out
     if isinstance(value, list):
         return [_clean(v) for v in value]
@@ -91,6 +93,24 @@ def get_incident(incident_id: str) -> dict:
     from vigil.copilot import incidents
     inc = incidents.get(incident_id)
     return _ok(incidents.public(inc, brief=False)) if inc else _err("unknown incident")
+
+
+def get_procedure(incident_id: str) -> dict:
+    """The bank procedure (playbook) for an incident: steps by phase, owner, deadline, done or not."""
+    from vigil.copilot import incidents, playbooks
+    inc = incidents.get(incident_id)
+    if not inc:
+        return _err("unknown incident")
+    v = playbooks.view(inc)
+    return _ok({k: v[k] for k in ("classification", "typology", "severity", "respond_within", "done", "total")} |
+               {"steps": [{x: s[x] for x in ("phase", "title", "owner", "when", "done", "outside")} for s in v["steps"]]})
+
+
+def get_str_draft(incident_id: str) -> dict:
+    """A DRAFT of the STR grounds of suspicion for an incident (for the Principal Officer; Vigil never files)."""
+    from vigil.copilot import brief, incidents
+    inc = incidents.get(incident_id)
+    return _ok({"draft_markdown": brief.str_draft(inc)}) if inc else _err("unknown incident")
 
 
 def get_account(account_id: str) -> dict:
@@ -230,6 +250,11 @@ REGISTRY: dict[str, tuple[Callable[..., dict], str, dict]] = {
     "list_open_incidents": (list_open_incidents, "Open incidents raised by the deterministic incident engine.", _p()),
     "get_incident": (get_incident, "One incident with facts, severity breakdown and entities.",
                      _p({"incident_id": S}, ["incident_id"])),
+    "get_procedure": (get_procedure, "The bank's step-by-step procedure for an incident (contain, investigate, report, "
+                      "recover), with owner, deadline and which steps are done.", _p({"incident_id": S}, ["incident_id"])),
+    "get_str_draft": (get_str_draft, "A draft of the Suspicious Transaction Report's grounds of suspicion for an incident "
+                      "(subjects, period, largest transfers, red flags, typology, actions so far). A draft for the "
+                      "Principal Officer; nothing is filed.", _p({"incident_id": S}, ["incident_id"])),
     "get_account": (get_account, "Status, reason, role, age, devices, 24 h in/out, watchlist state of an account.",
                     _p({"account_id": S}, ["account_id"])),
     "get_transaction": (get_transaction, "One posting: parties, amount, rail, simulated location, statuses, payment decision.",

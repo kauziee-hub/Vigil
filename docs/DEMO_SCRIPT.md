@@ -17,11 +17,11 @@ The product screens show no simulation controls. Everything you drive for the de
 ## 1. The operations center (1.5 min)
 **Say:** "This is the bank's fraud operations view: where money moves, what is moving right now, where fraud is, and how mule accounts are being built."
 **Point at, top to bottom:**
+- The **Vigilance bar** on top: the open alerts, most urgent first, each classified ("Medium · Suspected mule account · Kiran Traders · ₹64.5K · next step · time left").
 - The **KPI strip**: money moved, fraud-linked money, accounts at risk, stopped before paying, left the bank, new accounts (each against the previous window; click a tile to filter).
-- The **Copilot strip**: "No active incidents — Copilot is watching" in a fresh world.
-- The **money map** (simulated locations, India point-of-view boundary): city dots sized by value, arcs between cities, a spark for each new posting. Toggle **Globe** for a moment, then back to **Flat**.
-- The **live transaction tape** beside it: every posting with the rail and the city; red / amber rows are fraud-linked / early-warning.
-- Below: compact 3D network, **Needs attention**, **Situation brief**, **Close monitoring**, the **Mule pipeline** (new accounts: opened → funded → active → passing through → exited) and **Money by channel**.
+- The **live network** beside the **live transaction tape**: every posting with the rail and the city; red / amber rows are fraud-linked / early-warning.
+- The **money map** (simulated locations, India point-of-view boundary) beside **Needs attention**: city dots sized by value, arcs between cities (risky ones glow with moving dashes), the "Top corridors" panel, a spark for each new posting. Toggle **Globe** for a moment, then back to **Flat**.
+- Below: **Situation brief**, **Money by channel**, **Close monitoring** and the **Mule pipeline** (new accounts: opened → funded → active → passing through → exited).
 
 Analysis lives on its own pages: **Detection** (every chart explained, every run, full account scoring) and **Network** (lenses, live activity streams).
 
@@ -34,12 +34,12 @@ Analysis lives on its own pages: **Detection** (every chart explained, every run
 **See:** **Tier 2 · "Please confirm before you pay"**, with four plain questions for the customer. The bank side shows why: first-time payee, outlier amount, recipient linked to rapid pass-through, a registry report (simulated).
 **Note:** after midnight, an "unusual hour" signal (+0.05) lifts this payment to Tier 3. That is real policy behaviour, and the case page's counterfactuals show it.
 
-## 4. A money-mule network forms — and the Copilot briefs you (2.5 min)
+## 4. A money-mule network forms — and Vigilance raises it (2.5 min)
 **Do:** Test inputs → *Inject a mule-network pattern* → **Money-mule network** → **Inject** (17 real ledger postings over about 20 s). Close the drawer and watch the Overview.
-**See:** red arcs converge on Mumbai on the money map, red rows on the tape, **Fraud-linked** and **Accounts at risk** rise, toasts appear. Within seconds the Copilot strip shows **CRITICAL · Ring formed** and **HIGH · Kiran Traders flagged**.
-**Do:** click the **CRITICAL** chip. The dock opens and the briefing is already there (no typing): what happened, why it matters, severity with its rubric breakdown ("why?"), confidence, what to do (buttons: Show in network, Open connections, Watch — the last one asks you to confirm).
-**Do:** Chat tab → *Which rings are active?* → then click a red tape row (Pooja M → ATM): the connections drawer shows the cash-out at an ATM in Mumbai (±25 m, simulated), funded by Zenith Exports ← Kiran Traders.
-**Say:** "Vigil never saw the answer key. The incident engine is deterministic; the Copilot only explains it — read-only, and every location is labelled simulated."
+**See:** red arcs converge on Mumbai on the money map, red rows on the tape, **Fraud-linked** and **Accounts at risk** rise. Within seconds Vigilance raises **Critical · Mule ring forming** in a toast and at the top of the Vigilance bar, with the situation in one sentence and the time left to respond.
+**Do:** click **Open case**. The case is already there (no typing): classification and typology, key facts in rupees, red flags, "If nobody acts", **Vigilance recommends** with its confidence, and the bank's procedure — contain → investigate → report → recover & close. Click **Show in network** (the step ticks itself), **Watch** a member (you confirm; the step completes when Vigil sees it), tick **Request a debit freeze** as done outside Vigil, and note the STR step (Principal Officer, within 7 working days).
+**Do:** **Draft STR note** → Vigilance writes the grounds of suspicion as a draft (nothing is filed). Then click a red tape row (Pooja M → ATM): the connections drawer shows the cash-out at an ATM in Mumbai (±25 m, simulated), funded by Zenith Exports ← Kiran Traders.
+**Say:** "Vigil never saw the answer key. The incident engine is deterministic; Vigilance explains it and walks me through the procedure — read-only, and every location is labelled simulated."
 **Then:** Needs attention → *Kiran Traders* → the account page: why it is flagged, detector consensus, role **collector**, SHAP, drift, pattern memory. (Detection → section 2 shows the graded run: 3 of 4 flagged, the 4th at early warning, 0 false positives.)
 
 ## 5. Confirm the scam, and the next payment is held (1.5 min)

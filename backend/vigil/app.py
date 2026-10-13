@@ -125,8 +125,10 @@ if FRONTEND_DIST.is_dir():
     async def spa(full_path: str):
         if full_path.startswith(("api/", "ws")):
             return _error(404, "not_found", "No such route.")
-        candidate = FRONTEND_DIST / full_path
-        if full_path and candidate.is_file():
+        # Resolve and require the file to sit inside frontend/dist: "/%2e%2e/%2e%2e/backend/.env" must not escape it.
+        root = FRONTEND_DIST.resolve()
+        candidate = (root / full_path).resolve()
+        if full_path and candidate.is_relative_to(root) and candidate.is_file():
             return FileResponse(candidate)
         # index.html names the hashed bundles of the current build; never let a browser keep an old one
         # (without this, browsers heuristically cached the v1 shell and kept showing it after an upgrade)

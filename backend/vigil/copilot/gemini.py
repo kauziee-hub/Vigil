@@ -34,9 +34,13 @@ class LLM(Protocol):
                model: str | None = None, max_tokens: int = 1500) -> AsyncIterator[dict]: ...
 
 
-def _body(system: str, contents: list[dict], tools: list[dict] | None, schema: dict | None, max_tokens: int) -> dict:
+def _body(system: str, contents: list[dict], tools: list[dict] | None, schema: dict | None, max_tokens: int,
+          model: str = "") -> dict:
     body: dict[str, Any] = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents,
                             "generationConfig": {"temperature": 0.2, "maxOutputTokens": max_tokens}}
+    thinking = config.thinking_config(model)
+    if thinking:
+        body["generationConfig"]["thinkingConfig"] = thinking
     if tools:
         body["tools"] = [{"functionDeclarations": tools}]
     if schema:
@@ -66,8 +70,9 @@ class GeminiClient:
                        schema: dict | None = None, model: str | None = None, max_tokens: int = 1500) -> dict:
         import httpx
         key, timeout = _check()
-        url = f"{BASE}/{model or config.model_fast()}:generateContent"
-        body = _body(system, contents, tools, schema, max_tokens)
+        model = model or config.model_fast()
+        url = f"{BASE}/{model}:generateContent"
+        body = _body(system, contents, tools, schema, max_tokens, model)
         last: Exception | None = None
         for attempt in range(3):                       # 1 try + max 2 jittered retries
             try:
@@ -100,8 +105,9 @@ class GeminiClient:
         """Yields {'text': str} chunks and {'function_call': part} items, then {'usage': n}."""
         import httpx
         key, timeout = _check()
-        url = f"{BASE}/{model or config.model_fast()}:streamGenerateContent?alt=sse"
-        body = _body(system, contents, tools, None, max_tokens)
+        model = model or config.model_fast()
+        url = f"{BASE}/{model}:streamGenerateContent?alt=sse"
+        body = _body(system, contents, tools, None, max_tokens, model)
         tokens = 0
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:

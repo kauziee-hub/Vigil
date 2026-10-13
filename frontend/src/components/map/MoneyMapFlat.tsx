@@ -2,11 +2,13 @@
 // Land: Natural Earth (public domain), India point of view, bundled offline (src/assets/geo, built by
 // scripts/build_geo_assets.py). SVG for land / dots / labels, canvas for arcs + moving postings (performance).
 // Arc thickness = value, colour = risk of the accounts involved (red = an account is flagged / held / confirmed /
-// in a detected ring, amber = early warning). A particle = one real new posting arriving over the WebSocket.
-import { geoMercator, geoPath } from "d3-geo";
+// in a detected ring, amber = early warning); risky arcs glow and carry dashes moving in the direction of the money.
+// A particle = one real new posting arriving over the WebSocket. Hovering an arc shows its corridor.
+import { geoGraticule, geoMercator, geoPath } from "d3-geo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import world from "../../assets/geo/india_pov.geo.json";
 import type { GeoMap, MapCity, MapCluster } from "../../api/v10";
+import { RAIL_LABEL, type Rail } from "../../api/v10";
 import { formatPaiseShort } from "../../lib/format";
 import type { Selection } from "../../lib/selection";
 import type { GeoReference, LivePosting } from "./useMapData";
@@ -25,6 +27,9 @@ const MAX_PARTICLES = 150;
 
 interface T { k: number; x: number; y: number }
 interface Particle { from: [number, number]; to: [number, number] | null; t0: number; dur: number; risky: boolean; atm: boolean }
+interface ArcGeo { f: GeoMap["flows"][number]; a: [number, number]; c: [number, number]; b: [number, number]; w: number }
+const GRATICULE = geoGraticule().step([5, 5]).extent([[55, 0], [105, 42]])();
+const RISK_WORD = { normal: "normal", suspicious: "early warning", fraud: "fraud-linked" } as const;
 
 function useSize(ref: React.RefObject<HTMLDivElement>) {
   const [w, setW] = useState(800);
@@ -54,6 +59,7 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
   tRef.current = t;
   const [hover, setHover] = useState<{ x: number; y: number; html: React.ReactNode } | null>(null);
   const particles = useRef<Particle[]>([]);
+  const arcs = useRef<ArcGeo[]>([]);
   const dirty = useRef(true);
 
   const proj = useMemo(() => geoMercator().fitExtent([[28, 18], [w - 28, h - 18]], INDIA as never), [w, h]);
@@ -62,6 +68,7 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     countries: COUNTRIES.map((f) => ({ d: path(f as never) ?? "", near: !!f.properties.near, name: f.properties.name })),
     india: path(INDIA as never) ?? "",
     states: STATES.map((f) => path(f as never) ?? "").join(" "),
+    grid: path(GRATICULE as never) ?? "",
   }), [path]);
 
   const P = useCallback((lng: number, lat: number): [number, number] => {
@@ -114,16 +121,40 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     const draw = (now: number) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
+      const geo: ArcGeo[] = [];
+      let risky = false;
       if (data && layers.flows) {
-        for (const f of data.flows) {
-          if (f.from_lat == null || f.to_lat == null) continue;
+        // normal flows first (quiet, fading in towards the destination), risky flows on top (glow + moving dashes)
+        const ordered = [...data.flows].sort((x, y) => (x.risk === "normal" ? 0 : 1) - (y.risk === "normal" ? 0 : 1));
+        for (const f of ordered) {
+          if (f.from_lat == null || f.to_lat == null || f.from_city === f.to_city) continue;
           const a = P(f.from_lng, f.from_lat), b0 = P(f.to_lng, f.to_lat);
           const { pt: b, clipped } = edge(a, b0);
           const c = ctrl(a, b);
-          const alpha = f.risk === "normal" ? 0.28 : 0.75;
-          ctx.strokeStyle = RISK_COLOR[f.risk] + alpha + ")";
-          ctx.lineWidth = 0.6 + 4.2 * Math.sqrt(f.value_paise / maxV);
-          ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(c[0], c[1], b[0], b[1]); ctx.stroke();
+          const lw = 0.7 + 4.4 * Math.sqrt(f.value_paise / maxV);
+          geo.push({ f, a, c, b, w: lw });
+          if (f.risk === "normal") {
+            const g = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+            g.addColorStop(0, RISK_COLOR.normal + "0.10)");
+            g.addColorStop(1, RISK_COLOR.normal + "0.55)");
+            ctx.strokeStyle = g;
+            ctx.lineWidth = lw;
+            ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(c[0], c[1], b[0], b[1]); ctx.stroke();
+          } else {
+            risky = true;
+            ctx.save();
+            ctx.shadowColor = RISK_COLOR[f.risk] + "0.9)"; ctx.shadowBlur = 10;
+            ctx.strokeStyle = RISK_COLOR[f.risk] + "0.55)"; ctx.lineWidth = lw + 1;
+            ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(c[0], c[1], b[0], b[1]); ctx.stroke();
+            ctx.restore();
+            if (motion) {
+              ctx.save();
+              ctx.setLineDash([3, 11]); ctx.lineDashOffset = -(now / 45) % 14; ctx.lineCap = "round";
+              ctx.strokeStyle = "rgba(255,236,236,0.9)"; ctx.lineWidth = Math.max(1.2, lw * 0.55);
+              ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(c[0], c[1], b[0], b[1]); ctx.stroke();
+              ctx.restore();
+            }
+          }
           if (clipped) {
             ctx.fillStyle = "#c9d2dc"; ctx.font = "600 10.5px Inter, sans-serif";
             ctx.textAlign = b[0] > w / 2 ? "right" : "left";
@@ -144,7 +175,8 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
           ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b[0], b[1], 4, 0, Math.PI * 2); ctx.fill();
         }
       }
-      let alive = false;
+      arcs.current = geo;
+      let alive = motion && risky;
       if (motion) {
         if (data && layers.fraud) {
           const phase = (now % 2200) / 2200;
@@ -154,7 +186,7 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
             ctx.strokeStyle = `rgba(240,82,82,${0.7 * (1 - phase)})`; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(p[0], p[1], 6 + 18 * phase, 0, Math.PI * 2); ctx.stroke();
           }
-          alive = data.cities.some((c) => c.fraud_linked_paise > 0);
+          alive = alive || data.cities.some((c) => c.fraud_linked_paise > 0);
         }
         const keep: Particle[] = [];
         for (const pt of particles.current) {
@@ -218,10 +250,21 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     if (!selected || selected.lat == null || selected.lng == null) return;
     const p = proj([selected.lng, selected.lat]);
     if (!p) return;
+    const q = selected.kind === "city" && selected.peer?.lat != null && selected.peer?.lng != null
+      ? proj([selected.peer.lng, selected.peer.lat]) : null;
+    if (q) {                                                     // a corridor: frame both cities
+      // keep it between the corridors panel (left) and the city card (right): ~250 px each side
+      const k = Math.min(6, Math.max(1, Math.min(Math.max(220, w - 520) / (Math.abs(p[0] - q[0]) + 40), (h - 60) / (Math.abs(p[1] - q[1]) + 60))));
+      const cx = (p[0] + q[0]) / 2, cy = (p[1] + q[1]) / 2;
+      setT({ k, x: w / 2 - k * cx, y: h / 2 - k * cy });
+      return;
+    }
     const precise = /±\d+ m\b/.test(selected.label ?? "");      // ATM / device GPS: show street level
-    const k = Math.max(tRef.current.k, selected.kind === "city" ? 3.2 : selected.kind === "cluster" ? 12 : precise ? 14 : 2.4);
+    // a city is shown at region level (zooming OUT of a street-level view if needed); points keep a deeper zoom
+    const target = selected.kind === "city" ? 3.2 : selected.kind === "cluster" ? 12 : precise ? 14 : 2.4;
+    const k = selected.kind === "city" ? target : Math.max(tRef.current.k, target);
     setT({ k, x: w / 2 - k * p[0], y: h / 2 - k * p[1] });
-  }, [selected?.kind, selected?.id, selected?.lat, selected?.lng, proj, w, h]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected?.kind, selected?.id, selected?.lat, selected?.lng, selected?.peer?.lat, proj, w, h]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cities = data?.cities ?? [];
   const maxCity = Math.max(1, ...cities.map((c) => c.value_paise));
@@ -264,6 +307,32 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
     selPins.push({ x, y, rpx: Math.max(4, (meters / 1000) * pxPerKm(selected.lat, selected.lng)), label: selected.label ?? "" });
   }
 
+  // nearest arc within a few pixels (sampled along each quadratic curve)
+  const hitArc = (mx: number, my: number): ArcGeo | null => {
+    let best: ArcGeo | null = null, bd = 7;
+    for (const g of arcs.current) {
+      for (let i = 0; i <= 20; i++) {
+        const s = i / 20;
+        const x = (1 - s) ** 2 * g.a[0] + 2 * (1 - s) * s * g.c[0] + s * s * g.b[0];
+        const y = (1 - s) ** 2 * g.a[1] + 2 * (1 - s) * s * g.c[1] + s * s * g.b[1];
+        const d = Math.hypot(x - mx, y - my) - g.w / 2;
+        if (d < bd) { bd = d; best = g; }
+      }
+    }
+    return best;
+  };
+  // scale bar: a round distance about 90 px long at the map centre
+  const scale = useMemo(() => {
+    const c = proj.invert?.([w / 2, h / 2]);
+    if (!c) return null;
+    const ppk = pxPerKm(c[1], c[0]);
+    if (!ppk || !Number.isFinite(ppk)) return null;
+    const target = 90 / ppk;
+    const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+    const km = steps.reduce((p, s) => (Math.abs(s - target) < Math.abs(p - target) ? s : p), steps[0]);
+    return { px: km * ppk, label: km < 1 ? `${km * 1000} m` : `${km} km` };
+  }, [proj, w, h, pxPerKm, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tip = (e: React.MouseEvent) => {
     if (drag.current?.moved) return;
     const r = wrap.current!.getBoundingClientRect();
@@ -275,6 +344,16 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
       return;
     }
     const cl = clusters.find((c) => Math.hypot(c.sx - mx, c.sy - my) <= c.rpx);
+    const arc = !cl && layers.flows ? hitArc(mx, my) : null;
+    if (arc) {
+      const f = arc.f;
+      setHover({ x: mx, y: my, html: <><b>{f.from_city} → {f.to_city}</b>
+        <div>{f.tx_count} posting{f.tx_count > 1 ? "s" : ""} · {formatPaiseShort(f.value_paise)}</div>
+        <div className={f.risk === "fraud" ? "bad" : f.risk === "suspicious" ? "warn" : "dim"}>{RISK_WORD[f.risk]}</div>
+        <div className="dim">{Object.entries(f.rails).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([r, n]) => `${RAIL_LABEL[r as Rail] ?? r} ${n}`).join(" · ")}</div>
+        <div className="dim">Simulated locations · city to city</div></> });
+      return;
+    }
     if (cl) {
       setHover({ x: mx, y: my, html: <><b>{cl.kind === "cash_out" ? "Cash-out cluster" : "Collection point"}</b>
         <div>{cl.kind === "cash_out" ? `${cl.tx_ids?.length ?? 0} risky ATM withdrawals · ${formatPaiseShort(cl.value_paise)}`
@@ -321,9 +400,17 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
          onPointerLeave={() => setHover(null)}
          onDoubleClick={reset}>
       <svg width={w} height={h} className="mmap-land" aria-hidden="true">
+        <defs>
+          <radialGradient id="mm-india-fill" cx="50%" cy="45%" r="65%">
+            <stop offset="0%" stopColor="#1a3a43" /><stop offset="100%" stopColor="#0f2329" />
+          </radialGradient>
+          <filter id="mm-glow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3.2" /></filter>
+        </defs>
         <g transform={`translate(${t.x},${t.y}) scale(${t.k})`}>
+          <path d={land.grid} className="grid" vectorEffect="non-scaling-stroke" />
           {land.countries.map((c, i) => <path key={i} d={c.d} className={c.near ? "near" : "far"} vectorEffect="non-scaling-stroke" />)}
-          <path d={land.india} className="india" vectorEffect="non-scaling-stroke" />
+          <path d={land.india} className="india-glow" vectorEffect="non-scaling-stroke" filter="url(#mm-glow)" />
+          <path d={land.india} className="india" fill="url(#mm-india-fill)" vectorEffect="non-scaling-stroke" />
           <path d={land.states} className="states" vectorEffect="non-scaling-stroke" />
         </g>
       </svg>
@@ -331,8 +418,9 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
       <svg width={w} height={h} className="mmap-top" aria-hidden="true">
         {screen.filter((s) => s.on).map((s) => (
           <g key={s.c.city}>
+            {s.c.fraud_linked_paise > 0 && t.k < 6 && <circle cx={s.x} cy={s.y} r={s.r + 5} className="city-halo" />}
             <circle cx={s.x} cy={s.y} r={t.k >= 6 ? Math.min(s.r, 5) : s.r} fill={s.color} className={`city ${selected?.kind === "city" && selected.id === s.c.city ? "sel" : ""}`} opacity={t.k >= 6 ? 0.55 : 1} />
-            {labelled.has(s.c.city) && <text x={s.x + s.r + 3} y={s.y + 4} className={`city-label ${s.c.kind === "foreign" ? "foreign" : ""}`}>{s.c.city}</text>}
+            {labelled.has(s.c.city) && <text x={s.x + s.r + 3} y={s.y + 4} className={`city-label ${s.c.kind === "foreign" ? "foreign" : ""} ${s.c.fraud_linked_paise > 0 ? "risky" : ""}`}>{s.c.city}</text>}
           </g>
         ))}
         {atms.map((a) => {
@@ -357,6 +445,8 @@ export function MoneyMapFlat({ data, reference, layers, selected, onSelect, onPo
         <button onClick={() => zoomAt(1 / 1.5, w / 2, h / 2)} aria-label="Zoom out">−</button>
         <button onClick={reset} aria-label="Reset view" title="Reset view (double-click the map)">⟲</button>
       </div>
+      <div className="mmap-vignette" aria-hidden="true" />
+      {scale && <div className="mmap-scale" aria-hidden="true"><i style={{ width: scale.px }} /><span>{scale.label}</span></div>}
       {selPins[0] && <div className="mmap-pinlabel">{selPins[0].label}</div>}
       {hover && <div className="mmap-tip" style={{ left: Math.min(hover.x + 12, w - 230), top: Math.max(6, hover.y - 10) }}>{hover.html}</div>}
       {!data && <div className="mmap-empty">Loading money map…</div>}

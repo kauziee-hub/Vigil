@@ -1,5 +1,5 @@
-// Overview v10 + Copilot API: types and calls. Same-origin like api/client.ts; every location is SIMULATED and comes
-// with a basis + accuracy label; the Copilot is read-only.
+// Overview v10 + Vigilance API (v11; the URL prefix stays /api/copilot): types and calls. Same-origin like
+// api/client.ts; every location is SIMULATED and comes with a basis + accuracy label; Vigilance is read-only.
 import type { AccountStatus } from "./types";
 
 export type Window = "15m" | "1h" | "24h" | "7d";
@@ -76,16 +76,36 @@ export interface AttentionRow {
 
 export interface Incident {
   id: string; kind: string; kind_label: string; severity: Severity; score: number; status: string; title: string;
+  /** v11: what it is (e.g. "Mule ring forming"), the fraud typology, and the respond-within target */
+  classification: string; typology: string; respond_within: string; respond_minutes: number;
+  /** v11: who / where (chip) and one plain sentence with the numbers (what Vigilance says when it raises it) */
+  subject: string; situation: string; contained: boolean;
+  procedure: { done: number; total: number; next: string | null } | null;
   entities: string[]; tx_ids: string[]; value_paise: number | null; facts: string[]; score_parts: Record<string, number>;
   engine: string; city: string | null; created_ts: string; updated_ts: string; version: number; llm_used: boolean;
 }
 export interface UiAction { type: string; target: string }
+export interface ProcedureStep {
+  id: string; phase: "contain" | "investigate" | "report" | "close"; title: string; detail: string; owner: string;
+  when: string; kind: "inside" | "outside"; outside: string | null; ui_action: UiAction | null; acknowledge: boolean;
+  auto_rule: string | null; done: boolean; done_by: string | null; evidence: string | null;
+}
+export interface Procedure {
+  incident_id: string; classification: string; typology: string; severity: Severity; respond_within: string;
+  respond_minutes: number; phases: { id: ProcedureStep["phase"]; label: string; goal: string }[]; steps: ProcedureStep[];
+  done: number; total: number; next_step: string | null; note: string;
+}
+/** The assessment: narrative (Gemini or template) + deterministic parts rebuilt from live data. */
 export interface IncidentBrief {
-  headline: string; what_happened: string[]; why_it_matters: string;
-  severity: { level: Severity; reason: string }; confidence: { level: "high" | "medium" | "low"; reason: string };
-  what_to_do: { action: string; rationale: string; ui_action: UiAction | null }[]; open_questions: string[];
+  headline: string; summary: string; red_flags: string[]; risk_if_ignored: string; recommendation: string;
+  confidence: { level: "high" | "medium" | "low"; reason: string };
+  classification: string; typology: string; situation: string; respond_within: string; respond_minutes: number;
+  severity: { level: Severity; score: number; parts: Record<string, number>; reason: string };
+  key_facts: { label: string; value: string }[];
+  next_step: Pick<ProcedureStep, "id" | "phase" | "title" | "detail" | "owner" | "when" | "kind" | "outside" | "ui_action"> | null;
+  procedure: { done: number; total: number };
   evidence: { label: string; ref: { kind: "account" | "tx" | "city" | "cluster"; id: string } }[];
-  llm_used: boolean; raised_by?: string;
+  llm_used: boolean; raised_by?: string; pending_ai?: boolean;
 }
 export interface CopilotStatus {
   enabled: boolean; llm_available: boolean; configured: boolean; model_fast: string; model_deep: string;
@@ -122,9 +142,12 @@ export const v10 = {
 
   copilotStatus: () => get<CopilotStatus>("/api/copilot/status"),
   incidents: (status = "open") => get<{ incidents: Incident[]; max_visible: number }>(`/api/copilot/incidents?status=${status}`),
-  incidentBrief: (id: string, deep = false) =>
-    post<{ brief: IncidentBrief; thread_id: string; incident: Incident }>(`/api/copilot/incidents/${id}/brief`, { deep }),
+  incidentBrief: (id: string, o: { fast?: boolean; deep?: boolean } = {}) =>
+    post<{ brief: IncidentBrief; thread_id: string; incident: Incident }>(`/api/copilot/incidents/${id}/brief`, o),
   incidentAction: (id: string, action: "ack" | "dismiss" | "reopen") => post<Incident>(`/api/copilot/incidents/${id}/${action}`),
+  procedure: (id: string) => get<Procedure>(`/api/copilot/incidents/${id}/procedure`),
+  setStep: (id: string, step: string, done: boolean) =>
+    post<Procedure>(`/api/copilot/incidents/${id}/procedure/${encodeURIComponent(step)}`, { done }),
   newThread: (incident_id?: string, title?: string) => post<Thread>("/api/copilot/threads", { incident_id, title }),
   thread: (id: string) => get<Thread>(`/api/copilot/threads/${id}`),
 };

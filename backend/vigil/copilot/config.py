@@ -14,9 +14,24 @@ def policy() -> dict[str, Any]:
     return overview.policy()["copilot"]
 
 
+KEY_NAMES = ("GEMINI_API_KEY", "GEMINI_API", "GOOGLE_API_KEY")   # first one set wins
+
+
 def api_key() -> str | None:
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    return key or None
+    for name in KEY_NAMES:
+        key = os.environ.get(name, "").strip()
+        if key:
+            return key
+    return None
+
+
+def thinking_config(model: str) -> dict[str, Any]:
+    """Gemini 3.x models think before answering; on a small output budget that can consume every token and return
+    no text. Keep thinking short: `thinkingLevel` for 3.x models, `thinkingBudget: 0` for 2.5 flash models."""
+    level = str(policy().get("thinking_level", "low"))
+    if model.startswith("gemini-2.5"):
+        return {"thinkingBudget": 0} if "flash" in model else {}
+    return {"thinkingLevel": level}
 
 
 def enabled() -> bool:
@@ -75,5 +90,5 @@ def status() -> dict[str, Any]:
             "model_fast": model_fast(), "model_deep": model_deep(), "tokens_left_today": tokens_left(),
             "daily_token_cap": daily_cap(), "calls_today": USAGE["calls"], "errors_today": USAGE["errors"],
             "mode": "gemini" if llm_available() else "offline (deterministic templates)",
-            "note": "Enabling the Copilot sends incident facts (synthetic data) to Google's Gemini API."
-            if llm_available() else "No key configured or Copilot disabled: everything stays on this machine."}
+            "note": "Vigilance sends incident facts (synthetic data) to Google's Gemini API to write its assessments and answers."
+            if llm_available() else "No key configured or Vigilance AI disabled: answers come from live data on this machine."}

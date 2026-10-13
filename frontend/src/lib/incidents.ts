@@ -1,4 +1,4 @@
-// Pure helpers for Copilot incidents (shared by the strip and the checks).
+// Pure helpers for Vigilance alerts (shared by the bar and the checks).
 import type { Incident, Severity } from "../api/v10";
 
 export const SEV_ORDER: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };

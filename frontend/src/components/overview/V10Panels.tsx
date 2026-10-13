@@ -69,7 +69,7 @@ export function NeedsAttention({ onAsk }: { onAsk: (accountId: string) => void }
       <div className="ksub">Flagged, held, confirmed or early-warning accounts right now — money in / out (24 h), since when, and why.</div>
       {rows.length === 0 ? <div className="empty">Nothing needs action. Statuses update live.</div> : (
         <div className="attn-list">
-          {rows.slice(0, 12).map((r) => (
+          {rows.slice(0, 30).map((r) => (
             <div key={r.id} className={`attn-row as-b-${r.status}`} tabIndex={0}
                  onClick={() => select({ kind: "account", id: r.id, label: r.name })}
                  onKeyDown={(e) => { if (e.key === "Enter") select({ kind: "account", id: r.id, label: r.name }); }}>
@@ -87,7 +87,7 @@ export function NeedsAttention({ onAsk }: { onAsk: (accountId: string) => void }
               </div>
               <div className="attn-act">
                 <button className="btn xs" onClick={(e) => { e.stopPropagation(); nav(`/investigations/account/${encodeURIComponent(r.id)}`); }}>Open</button>
-                <button className="btn xs" onClick={(e) => { e.stopPropagation(); onAsk(r.id); }}>Ask Copilot</button>
+                <button className="btn xs" onClick={(e) => { e.stopPropagation(); onAsk(r.id); }}>Ask Vigilance</button>
               </div>
             </div>
           ))}
@@ -107,7 +107,7 @@ export function SituationBrief({ onAsk }: { onAsk: () => void }) {
       {!b.data ? <div className="ksub">Loading…</div> : (
         <ol className="brief-lines">{b.data.lines.map((l, i) => <li key={i}>{l}</li>)}</ol>
       )}
-      <button className="btn sm primary" onClick={onAsk}>Ask Copilot</button>
+      <button className="btn sm primary" onClick={onAsk}>Ask Vigilance</button>
     </div>
   );
 }

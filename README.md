@@ -25,7 +25,7 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 
 | Screen | URL | What it is for |
 |---|---|---|
-| Overview | `/` | Operations center: KPI strip, Copilot incident strip, money map (flat / globe, simulated locations), live transaction tape + connections drawer, compact 3D network, needs attention (₹ in / out), situation brief, close monitoring, mule pipeline, money by channel |
+| Overview | `/` | Operations center: the Vigilance bar (open alerts, classified) on top, KPI strip, live network beside the live transaction tape, money map (flat / globe, simulated locations) beside needs attention, situation brief, money by channel, close monitoring, mule pipeline |
 | Payments | `/guard` | The customer's phone beside the bank's pre-commit assessment; customer-only kiosk at `/pay?as=ramesh@vigil` |
 | Network | `/network` | Live 3D universe with lenses and edge filter, evidence scenes, live activity streams |
 | Detection | `/detection` | Models (synthetic validation), live detection runs, rules, early warning, roles, full account scoring, pattern memory |
@@ -38,13 +38,18 @@ The script creates the venv, installs dependencies, builds the UI, seeds the det
 
 Payments settle on a **simulated payment rail** behind a provider port (a bank plugs its own rail in there). No real money moves and no gateway keys are needed.
 
-### Vigil Copilot (optional AI)
+### Vigilance — the fraud-operations agent (optional AI)
 
-The Overview's Copilot watches for incidents with a **deterministic** engine (rings, flagged accounts, cash-out clusters,
-impossible travel, held payments, coercion, fast pass-through new accounts, device farms, traced scam money) and briefs
-the analyst. It is **read-only**. With no key it runs offline on templates and the same read-only tools. To use Google's
-Gemini, put `GEMINI_API_KEY=...` in `.env` (git-ignored; see `.env.example`) and restart: this sends incident facts
-(synthetic data) to Google's API. Details: `docs/KNOWN_LIMITATIONS.md`, `config/copilot_policy.yaml`.
+A **deterministic** incident engine raises alerts (rings, flagged accounts, cash-out clusters, impossible travel, held
+payments, coercion, fast pass-through new accounts, device farms, traced scam money). **Vigilance** announces each one,
+classified ("High · Mule ring forming", respond within 1 hour), and opens it as a case: an assessment (red flags, key
+facts in rupees, recommendation) and the bank's procedure — contain → investigate → report → recover & close — with
+buttons for steps inside Vigil and ticks for steps outside it (freeze, STR to FIU-IND, 1930). Its chat box answers
+questions about anything on screen and can draft STR grounds for the Principal Officer. It is on every page and is
+**read-only**. With no key it answers from live data with the same read-only tools. To use Google's Gemini (a free key
+works), put `GEMINI_API_KEY=...` (or `GEMINI_API=...`) in `.env` or `backend/.env` (git-ignored; see `.env.example`) and
+restart: this sends incident facts (synthetic data) to Google's API. Details: `docs/KNOWN_LIMITATIONS.md`,
+`config/copilot_policy.yaml`, and the technical guide `docs/TECHNICAL_GUIDE.md`.
 
 ## Repository
 

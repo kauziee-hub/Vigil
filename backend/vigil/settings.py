@@ -1,7 +1,8 @@
 """Environment + policy loading. Read once, cached.
 
-Secrets come only from the environment (or the git-ignored `.env` at the repo
-root). Nothing secret is ever returned by an API.
+Secrets come only from the environment (or a git-ignored `.env` at the repo root
+or in `backend/`). Nothing secret is ever returned by an API. Tests set
+VIGIL_NO_DOTENV=1 so a developer's real keys are never loaded during pytest.
 """
 
 from __future__ import annotations
@@ -33,7 +34,9 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-_load_dotenv(REPO_ROOT / ".env")
+if os.environ.get("VIGIL_NO_DOTENV") != "1":
+    _load_dotenv(REPO_ROOT / ".env")
+    _load_dotenv(BACKEND_DIR / ".env")
 
 
 @dataclass(frozen=True)

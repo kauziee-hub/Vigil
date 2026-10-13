@@ -1,44 +1,19 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { api } from "../api/client";
-import { useRealtime, type ConnState } from "../api/realtime";
-import type { AccountStatusChange, AttackRun, Health, Metrics, ModeView, SystemHealth, WsEnvelope } from "../api/types";
+import { useRealtime } from "../api/realtime";
+import type { AccountStatusChange, AttackRun, Health, Metrics, ModeView, SystemHealth } from "../api/types";
 import { handle } from "../lib/format";
 import { useDebounced } from "../lib/hooks";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_RANK } from "../lib/status";
+import { ConsoleBus, useConsoleEvents, usePlatform, type Listener } from "./consoleBus";
 import { Logo } from "./Logo";
 import { TestConsole } from "./TestConsole";
 import { ErrorBoundary } from "./ui";
+import { VigilanceDock, VigilanceProvider } from "./vigilance/Vigilance";
 
-type Listener = (e: WsEnvelope<any>) => void;
 interface Toast { id: number; kind: "danger" | "held" | "warn" | "ok"; title: string; body: string; link?: string }
-interface Platform {
-  subscribe: (l: Listener) => () => void;
-  conn: ConnState;
-  health: Health | null;
-  system: SystemHealth | null;
-  metrics: Metrics | null;
-  mode: ModeView | null;
-  modeAvailable: boolean | null;
-  intelAvailable: boolean | null;
-  refreshMode: () => void;
-}
-const ConsoleBus = createContext<Platform>({
-  subscribe: () => () => undefined, conn: "connecting", health: null, system: null, metrics: null, mode: null,
-  modeAvailable: null, intelAvailable: null, refreshMode: () => undefined,
-});
-
-/** One console WebSocket for the whole bank-side app; pages subscribe to it (push-only, no polling). */
-export function useConsoleEvents(listener: Listener) {
-  const bus = useContext(ConsoleBus);
-  const ref = useRef(listener);
-  ref.current = listener;
-  useEffect(() => bus.subscribe((e) => ref.current(e)), [bus]);
-}
-
-export function usePlatform() {
-  return useContext(ConsoleBus);
-}
+export { useConsoleEvents, usePlatform };
 
 export const NAV: { to: string; label: string; title: string; end?: boolean }[] = [
   { to: "/", label: "Overview", title: "Operations overview", end: true },
@@ -155,6 +130,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <ConsoleBus.Provider value={{ subscribe, conn, health, system, metrics, mode, modeAvailable, intelAvailable, refreshMode }}>
+      <VigilanceProvider>
       <div className="shell">
         <div className="main">
           <header className="topbar">
@@ -213,6 +189,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
+      {/* Vigilance is global: its alerts, toasts and dock follow the analyst across pages */}
+      <VigilanceDock />
+      </VigilanceProvider>
     </ConsoleBus.Provider>
   );
 }

@@ -1,15 +1,19 @@
-// OPERATIONS CENTER (Overview v10) — everything about money and accounts that can be seen at once, nothing that has
-// a home elsewhere (detector families, SHAP and scoring live on Detection):
-//   header (window · rail · incident mode) → KPI strip → Copilot incident strip → money map | live tape →
-//   compact 3D network | needs attention | situation brief → close monitoring | mule pipeline → money by channel.
-// One shared selection (lib/selection) links the map, tape, 3D network, lists and Copilot. Every number comes from the
+// OPERATIONS CENTER (Overview v11) — everything about money and accounts that can be seen at once, nothing that has
+// a home elsewhere (detector families, SHAP and scoring live on Detection). Layout, top to bottom:
+//   header (window · rail · incident mode · search)
+//   VIGILANCE bar — the open alerts, classified, on top of everything
+//   KPI strip
+//   live network (left, large)   | live transactions (right)
+//   money map (left)             | needs attention (right)
+//   situation brief  | money by channel
+//   close monitoring | mule pipeline
+// One shared selection (lib/selection) links the map, tape, network, lists and Vigilance. Every number comes from the
 // backend; live updates arrive over the console WebSocket (no polling). Locations are SIMULATED and labelled.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { UniverseAccount } from "../api/types";
 import type { KpiTile, Window } from "../api/v10";
 import { RAILS, RAIL_LABEL } from "../api/v10";
-import { CopilotDock, IncidentStrip, useIncidents } from "../components/copilot/Copilot";
 import { EdgeViewSeg, LiveUniverse3D, UniverseLegend, type EdgeView, type UniverseInfo } from "../components/LiveUniverse3D";
 import { MoneyMap } from "../components/map/MoneyMap";
 import { useGeoReference } from "../components/map/useMapData";
@@ -18,18 +22,21 @@ import { usePlatform } from "../components/Shell";
 import { ConnectionsDrawer } from "../components/tape/ConnectionsDrawer";
 import { LiveTape } from "../components/tape/LiveTape";
 import { UniverseDrawer } from "../components/UniverseDrawer";
+import { SEV_LABEL, useIncidents, VigilanceBar } from "../components/vigilance/Vigilance";
 import { WatchlistCard } from "../components/Watchlist";
-import type { ActionDeps } from "../lib/copilotActions";
 import { formatPaiseShort } from "../lib/format";
 import { SelectionProvider, selectionAccounts, useSelection } from "../lib/selection";
+import { useVigilance } from "../lib/vigilance";
+import { runAction, type ActionDeps } from "../lib/vigilanceActions";
 
 const WINDOWS: Window[] = ["15m", "1h", "24h", "7d"];
+const ROW1_H = 540;     // live network | live transactions
+const ROW2_H = 500;     // money map | needs attention
 
-function Header({ incidents }: { incidents: { id: string; title: string }[] }) {
+function Header({ hasIncidents, top }: { hasIncidents: boolean; top: () => void }) {
   const nav = useNavigate();
   const { conn, mode } = usePlatform();
   const { window, setWindow, channel, setChannel, incident, setIncident } = useSelection();
-  const all = useIncidents();
   const [q, setQ] = useState("");
   const go = (e: FormEvent) => {
     e.preventDefault();
@@ -49,9 +56,9 @@ function Header({ incidents }: { incidents: { id: string; title: string }[] }) {
         <option value="all">All rails</option>
         {RAILS.map((r) => <option key={r} value={r}>{RAIL_LABEL[r]}</option>)}
       </select>
-      <button className={`btn sm ${incident ? "on danger" : ""}`} disabled={!incident && incidents.length === 0}
-              title={incidents.length ? "Focus the whole page on the top incident" : "No open incident"}
-              onClick={() => setIncident(incident ? null : all.list[0] ?? null)}>{incident ? "Exit incident mode" : "Incident mode"}</button>
+      <button className={`btn sm ${incident ? "on danger" : ""}`} disabled={!incident && !hasIncidents}
+              title={hasIncidents ? "Focus the whole page on the top alert" : "No open alert"}
+              onClick={() => (incident ? setIncident(null) : top())}>{incident ? "Exit incident mode" : "Incident mode"}</button>
       <form onSubmit={go} style={{ flex: "0 1 260px", minWidth: 180 }}>
         <input className="input search sm" placeholder="Find an account" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search an account" />
       </form>
@@ -62,8 +69,9 @@ function Header({ incidents }: { incidents: { id: string; title: string }[] }) {
 function Overview() {
   const nav = useNavigate();
   const sel = useSelection();
-  const { selected, select, incident, setIncident, setTapeOnly, setChannel, openCopilot } = sel;
-  const { list: incidents, max } = useIncidents();
+  const { selected, select, incident, setIncident, setTapeOnly, setChannel, openVigilance } = sel;
+  const { list: incidents, loaded } = useIncidents();
+  const { registerPage, takePending } = useVigilance();
   const reference = useGeoReference();
   const [edgeView, setEdgeView] = useState<EdgeView>("recent");
   const [focus, setFocus] = useState<{ ids: string[]; seq: number } | null>(null);
@@ -71,10 +79,11 @@ function Overview() {
   const [drawerTx, setDrawerTx] = useState<string | null>(null);
   const accounts = useRef(new Map<string, UniverseAccount>());
   const netRef = useRef<HTMLElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
   const attnRef = useRef<HTMLDivElement>(null);
   const pipeRef = useRef<HTMLDivElement>(null);
 
-  // selection → 3D network focus
+  // selection → network focus
   useEffect(() => {
     const ids = selectionAccounts(selected);
     if (ids.length) { setEdgeView("risk"); setFocus({ ids, seq: Date.now() }); }
@@ -86,14 +95,30 @@ function Overview() {
     select({ kind: "incident", id: incident.id, accounts: incident.entities, lat: c?.lat ?? null, lng: c?.lng ?? null, label: incident.title });
   }, [incident?.id, reference]); // eslint-disable-line react-hooks/exhaustive-deps
   // an incident that closes ends incident mode
-  useEffect(() => { if (incident && !incidents.some((i) => i.id === incident.id)) setIncident(null); }, [incidents]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (incident && loaded && !incidents.some((i) => i.id === incident.id)) setIncident(null); }, [incidents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollTo = (el: HTMLElement | null) => { if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 84, behavior: "smooth" }); };
   const focusNetwork = useCallback((ids: string[]) => { setEdgeView("risk"); setFocus({ ids, seq: Date.now() }); scrollTo(netRef.current); }, []);
   const deps: Omit<ActionDeps, "confirmWatch"> = useMemo(() => ({
-    select, navigate: nav, openConnections: (tx: string) => setDrawerTx(tx), focusNetwork, setTapeOnly,
+    select: (s) => { select(s); if (s && (s.kind === "city" || s.kind === "cluster")) scrollTo(mapRef.current); },
+    navigate: nav, openConnections: (tx: string) => setDrawerTx(tx), focusNetwork, setTapeOnly,
     cityPoint: (city: string) => { const c = reference?.cities.find((x) => x.city.toLowerCase() === city.toLowerCase()); return c ? { lat: c.lat, lng: c.lng } : null; },
   }), [select, nav, focusNetwork, setTapeOnly, reference]);
+  // Vigilance (global dock) runs its map / network / tape actions through these handlers while the Overview is on screen
+  useEffect(() => {
+    registerPage({ select: deps.select, openConnections: deps.openConnections, focusNetwork: deps.focusNetwork,
+                   setTapeOnly: deps.setTapeOnly, cityPoint: deps.cityPoint, focusIncident: (i) => setIncident(i) });
+  }, [deps, registerPage, setIncident]);
+  useEffect(() => () => registerPage(null), [registerPage]);
+  // …and an action started on another page is carried here: run it once the city reference is ready (or after 2 s)
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const p = takePending();
+      if (p?.focus) setIncident(p.focus);
+      if (p?.action) runAction(p.action, { ...deps, confirmWatch: () => undefined });
+    }, reference ? 250 : 2000);
+    return () => window.clearTimeout(t);
+  }, [reference]); // eslint-disable-line react-hooks/exhaustive-deps
   const onTile = (k: KpiTile["key"]) => {
     if (k === "fraud") setTapeOnly("fraud");
     else if (k === "moved") { setTapeOnly("all"); setChannel("all"); }
@@ -110,27 +135,23 @@ function Overview() {
 
   return (
     <>
-      <Header incidents={incidents} />
+      <Header hasIncidents={incidents.length > 0} top={() => setIncident(incidents[0] ?? null)} />
       {incident && (
         <div className={`inc-banner sev-${incident.severity}`}>
-          <b>Incident mode</b> · {incident.kind_label}: {incident.title}{incident.value_paise ? ` · ${formatPaiseShort(incident.value_paise)} at stake` : ""}
+          <b>Incident mode</b> · {SEV_LABEL[incident.severity]} · {incident.classification}: {incident.subject}
+          {incident.value_paise ? ` · ${formatPaiseShort(incident.value_paise)} at stake` : ""}
           <span className="spacer" />
-          <button className="btn xs" onClick={() => openCopilot({ incidentId: incident.id })}>Briefing</button>
+          <button className="btn xs" onClick={() => openVigilance({ incidentId: incident.id })}>Open case</button>
           <button className="btn xs" onClick={() => { setIncident(null); select(null); }}>Exit incident mode</button>
         </div>
       )}
+      <VigilanceBar />
       <KpiStripV10 onTile={onTile} />
-      <IncidentStrip incidents={incidents} max={max} />
 
-      <div className="v10-row map-row">
-        <MoneyMap height={470} />
-        <LiveTape height={470} onOpen={(r) => setDrawerTx(r.tx_id)} />
-      </div>
-
-      <div className="v10-row three">
-        <section className="stage net-compact" ref={netRef}>
+      <div className="v11-row r1">
+        <section className="stage net-main" ref={netRef}>
           <div className="stage-h">
-            <div><div className="t">Live network</div><div className="net-help">Accounts and the payments between them; selection elsewhere frames it here.</div></div>
+            <div><div className="t">Live network</div><div className="net-help">Accounts and the payments between them, live. Selecting anything elsewhere frames it here.</div></div>
             <button className="btn xs on" onClick={() => nav("/network")}>Full view</button>
           </div>
           <div className="stage-filter"><EdgeViewSeg value={edgeView} onChange={setEdgeView} /></div>
@@ -142,25 +163,34 @@ function Overview() {
           </div>
           <div className="net-legend"><UniverseLegend /></div>
         </section>
-        <div ref={attnRef}><NeedsAttention onAsk={(id) => openCopilot({ prompt: `Tell me about ${id} — why is it flagged and where did its money go?` })} /></div>
-        <SituationBrief onAsk={() => openCopilot({ prompt: "Give me a situation summary and what to look at first." })} />
+        <LiveTape height={ROW1_H} onOpen={(r) => setDrawerTx(r.tx_id)} />
       </div>
 
+      <div className="v11-row r2">
+        <div ref={mapRef} className="map-col">
+          <MoneyMap height={ROW2_H - 92} onAsk={(q) => openVigilance({ prompt: q })} />
+        </div>
+        <div ref={attnRef} className="attn-col">
+          <NeedsAttention onAsk={(id) => openVigilance({ prompt: `Tell me about ${id} — why is it flagged and where did its money go?` })} />
+        </div>
+      </div>
+
+      <div className="v10-row two">
+        <SituationBrief onAsk={() => openVigilance({ prompt: "Give me a situation summary and what to look at first." })} />
+        <ChannelChart />
+      </div>
       <div className="v10-row two">
         <WatchlistCard />
         <div ref={pipeRef}><MulePipeline /></div>
       </div>
 
-      <div className="v10-row one"><ChannelChart /></div>
-
       {drawerTx && (
         <ConnectionsDrawer txId={drawerTx} onClose={() => setDrawerTx(null)}
-          onShowMap={(c) => select({ kind: "tx", id: c.tx.tx_id, accounts: [c.sender.id, c.recipient.id], lat: c.tx.geo.lat, lng: c.tx.geo.lng,
-                                    peer: { lat: c.tx.geo.peer_lat, lng: c.tx.geo.peer_lng }, label: c.tx.geo.label })}
+          onShowMap={(c) => { select({ kind: "tx", id: c.tx.tx_id, accounts: [c.sender.id, c.recipient.id], lat: c.tx.geo.lat, lng: c.tx.geo.lng,
+                                       peer: { lat: c.tx.geo.peer_lat, lng: c.tx.geo.peer_lng }, label: c.tx.geo.label }); scrollTo(mapRef.current); }}
           onShowNetwork={focusNetwork}
-          onAsk={(tx) => openCopilot({ prompt: `Tell me about ${tx}: who funded the sender, where did the money go, and is it risky?` })} />
+          onAsk={(tx) => openVigilance({ prompt: `Tell me about ${tx}: who funded the sender, where did the money go, and is it risky?` })} />
       )}
-      <CopilotDock incidents={incidents} deps={deps} />
     </>
   );
 }

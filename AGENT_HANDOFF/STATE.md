@@ -9,6 +9,17 @@ Any agent (Claude / Cursor / Codex) resuming this project, read in order:
 
 Append to the **Log** at the bottom when you finish a unit of work. Contract/API change requests go in `REQUESTS.md`.
 
+## Status: v11 — Vigilance, Overview orientation, money map, guides (updated 2026-10-13 ~15:00 IST)
+
+Prompts v11 / v11.r / v11.r2 (`prompts/12_…`, `13_…`, `14_…`). Branch **`overview-v10`** (not merged, not pushed). Record:
+`runs/20261013-1500_claude1_v11-vigilance-layout-map-guides.md`.
+
+* Overview = Vigilance bar (ranked alerts) → KPI strip → live network | live tape → money map | needs attention → brief | channels → close monitoring | pipeline. Vigilance dock is global (Shell), with a page bridge that carries map / network actions to the Overview.
+* Vigilance = the v10 Copilot renamed (package still `vigil/copilot/`, routes `/api/copilot/*`): classified alerts, assessments (code + validated Gemini narrative), four-phase procedures (`copilot/playbooks.py`), STR draft, read-only chat. Gemini key: `GEMINI_API_KEY` / `GEMINI_API` / `GOOGLE_API_KEY` in `.env` or `backend/.env` (the user's free key is in `backend/.env` as `GEMINI_API`).
+* Gates: pytest 381/381, frontend checks 20/20, tsc clean. No detector, threshold, policy or seed change.
+* Guides: functional guide = Claude Doc `bf16f71c-…` (only session 160f1b23 can open it; repo Markdown is v10 + a note); technical guide = `docs/TECHNICAL_GUIDE.md` + Claude Doc `046e4edd-7138-4920-bafa-51b816c28a44` (made in session 0a7ec91d).
+* Security fix: SPA path traversal (`app.py`) closed, with a test.
+
 ## Status: v8 — operations center, close monitoring, explained Detection, functional guide (updated 2026-10-13 03:30 IST)
 
 User direction (`prompts/10_USER_functional_guide_overview_watchlist_2026-10-13.md`).
@@ -174,3 +185,4 @@ In-process subagents die when the lead's session restarts. On resume (also: `Lis
 - 2026-10-12 23:55 – 2026-10-13 00:40 Claude 1 — v7: Razorpay removed; Overview trimmed; all 11 attacks verified live; circular-ring originator fix; docs archived; record `runs/20261013-0000_claude1_v7-razorpay-removal-cleanup-overview-attacks.md`.
 - 2026-10-13 00:50–03:30 Claude 1 — v8: Overview rebuilt around live activity (network full width, reasons in Needs attention, close monitoring, money moving now, new accounts); Detection captioned; watchlist / new-accounts / traffic APIs; functional guide (Claude Doc, 67 screenshots). Record `runs/20261013-0050_claude1_v8-operations-center-watchlist-guide.md`.
 - 2026-10-13 03:30–06:30 Claude 1 — v10: plan 10 P0–P10 on `overview-v10` (v8 work committed as its base); P1 regression found (cohort leaked into attack pools) and fixed without tuning; guide v10. Record `runs/20261013-0330_claude1_v10-overview-money-map-copilot.md`.
+- 2026-10-13 07:00–15:00 Claude 1 (+ a continuation session) — v11: Vigilance (classification, procedures, assessments, global dock), requested Overview orientation, money-map overlays, Gemini free key wired, path-traversal fix, functional guide (Claude Doc) + technical guide (Markdown + Claude Doc). Record `runs/20261013-1500_claude1_v11-vigilance-layout-map-guides.md`.

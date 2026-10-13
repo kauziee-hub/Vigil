@@ -225,11 +225,11 @@ export default function MoneyMapGlobe({ data, layers, selected, onSelect, onPost
       }
       for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i];
-        const s = (now - p.t0) / 1800;
-        if (s >= 1) { scene.remove(p.m); (p.m.material as THREE.Material).dispose(); parts.splice(i, 1); continue; }
+        const s = Math.max(0, (now - p.t0) / 1800);
+        if (s >= 1 || p.pts.length === 0) { scene.remove(p.m); (p.m.material as THREE.Material).dispose(); parts.splice(i, 1); continue; }
         const idx = s * (p.pts.length - 1);
         const a = p.pts[Math.floor(idx)], b = p.pts[Math.min(p.pts.length - 1, Math.floor(idx) + 1)];
-        p.m.position.copy(a).lerp(b, idx - Math.floor(idx));
+        if (a && b) p.m.position.copy(a).lerp(b, idx - Math.floor(idx));   // a spark that started before its arc was built
       }
       controls.update();
       renderer.render(scene, camera);

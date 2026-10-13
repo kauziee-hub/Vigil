@@ -90,9 +90,24 @@ def _last_ts(accounts: list[str]) -> str | None:
     return best
 
 
+ROLE_PHRASE = {"collector": "a mule collector (takes money in from many payers)",
+               "distributor": "a mule distributor (spreads money out to many accounts)",
+               "coordinator": "a coordinator inside a mule network", "entry": "the entry point of a mule chain",
+               "exit": "a cash-out account at the end of a mule chain"}
+
+
+def _flows_72h(aid: str) -> tuple[int, int]:
+    since_t = clock.now().timestamp() - 72 * 3600
+    return (sum(e.amount_paise for e in GRAPH.inflows(aid, since_t)),
+            sum(e.amount_paise for e in GRAPH.outflows(aid, since_t)))
+
+
 def findings() -> list[dict[str, Any]]:
+    """Each finding carries `title` (short, for lists), `subject` (who / where, for the alert chip) and `situation`
+    (one plain sentence with the numbers — what Vigilance says when it raises the alert)."""
     sts = overview.statuses()
     nm = overview.names()
+    inr = overview._inr
     out: list[dict[str, Any]] = []
     since2h = clock.iso(clock.now() - timedelta(hours=2))
     ring_accounts: set[str] = set()
@@ -100,41 +115,68 @@ def findings() -> list[dict[str, Any]]:
     for r in overview.rings():
         if r["size"] >= 3 and r["flagged"] >= 1:
             ring_accounts.update(r["members"])
+            where = f" around {r['city']}" if r["city"] else ""
             out.append({"kind": "ring_formed", "entities": r["members"], "stake": r["value_paise"],
-                        "title": f"{r['kind'].title()} of {r['size']} accounts" + (f" around {r['city']}" if r["city"] else ""),
+                        "title": f"{r['kind'].title()} of {r['size']} accounts{where}",
+                        "subject": f"{r['size']} accounts{where}",
+                        "situation": f"{r['size']} connected accounts{where} moved {inr(r['value_paise'])} between them in "
+                                     f"the live window; {r['flagged']} of them are already flagged.",
                         "facts": [f"{r['flagged']} of {r['size']} accounts flagged",
-                                  f"{overview._inr(r['value_paise'])} moved between them in the live window",
+                                  f"{inr(r['value_paise'])} moved between them in the live window",
                                   "Network rules: " + (", ".join(r["rules"][:5]) or "—")],
                         "confirmed": any(sts.get(a, {}).get("status") == "confirmed_fraud" for a in r["members"]),
-                        "ts": _last_ts(r["members"])})
+                        "ts": _last_ts(r["members"]), "city": r["city"]})
     for aid, s in sts.items():
         if s["status"] == "flagged" and aid not in ring_accounts:
             stake = sum(e.amount_paise for e in GRAPH.in_edges.get(aid, [])[-20:])
+            role = s.get("role")
+            fam = int(s.get("families_flagging") or 0)
+            tin, tout = _flows_72h(aid)
+            moved = (f"received {inr(tin)} and passed {inr(tout)} ({round(100 * tout / tin)}%) on to other accounts in the last 72 hours"
+                     if tin else f"received {inr(stake)} in its latest inflows")
             out.append({"kind": "account_flagged", "entities": [aid], "stake": stake,
-                        "title": f"{nm.get(aid, aid)} flagged", "facts": [s.get("reason") or "flagged by the detection stream",
-                                                                     f"{s.get('families_flagging') or 0} detector families agree"],
+                        "title": f"{nm.get(aid, aid)} flagged" + (f" as a {role}" if role and role != "unclassified" else "")
+                                 + f" · {fam} detector families agree",
+                        "subject": nm.get(aid, aid),
+                        "situation": f"{nm.get(aid, aid)} {moved}; {fam} independent detector families agree it behaves "
+                                     f"like {ROLE_PHRASE.get(role or '', 'a mule account')}.",
+                        "facts": [s.get("reason") or "flagged by the detection stream",
+                                  f"{inr(stake)} received in its latest inflows"],
                         "confirmed": False, "ts": s.get("since") or _last_ts([aid])})
     for c in overview.cash_out_clusters(since2h):
         out.append({"kind": "cash_out_cluster", "entities": c["accounts"], "stake": c["value_paise"], "tx_ids": c["tx_ids"],
                     "title": f"{len(c['tx_ids'])} risky ATM withdrawals in {c['city']}",
-                    "facts": [f"{overview._inr(c['value_paise'])} withdrawn within {c['radius_km']} km",
+                    "subject": c["city"],
+                    "situation": f"{len(c['tx_ids'])} ATM withdrawals by risky accounts in {c['city']}: "
+                                 f"{inr(c['value_paise'])} taken out within {c['radius_km']} km between "
+                                 f"{c['first_ts'][11:16]} and {c['last_ts'][11:16]} UTC (simulated ATM locations).",
+                    "facts": [f"{inr(c['value_paise'])} withdrawn within {c['radius_km']} km",
                               f"between {c['first_ts'][11:16]} and {c['last_ts'][11:16]} UTC",
                               "Simulated ATM terminal locations (±25 m)"],
                     "confirmed": False, "ts": c["last_ts"], "city": c["city"]})
     for t in overview.impossible_travel(since2h):
+        span = "under a minute" if t["minutes"] < 1 else f"{t['minutes']:.0f} min"
+        limit = overview.policy()["signals"]["impossible_travel_kmh"]
+        who = nm.get(t["account"], t["account"])
         out.append({"kind": "impossible_travel", "entities": [t["account"]], "stake": 0, "tx_ids": t["tx_ids"],
-                    "title": f"{nm.get(t['account'], t['account'])}: {t['from_city']} → {t['to_city']} in "
-                             + ("under a minute" if t["minutes"] < 1 else f"{t['minutes']:.0f} min"),
-                    "facts": [f"{t['km']} km apart, implied speed {t['kmh']} km/h (limit "
-                              f"{overview.policy()['signals']['impossible_travel_kmh']} km/h)",
+                    "title": f"{who}: {t['from_city']} → {t['to_city']} in {span}",
+                    "subject": who,
+                    "situation": f"{who}'s device paid from {t['from_city']} and then from {t['to_city']} ({t['km']} km "
+                                 f"apart) within {span} — faster than any travel ({limit} km/h limit).",
+                    "facts": [f"{t['km']} km apart, implied speed {t['kmh']} km/h (limit {limit} km/h)",
                               "Same account, consecutive device-GPS fixes (simulated)"],
                     "confirmed": False, "ts": t["ts"], "city": t["to_city"]})
     for al in db.q("SELECT a.*, i.state FROM alerts a LEFT JOIN transaction_intents i ON i.id = a.intent_id "
                    "WHERE a.tier >= 3 AND a.status = 'open' ORDER BY a.ts DESC LIMIT 20"):
         kind = "tier4_coercion" if al["tier"] >= 4 else "payment_held_t3"
+        snd, rcp = nm.get(al["account_id"], al["account_id"]), nm.get(al["recipient_id"], al["recipient_id"])
+        situation = (f"{snd} is trying to send {inr(al['amount_paise'])} to {rcp} with signs of coercion; Vigil is holding "
+                     f"the payment and has alerted the trusted contact (Tier 4)." if al["tier"] >= 4 else
+                     f"Vigil held {snd}'s {inr(al['amount_paise'])} payment to {rcp} for review before any money moved "
+                     f"(Tier 3).")
         out.append({"kind": kind, "entities": [al["account_id"], al["recipient_id"]], "stake": al["amount_paise"],
-                    "title": f"{nm.get(al['account_id'], al['account_id'])} → {nm.get(al['recipient_id'], al['recipient_id'])} "
-                             f"{overview._inr(al['amount_paise'])} held (Tier {al['tier']})",
+                    "title": f"{snd} → {rcp} {inr(al['amount_paise'])} held (Tier {al['tier']})",
+                    "subject": f"{snd} → {rcp}", "situation": situation,
                     "facts": [al["headline"], f"intent {al['intent_id']} · state {al['state']}"],
                     "confirmed": False, "ts": al["ts"], "key_extra": al["intent_id"],
                     "contained": al["state"] in ("HELD", "ESCALATED", "REJECTED")})
@@ -143,15 +185,22 @@ def findings() -> list[dict[str, Any]]:
         if a["suspicious_path"] and a["id"] not in ring_accounts and sts.get(a["id"], {}).get("status") != "flagged":
             out.append({"kind": "fast_pass_through_new_account", "entities": [a["id"]], "stake": a["out_paise"],
                         "title": f"{a['name']} ({a['age_days']:.0f} d old) forwarded {a['forwarded_pct']:.0f}% of inflow",
-                        "facts": [pipe["rule"], f"in {overview._inr(a['in_paise'])} · out {overview._inr(a['out_paise'])}"],
+                        "subject": a["name"],
+                        "situation": f"{a['name']}, opened {a['age_days']:.0f} days ago, received {inr(a['in_paise'])} "
+                                     f"and forwarded {a['forwarded_pct']:.0f}% of it.",
+                        "facts": [pipe["rule"], f"in {inr(a['in_paise'])} · out {inr(a['out_paise'])}"],
                         "confirmed": False, "ts": a["first_debit_ts"]})
     for dev, accs in GRAPH.device_accounts.items():
         accs = sorted(a for a in accs if not a.startswith("ext:"))
-        if len(accs) >= 3 and any(sts.get(a, {}).get("status") in overview.RISKY | overview.WARN for a in accs):
+        risky = [a for a in accs if sts.get(a, {}).get("status") in overview.RISKY | overview.WARN]
+        if len(accs) >= 3 and risky:
             out.append({"kind": "device_farm", "entities": accs, "stake": sum(e.amount_paise for a in accs
                                                                               for e in GRAPH.in_edges.get(a, [])[-5:]),
-                        "title": f"{len(accs)} accounts on one device", "facts": [f"device {dev[:4]}… shared by {len(accs)} accounts",
-                                                                                  "at least one is under watch or flagged"],
+                        "title": f"{len(accs)} accounts on one device", "subject": f"{len(accs)} accounts, one device",
+                        "situation": f"{len(accs)} accounts are operated from the same device; {len(risky)} of them "
+                                     f"are flagged or on early warning.",
+                        "facts": [f"device {dev[:4]}… shared by {len(accs)} accounts",
+                                  "at least one is under watch or flagged"],
                         "confirmed": False, "ts": _last_ts(accs), "key_extra": dev})
     try:
         from vigil.risk import taint
@@ -160,9 +209,13 @@ def findings() -> list[dict[str, Any]]:
         exp = {}
     if exp:
         accs = sorted(exp, key=lambda a: -exp[a])[:12]
-        out.append({"kind": "confirmed_scam_trace", "entities": accs, "stake": int(sum(exp.values())),
+        total = int(sum(exp.values()))
+        out.append({"kind": "confirmed_scam_trace", "entities": accs, "stake": total,
                     "title": f"Scam money traced to {len(exp)} account(s)",
-                    "facts": [f"{overview._inr(int(sum(exp.values())))} attributable (LIBR) from bank-confirmed scam reports",
+                    "subject": f"{len(exp)} account(s)",
+                    "situation": f"{inr(total)} of money from bank-confirmed scams now sits in {len(exp)} account(s); "
+                                 f"the largest holder is {nm.get(accs[0], accs[0])}.",
+                    "facts": [f"{inr(total)} attributable (LIBR) from bank-confirmed scam reports",
                               "Largest holder: " + nm.get(accs[0], accs[0])],
                     "confirmed": True, "ts": clock.now_iso()})
     return out
@@ -189,8 +242,20 @@ def get(incident_id: str) -> dict[str, Any] | None:
 
 
 def public(i: dict[str, Any], brief: bool = True) -> dict[str, Any]:
+    from vigil.copilot import playbooks
     s = i["summary"]
+    label, typology = playbooks.CLASS.get(i["kind"], (KIND_LABEL.get(i["kind"], i["kind"]), ""))
+    mins, within = playbooks.RESPOND.get(i["severity"], playbooks.RESPOND["medium"])
+    try:
+        pv = playbooks.view(i)
+        progress = {"done": pv["done"], "total": pv["total"],
+                    "next": next((st["title"] for st in pv["steps"] if not st["done"]), None)}
+    except Exception:
+        progress = None
     return {"id": i["id"], "kind": i["kind"], "kind_label": KIND_LABEL.get(i["kind"], i["kind"]), "severity": i["severity"],
+            "classification": label, "typology": typology, "respond_within": within, "respond_minutes": mins,
+            "procedure": progress, "subject": s.get("subject") or i["title"], "situation": s.get("situation") or i["title"],
+            "contained": bool(s.get("contained")),
             "score": i["score"], "status": i["status"], "title": i["title"], "entities": i["entities"],
             "tx_ids": i["tx_ids"], "value_paise": s.get("stake"), "facts": s.get("facts", []),
             "score_parts": s.get("score_parts", {}), "engine": s.get("engine"), "city": s.get("city"),
@@ -217,11 +282,18 @@ def _upsert(f: dict[str, Any], open_rows: list[dict[str, Any]]) -> tuple[str, st
             break
     summary = {"stake": int(f.get("stake") or 0), "facts": f["facts"], "score_parts": sev["parts"],
                "engine": ENGINE[f["kind"]], "city": f.get("city"), "key_extra": f.get("key_extra"),
-               "contained": contained}
+               "contained": contained, "subject": f.get("subject"), "situation": f.get("situation")}
     if match:
         changed = (set(match["entities"]) != set(ents) or match["severity"] != sev["level"]
                    or match["summary"].get("stake") != summary["stake"])
         if not changed:
+            old = match["summary"]
+            if (old.get("situation"), old.get("subject"), old.get("city")) != (summary["situation"], summary["subject"], summary["city"]):
+                fresh = {**old, "situation": summary["situation"], "subject": summary["subject"], "city": summary["city"],
+                         "facts": summary["facts"]}       # wording refresh only: no new version, no announcement
+                db.execute("UPDATE copilot_incidents SET summary_json = ?, title = ? WHERE id = ?",
+                           (db.dumps(fresh), f["title"], match["id"]))
+                match["summary"] = fresh
             return None
         summary["version"] = int(match["summary"].get("version", 1)) + 1
         summary["brief"] = None

@@ -103,7 +103,7 @@ export function ConnectionsDrawer({ txId, onClose, onShowMap, onShowNetwork, onA
             <button className="btn sm" onClick={() => onShowMap(c)}>Show on map</button>
             <button className="btn sm" onClick={() => onShowNetwork([c.sender.id, c.recipient.id, ...c.downstream.map((d) => d.account)].filter((a) => !a.startsWith("ext:")))}>Show in network</button>
             <Link className="btn sm" to={`/investigations/account/${encodeURIComponent(c.recipient.id)}`}>Open recipient</Link>
-            <button className="btn sm primary" onClick={() => onAsk(txId)}>Ask Copilot about this</button>
+            <button className="btn sm primary" onClick={() => onAsk(txId)}>Ask Vigilance about this</button>
           </div>
         </div>
       )}

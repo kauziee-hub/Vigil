@@ -1,12 +1,16 @@
-// Safe "markdown-lite" renderer for Copilot text. No dangerouslySetInnerHTML anywhere: the text is tokenised into
-// React elements, so any HTML in the input is rendered as literal characters. Supported: paragraphs, "- " / "1. "
-// lists, **bold**, _italic_ / *italic*, `inline code`, and entity links [[acct:ID]] / [[tx:ID]] which become
-// clickable chips (the click is handled by the caller through `onEntity`).
+// Safe "markdown-lite" renderer for Vigilance text. No dangerouslySetInnerHTML anywhere: the text is tokenised into
+// React elements, so any HTML in the input is rendered as literal characters. Supported: paragraphs, "# " headings,
+// "- " / "1. " lists (also directly under a heading line, as language models write them), **bold**, _italic_ /
+// *italic*, `inline code`, and entity links [[acct:ID]] / [[tx:ID]] which become clickable chips (the click is
+// handled by the caller through `onEntity`).
 import type { ReactNode } from "react";
 
 export type EntityRef = { kind: "acct" | "tx"; id: string };
 
 const INLINE = /(\[\[(acct|tx):([^\]\s]{1,80})\]\]|\*\*([^*]+)\*\*|`([^`]+)`|_([^_]+)_|\*([^*]+)\*)/g;
+const BULLET = /^\s*[-•*]\s+/;
+const NUMBER = /^\s*\d+[.)]\s+/;
+const HEADING = /^\s*#{1,6}\s+/;
 
 function inline(text: string, onEntity?: (e: EntityRef) => void, keyBase = ""): ReactNode[] {
   const out: ReactNode[] = [];
@@ -31,20 +35,32 @@ function inline(text: string, onEntity?: (e: EntityRef) => void, keyBase = ""): 
   return out;
 }
 
+type Run = { kind: "ul" | "ol" | "p" | "h"; lines: string[] };
+
+/** Split one block into runs of the same kind, so "**Do now**\n1. …\n2. …" becomes a paragraph and a list. */
+function runs(lines: string[]): Run[] {
+  const out: Run[] = [];
+  for (const l of lines) {
+    const kind: Run["kind"] = HEADING.test(l) ? "h" : BULLET.test(l) ? "ul" : NUMBER.test(l) ? "ol" : "p";
+    const prev = out[out.length - 1];
+    if (prev && prev.kind === kind && kind !== "h") prev.lines.push(l);
+    else out.push({ kind, lines: [l] });
+  }
+  return out;
+}
+
 export function SafeMarkdown({ text, onEntity }: { text: string; onEntity?: (e: EntityRef) => void }) {
   const blocks = (text || "").replace(/\r/g, "").split(/\n{2,}/);
-  return (
-    <div className="safe-md">
-      {blocks.map((block, bi) => {
-        const lines = block.split("\n").filter((l) => l.trim() !== "");
-        if (lines.length && lines.every((l) => /^\s*[-•]\s+/.test(l))) {
-          return <ul key={bi}>{lines.map((l, li) => <li key={li}>{inline(l.replace(/^\s*[-•]\s+/, ""), onEntity, `${bi}-${li}`)}</li>)}</ul>;
-        }
-        if (lines.length && lines.every((l) => /^\s*\d+[.)]\s+/.test(l))) {
-          return <ol key={bi}>{lines.map((l, li) => <li key={li}>{inline(l.replace(/^\s*\d+[.)]\s+/, ""), onEntity, `${bi}-${li}`)}</li>)}</ol>;
-        }
-        return <p key={bi}>{lines.map((l, li) => <span key={li}>{li > 0 && <br />}{inline(l.replace(/^#+\s*/, ""), onEntity, `${bi}-${li}`)}</span>)}</p>;
-      })}
-    </div>
-  );
+  const out: ReactNode[] = [];
+  blocks.forEach((block, bi) => {
+    const lines = block.split("\n").filter((l) => l.trim() !== "");
+    runs(lines).forEach((r, ri) => {
+      const key = `${bi}-${ri}`;
+      if (r.kind === "ul") out.push(<ul key={key}>{r.lines.map((l, li) => <li key={li}>{inline(l.replace(BULLET, ""), onEntity, `${key}-${li}`)}</li>)}</ul>);
+      else if (r.kind === "ol") out.push(<ol key={key}>{r.lines.map((l, li) => <li key={li}>{inline(l.replace(NUMBER, ""), onEntity, `${key}-${li}`)}</li>)}</ol>);
+      else if (r.kind === "h") out.push(<div key={key} className="md-h">{inline(r.lines[0].replace(HEADING, ""), onEntity, key)}</div>);
+      else out.push(<p key={key}>{r.lines.map((l, li) => <span key={li}>{li > 0 && <br />}{inline(l, onEntity, `${key}-${li}`)}</span>)}</p>);
+    });
+  });
+  return <div className="safe-md">{out}</div>;
 }
