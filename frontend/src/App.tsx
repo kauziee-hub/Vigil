@@ -7,6 +7,7 @@ import { AccountPage } from "./pages/AccountPage";
 import { CasePage } from "./pages/CasePage";
 import { ContactPage } from "./pages/ContactPage";
 import { DetectionPage } from "./pages/DetectionPage";
+import { SignalMapPage } from "./pages/SignalMapPage";
 import { GovernancePage } from "./pages/GovernancePage";
 import { GuardPage } from "./pages/GuardPage";
 import { HealthPage } from "./pages/HealthPage";
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/guard" element={<GuardPage />} />
             <Route path="/network" element={<Lazy><NetworkPage /></Lazy>} />
             <Route path="/detection" element={<DetectionPage />} />
+            <Route path="/detection/signals" element={<SignalMapPage />} />
             <Route path="/investigations" element={<InvestigationsPage />} />
             <Route path="/investigations/decision/:decisionId" element={<CasePage />} />
             <Route path="/investigations/account/:accountId" element={<AccountPage />} />

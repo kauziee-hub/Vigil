@@ -5,6 +5,7 @@
     GET /api/intel/models                             -> ModelInfo[]
     GET /api/intel/overview                           -> IntelOverview
     GET /api/intel/scenarios/{scenario_id}/compare    -> ScenarioCompare
+    GET /api/intel/signals?account=&window_min=       -> signal map (every signal inside the 8 families + supporting)
 
 All handlers are `async def` (single-threaded DB access is a project invariant). Importing this module
 needs only the platform's own dependencies; numpy / scikit-learn / shap are optional and degrade a
@@ -14,7 +15,7 @@ evidence only and never changes a payment decision.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from vigil.engine.ledger import VigilError
 from vigil.intel import live, service
@@ -55,3 +56,12 @@ async def intel_overview():
 @router.get("/scenarios/{scenario_id}/compare")
 async def scenario_compare(scenario_id: str):
     return service.scenario_compare(scenario_id)
+
+
+@router.get("/signals")
+async def intel_signals(account: str | None = Query(None, max_length=120), window_min: int = Query(60, ge=5, le=1440)):
+    """Signal map: every signal inside the eight detector families and the supporting signals outside them (payment-time
+    evidence, location intelligence) — what each checks, how many accounts trip it now, where it feeds, how the family is
+    validated, and (with ?account=) which signals fire for that account and why. Read-only."""
+    from vigil.intel import signals
+    return signals.signal_map(account=account, window_s=window_min * 60)

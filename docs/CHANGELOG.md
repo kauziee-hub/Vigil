@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## v12.5 — Cases: Transaction guard, Cases and account investigation told apart (2026-10-14, Claude 1)
+
+- **Same page, clearer purpose** (no layout, filter, column, timer or workflow change): the heading reads "Cases" like the navigation (Investigations stays in the breadcrumb), subtitle *Payments and accounts requiring analyst attention*, and a one-line strip: Transaction guard decides one payment live → **Cases, you are here** (the work queue after the decision) → Account investigation (one account in depth, even with no payment in flight).
+- **Labelled entry points**: *Payment Cases* with "Tier 2+ payment decisions and interventions requiring review or follow-up" above the table; *Accounts with Network Evidence* with "Accounts surfaced by network/detection evidence for deeper investigation" above the list; account names styled as links into the account investigation.
+- **Why each row is here, only from stored data**: badges under Why (RingWatch, TaintTrace, Registry, Mule detection · n) from the decision record's fired rules and model evidence; on accounts TaintTrace, Registry, Mule detection · n and Location from the RingWatch row and the live detector status. A row with nothing to name has no badge.
+- **PRIMA record ↗** under each case id opens that payment's decision record; the row still opens the case.
+- **Org. fixed**: it now shows Customer / Scenario / Stream from the payment itself; before, customer payments showed as SCN because `/api/decisions` never sent the origin.
+- **Backend (additive fields only)**: `/api/interventions` adds `origin`, `sources`, `flagged_by`; `/api/decisions` adds `source`, `sources`, `flagged_by`; `/api/ringwatch` rows add `families`, `location_rules`. `tests/test_case_sources.py` (2).
+
+## v12.4 — signal map: what works inside each detector family (2026-10-14, Claude 1)
+
+- **Detection page, unchanged in shape:** a one-line **signal strip** under the intro ("8 detector families · 48 signals inside them · 26 supporting · N firing now", one chip per family with signals firing / inside, two dashed chips for payment-time and location), small "all signals →" links on the section 1 panels, a pointer in section 3, and a sentence in section 4 explaining which families are benchmarked and why RingWatch and the registry have no held-out numbers.
+- **New page Detection → Signal map** (`/detection/signals`): the eight families as cards, the supporting signals outside them, one open family at a time with every check (what it checks, accounts tripping it now, where it feeds), opening on *Firing now*; **Focus an account** lights up every signal that fires for it with its reason. Linked from the account page ("All signals").
+- **Honest validation labels:** Benchmarked (RF, GNN, rules, drift, early warning, pattern memory) · Live-world only (RingWatch) · Lookup (registry) · Supporting (payment-time, location). No metric is shown for any single signal; location stays supporting, not a ninth family.
+- **Backend:** `vigil/intel/signals.py`, `GET /api/intel/signals`; `tests/test_signal_map.py` (5).
+- **Test fix (no product change):** the copilot and Vigilance test clients pause the app's background incident pass, because those tests call `incidents.evaluate()` themselves from the test thread over the same SQLite connection; the two passes could share one transaction and intermittently fail `test_llm_brief_is_validated_whitelisted_and_falls_back` (duplicate dedupe key, or an empty incident list after the other pass rolled back). In the running app every pass runs on the one event loop, so it never happens there.
+
 ## v12.3 — same-size network and map, aligned lower rows (2026-10-14, Claude 1)
 
 - The live network and the money map now have the same width (rows 1 and 2 share 2 : 1 columns) and the same height (row 1 takes row 2's measured height); the tape and Needs attention match them.

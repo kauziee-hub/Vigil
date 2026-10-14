@@ -67,7 +67,8 @@ async def set_mode(body: ModeBody):
 async def interventions(status: Literal["open", "all"] = "open", limit: int = Query(100, ge=1, le=500),
                         min_tier: int = Query(0, ge=0, le=4)):
     where = ["a.tier >= ?"] + (["a.status = 'open'"] if status == "open" else [])
-    sql = ("SELECT a.*, i.state, i.hold_id FROM alerts a JOIN transaction_intents i ON i.id = a.intent_id"
+    sql = ("SELECT a.*, i.state, i.hold_id, i.source AS intent_source FROM alerts a "
+           "JOIN transaction_intents i ON i.id = a.intent_id"
            f" WHERE {' AND '.join(where)} ORDER BY a.ts DESC LIMIT ?")
     now_t = clock.now().timestamp()
     out = []
@@ -77,7 +78,8 @@ async def interventions(status: Literal["open", "all"] = "open", limit: int = Qu
         cb = db.q1("SELECT c.id, c.response, c.responded_at, t.name FROM circuit_breaker_events c "
                    "JOIN trusted_contacts t ON t.id = c.contact_id WHERE c.intent_id = ?", (a["intent_id"],))
         rec = db.q1("SELECT record FROM risk_decisions WHERE id = ?", (a["decision_id"],))
-        d_mode = RiskDecision.model_validate_json(rec["record"]).mode if rec else "active"
+        dec = RiskDecision.model_validate_json(rec["record"]) if rec else None
+        d_mode = dec.mode if dec else "active"
         out.append({
             "intent_id": a["intent_id"], "decision_id": a["decision_id"], "sender_id": a["account_id"],
             "recipient_id": a["recipient_id"], "amount_paise": a["amount_paise"], "tier": a["tier"], "kind": a["kind"],
@@ -88,6 +90,8 @@ async def interventions(status: Literal["open", "all"] = "open", limit: int = Qu
             "circuit_breaker": ({"id": cb["id"], "contact": cb["name"], "response": cb["response"],
                                  "responded_at": cb["responded_at"]} if cb else None),
             "mode": d_mode,
+            "origin": a["intent_source"],
+            **(views.case_sources(dec) if dec else {"sources": [], "flagged_by": []}),
         })
     return out
 

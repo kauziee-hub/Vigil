@@ -174,11 +174,15 @@ async def pay(intent_id: str):
 # ── decisions / investigation ─────────────────────────────────────────────
 @router.get("/decisions")
 async def list_decisions(limit: int = Query(50, le=300), min_tier: int = 0, include_ambient: bool = False):
-    sql = ("SELECT d.record FROM risk_decisions d JOIN transaction_intents i ON i.id = d.intent_id "
+    sql = ("SELECT d.record, i.source FROM risk_decisions d JOIN transaction_intents i ON i.id = d.intent_id "
            "WHERE d.tier >= ?" + ("" if include_ambient else " AND i.source != 'ambient'") +
            " ORDER BY d.created_at DESC, d.id DESC LIMIT ?")
     from vigil.contracts import RiskDecision
-    return [lifecycle.decision_summary(RiskDecision.model_validate_json(r["record"])) for r in db.q(sql, (min_tier, limit))]
+    out = []
+    for r in db.q(sql, (min_tier, limit)):
+        d = RiskDecision.model_validate_json(r["record"])
+        out.append({**lifecycle.decision_summary(d), "source": r["source"], **views.case_sources(d)})
+    return out
 
 
 @router.get("/decisions/{decision_id}")
@@ -210,7 +214,7 @@ async def graph_neighbourhood(account_id: str, hops: int = Query(1, ge=1, le=2))
 
 @router.get("/ringwatch")
 async def ringwatch_scan(min_score: float = 0.3):
-    return ringwatch.scan(min_score)
+    return views.ring_rows_with_detection(ringwatch.scan(min_score))
 
 
 class LabelBody(BaseModel):

@@ -238,3 +238,42 @@ def health() -> dict[str, Any]:
         "transactions": int(db.scalar("SELECT COUNT(*) FROM transactions") or 0),
         "ml_on_decision_path": False,
     }
+
+
+# ── Cases page: why a row is in the queue (read from stored data only, never guessed) ──────────────
+# detection-layer families whose flag on the recipient counts as "mule detection" evidence; RingWatch and the
+# registry have their own badges (they are rule sources on the payment), so they are not repeated here
+MULE_FAMILIES = ("random_forest", "gnn", "rules", "drift", "early_warning", "pattern_memory")
+
+
+def case_sources(d: Any) -> dict[str, Any]:
+    """Engines behind a payment case, from its decision record: RingWatch / TaintTrace / registry rules that fired,
+    and the detection families that flagged the recipient at decision time (corroborating evidence, never fused)."""
+    fired = set(d.rules_fired)
+    sources: list[str] = []
+    if any(r.startswith("NET_") and r != "NET_TAINT_EXPOSURE" for r in fired):
+        sources.append("ringwatch")
+    if "NET_TAINT_EXPOSURE" in fired:
+        sources.append("tainttrace")
+    if any(r.startswith("EXT_") for r in fired):
+        sources.append("registry")
+    flagged_by = [m.family for m in d.model_evidence if m.flagged and m.status == "ok" and m.family in MULE_FAMILIES]
+    if flagged_by:
+        sources.append("mule_detection")
+    return {"sources": sources, "flagged_by": flagged_by}
+
+
+def ring_rows_with_detection(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """RingWatch rows plus the live detector families flagging each account and its high-confidence location
+    rules (from `intel.stream.status_map()`); copies, so the RingWatch scan cache is never modified."""
+    try:
+        from vigil.intel import stream  # type: ignore[import-not-found]
+        sm = stream.status_map()
+    except Exception:
+        sm = {}
+    out = []
+    for r in rows:
+        s = sm.get(r["account_id"]) or {}
+        out.append({**r, "families": list(s.get("families") or []),
+                    "location_rules": list((s.get("location") or {}).get("rules") or [])})
+    return out

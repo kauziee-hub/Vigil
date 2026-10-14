@@ -19,11 +19,14 @@ def client(world, monkeypatch):
     from vigil import overview
     from vigil.api import routes_copilot
     from vigil.app import app
-    from vigil.copilot import gemini
+    from vigil.copilot import gemini, incidents
     overview.invalidate()
     routes_copilot._RATE.clear()
     gemini.set_client(None)
     with TestClient(app) as c:
+        # these tests drive incidents.evaluate() themselves from this thread; the app's background pass runs on
+        # the client's loop thread over the same SQLite connection, so pause it to keep the two from interleaving
+        c.portal.call(incidents.stop)
         yield c
     gemini.set_client(None)
 

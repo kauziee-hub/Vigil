@@ -227,7 +227,12 @@ export interface DecisionSummary {
   latency_ms: number;
   created_at: string;
   source?: "user" | "scenario" | "ambient";
+  sources?: CaseSource[];               // v12.5: engines behind the decision, read from its record
+  flagged_by?: string[];                // detection families that flagged the recipient at decision time
 }
+
+/** v12.5: why a payment case is in the queue — only engines named by the decision record itself. */
+export type CaseSource = "ringwatch" | "tainttrace" | "registry" | "mule_detection";
 
 export interface Metrics {
   transactions_last_10m: number;
@@ -299,6 +304,8 @@ export interface RingRow {
   attributable_paise: number;
   total_in_paise: number;
   labelled: boolean;
+  families?: string[];                  // v12.5: detector families flagging the account now (live status)
+  location_rules?: string[];            // v12.5: high-confidence location rules corroborating it now
 }
 
 export interface TaintRuleResult {
@@ -570,6 +577,9 @@ export interface InterventionRow {
   hold: { id: string; held_paise: number; reference: string; outcome: string | null } | null;
   circuit_breaker: { id: string; contact: string; response: string | null; responded_at: string | null } | null;
   mode: "active" | "shadow";
+  origin?: "user" | "scenario" | "ambient";   // v12.5: where the payment came from (the intent's source)
+  sources?: CaseSource[];
+  flagged_by?: string[];
 }
 export interface IntelOverview {
   graph_version: number;

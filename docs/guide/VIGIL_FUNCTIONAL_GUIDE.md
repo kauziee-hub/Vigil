@@ -785,9 +785,11 @@ A smaller, frozen picture for investigating: only the suspicious accounts and th
 
 **Detection explains how Vigil finds mule accounts, read top to bottom in four numbered sections.** Every chart carries the same three-line caption: **Shows** (what it is), **How to read** and **Right now** (what it says this minute, computed live).
 
-![Page intro: eight independent detector families, agreement is what counts](img/det_01_head_intro.png)
+![Page intro: eight independent detector families, agreement is what counts — and, under it, the signal strip](img/det_01_head_intro.png)
 
 **The one idea to remember.** Vigil runs eight independent detector families on every account. One family alone never makes an account "flagged": a busy shop trips the rules, a salaried customer shows drift, a scam victim looks like a sudden change. An account gets a status only when independent families agree, and "flagged" also needs money moving onward. And no model ever decides a payment; the transparent policy engine does (section 6).
+
+**The signal strip (under the intro).** One line shows everything working underneath the page: "8 detector families · 48 signals inside them · 26 supporting · 40 firing now", then one chip per family with **signals firing / signals inside** (RingWatch 8/13, Rules 6/6, Drift 8/8, Pattern memory 3/10 …) and two dashed chips for the supporting signals outside the families (Payment-time 3/22, Location 3/4). Click a chip, or **Open the signal map**, to see what is inside (section 9.5). The panels below also carry small "all signals →" links into the same map.
 
 ### 9.1 Section 1 · What the detectors see right now (live)
 
@@ -872,7 +874,7 @@ Every number here is measured on computer-generated test worlds the models never
 
 ![Model card (Random Forest): test performance, confusion matrix, calibration, per-attack generalisation](img/det_09_modelcard_top.png)
 
-The **model registry** compares all five registered detectors on the same test worlds; click a row or a tab for its **model card**:
+The **model registry** compares all five registered detectors on the same test worlds (early warning's numbers sit in the rule engine's record; RingWatch and the registry exist only in the live world, so they have no held-out numbers — the signal map says how each family is validated); click a row or a tab for its **model card**:
 
 - **Held-out test performance**: precision 0.929, recall 0.842, threshold 0.536, flag rate 3.1%, prevalence 3.4%, 9,171 test accounts of which 310 mules.
 - **Confusion matrix**: of 8,861 ordinary accounts, 20 wrongly flagged (FP); of 310 mules, 261 caught (TP) and 49 missed (FN).
@@ -880,20 +882,69 @@ The **model registry** compares all five registered detectors on the same test w
 - **Per-attack detection and leave-one-attack-out**: recall per attack family, and recall when that family was hidden from training. Orange = recall falls more than 0.15 on an unseen family (an honest weakness, for example dormant activation 0.80 → 0.40).
 - Further down: a leakage audit, global SHAP by category, false positives by persona, training details.
 
+### 9.5 Signal map: what works inside each family
+
+![Signal map: the eight families as cards (signals firing, accounts flagged, how each is validated), the two supporting groups, and the open family's checks](img/v12_signal_map.png)
+
+**Detection → Signal map (Open the signal map, any chip on the strip, or "All signals" on an account page) opens the eight families up without adding to the Detection page.** The families themselves stay the same; the map only shows what each one checks.
+
+- **Top row:** detector families (8), signals inside them (48), supporting signals (26), firing now, and accounts with two or more families agreeing.
+- **Firing now / All signals:** the map opens on *Firing now*, so a calm world shows only the few checks that are actually tripping; *All signals* lists every check.
+- **The eight cards:** each says how many of its signals fire and how many accounts the family flags, with a row of small squares (one per signal; amber = firing). Click a card to open it below: what it does, its weight in a decision, how it is validated, what it feeds, and one row per signal — what it checks, how many accounts trip it now.
+- **Outside the eight families:** *Payment-time evidence* (the 22 rules the PRIMA payment decision scores before money moves: external registry, TrailScore journey, behaviour, ContextFlag context; the network part reuses RingWatch) and *Location intelligence* (impossible travel, unusual region, multi-city burst, coordinated cash-out). They set the payment tier or corroborate a status, and are never counted as a family; each location check says exactly where it feeds (live status as corroboration, the account-takeover or cash-out alert, the Money Map).
+
+![Focus an account: Kiran Traders — 6 of 8 families flag it, and the rule engine's three checks that fire, each with its reason](img/v12_signal_map_focus.png)
+
+**Focus an account** (type an id, or click one of the "most families agreeing" picks): the banner shows its status and reason, every card says whether that family flags it (and its value: RingWatch score 0.85, drift HIGH 0.81, pattern 92% Rapid Fan-In …), the squares of the signals that fire for it turn red, and the open family's table adds **For this account** with the reason ("Received money from 8 distinct accounts in 72 h", "Kept only 6% of ₹3,12,500").
+
+**How each family is validated** (a badge on every card, and a legend at the bottom):
+
+| Badge | Families | Meaning |
+| --- | --- | --- |
+| Benchmarked | Random Forest, GNN, rule engine, drift, early warning, pattern memory | Precision, recall and PR-AUC measured on held-out synthetic test worlds (Detection section 4; early warning's numbers are stored with the rule engine's record). |
+| Live-world only | RingWatch | The test worlds have no payment engine, so there is nothing to measure it against; every graded attack run checks it instead. |
+| Lookup | External registry (simulated) | A lookup, not a detector model: nothing to benchmark. |
+| Supporting | Payment-time evidence, location intelligence | Not benchmarked on their own; no precision or ROC-AUC is ever shown for them, or for any single signal. |
+
+**Why some families have no numbers in section 4.** Not because they matter less: RingWatch sets the network part of every payment's score and is one of the two routes to "flagged". It simply exists only in the live world. Location stays a supporting group rather than a ninth family for the same reason: there are no labelled test worlds with locations to benchmark it on, and making it a family would change every "N families agree" count.
+
 **How to show Detection (1 minute).** Point at section 1's first chart: "lots of single signals, few agreements; only agreement counts." Scroll to section 2 after your attacks: "every pattern caught, no false positives, in about two seconds." End on the SYNTHETIC VALIDATION banner: "rules decide the payment, models corroborate."
 
 ## 10. Cases: the case list and the account investigation page
 
-**Cases is where an analyst investigates: every intervention is a case, and every account has an investigation page.** There are two entry points: a payment (the case list) and an account (search or the network list).
+**Cases is where an analyst follows up: every intervention is a case, and every account has an investigation page.** There are two entry points: a payment (the case list) and an account (search or the network list).
+
+Three places, kept apart on purpose (the strip under the page title says the same in one line):
+
+| | What it is | When you use it |
+|---|---|---|
+| **Transaction guard** (Payments) | The live decision for one payment, made by PRIMA before money moves | A customer is paying right now |
+| **Cases** (this page) | The work queue after the decision: Tier 2+ payment decisions and interventions to review or follow up. Nothing is decided here | Risk evidence already exists |
+| **Account investigation** | One account in depth: mule behaviour, RingWatch network, model evidence, related activity | An account looks wrong, with or without a payment in flight |
 
 ### 10.1 The case list
 
-![Case list (left) and accounts with network evidence (right)](img/cases_01_list.png)
+![Cases: the strip under the title, Payment Cases (left) and Accounts with Network Evidence (right), each row with the engines that put it there](img/cases_01_list.png)
 
-- **Cases table**: every payment at Tier 2 or above, plus every scenario and customer decision. Columns: opened (and how long ago), case id, sender → recipient, amount, tier, state (Escalated, Held, Challenged …), **Why** (the reason labels: "Fear / authority impersonation · Unusually large for you …"), hold amount and review clock, trusted-contact response, and origin (CUS = customer device, SCN = scenario, STR = background stream).
+- **Header**: "Cases", the subtitle *Payments and accounts requiring analyst attention*, and the three-step strip: Transaction guard (a link) → **Cases, you are here** → Account investigation.
+
+- **Payment Cases** table: every payment at Tier 2 or above, plus every scenario and customer decision; one line above it says what it holds ("Tier 2+ payment decisions and interventions requiring review or follow-up") and that each was already decided by PRIMA in Transaction guard. Columns: opened (and how long ago), case id, sender → recipient, amount, tier, state (Escalated, Held, Challenged …), **Why** (the reason labels: "Fear / authority impersonation · Unusually large for you …", and under them the engines named by the decision record, see the table below), hold amount and review clock, trusted-contact response, and **Org.**, where the payment came from: *Customer* (paid on the customer screen), *Scenario* (a scenario or test input), *Stream* (background stream). Before v12.5 this column showed SCN for customer payments too, because the decision list did not carry the origin; it now comes from the payment itself.
+- **PRIMA record ↗** under each case id opens the audit copy of that payment's PRIMA decision (Governance → decision record). Clicking anywhere else on the row still opens the case (Decision Replay).
 - **Filters**: free text, tier buttons (T4, T3+, T2+, T1+; T2+ is the default because Tier 1 heads-ups are mostly background traffic) and All / Open.
 - **Open an account investigation**: type any account id.
-- **Accounts with network evidence**: every account with a RingWatch score of 0.30 or more, with its structural role (collector, pass-through mule …) and score bar; a red "confirmed" tag marks accounts that received a confirmed scam.
+- **Accounts with Network Evidence**: every account with a RingWatch score of 0.30 or more, with its structural role (collector, pass-through mule …) and score bar; a red "confirmed" tag marks accounts that received a confirmed scam. One line above says "Accounts surfaced by network/detection evidence for deeper investigation"; the account name is a link, and clicking the row opens its account investigation, whether or not a payment is in flight.
+
+**Why a row is here: the badges.** A badge appears only when the stored data names that engine; a row with nothing to name shows none. The Tier 4 impersonation case in the screenshot has no badge because it was driven by the customer's own context (fear / authority words, an unusually large amount), not by any engine.
+
+| Badge | Where | Comes from |
+|---|---|---|
+| RingWatch | payment cases | a RingWatch network rule (`NET_*`) fired on the recipient in that decision |
+| TaintTrace | both | `NET_TAINT_EXPOSURE`: money traced to a confirmed scam |
+| Registry | both | a payment: an `EXT_*` registry rule fired; an account: the registry family flags it |
+| Mule detection · n | both | n detection families (Random Forest, GNN, rules, drift, early warning, pattern memory) flag the account: at decision time for a payment (corroborating only, never used for the tier), live for an account. Hover for their names |
+| Location | accounts | a high-confidence location rule corroborates it (impossible travel, unusual region, multi-city burst). Location never touches a payment tier, so it never appears on a payment case |
+
+Every account in the right-hand list is there because of RingWatch, so it carries no separate RingWatch badge.
 
 ### 10.2 The account investigation page (Kiran Traders)
 

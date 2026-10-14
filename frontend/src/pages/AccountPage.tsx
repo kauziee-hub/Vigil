@@ -128,6 +128,8 @@ export function AccountPage() {
         actions={<>
           <AskVigilance entities={[a.id]} prompt={`Tell me about ${a.id}: is it behaving like a mule, where did its money come from and go, and what should I do?`} />
           {a.kind !== "external" && watched.available && <WatchButton accountId={a.id} pinned={watched.pinned} askNote onChange={() => watched.reload()} />}
+          {a.kind !== "external" && <Link className="btn sm ghost" to={`/detection/signals?account=${encodeURIComponent(a.id)}`}
+                title="Every check in the eight detector families, plus payment-time and location signals, for this account">All signals</Link>}
           <Link className="btn sm" to={`/network?focus=${encodeURIComponent(a.id)}&hops=1`}>3D network · 1-hop</Link>
           <Link className="btn sm ghost" to={`/network?focus=${encodeURIComponent(a.id)}&hops=2`}>2-hop</Link>
           {a.is_demo_customer && <Link className="btn sm ghost" to={`/guard?as=${encodeURIComponent(a.id)}`}>Transaction Guard</Link>}

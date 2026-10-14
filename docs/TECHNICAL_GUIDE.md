@@ -168,7 +168,7 @@ Ambient and scenario intents follow the same path; the only difference is that t
 | `backend/prima/` | Vendored PRIMA lineage engine: `money.py`, `ledger/`, `attribution/` (trace, rules, incremental). |
 | `backend/ml/` | Synthetic training worlds (`datagen.py`), training (`train_all.py`, `gnn_torch.py`), metrics, evaluation scripts. |
 | `backend/models/` | Trained artefacts and validation JSON (RF, GNN, drift, pattern memory, live-status threshold). |
-| `backend/tests/` | 397 pytest tests (190 of them in `tests/lineage/`; 381 before the v12.1 location layer; 374 at commit `490305a`). |
+| `backend/tests/` | 404 pytest tests (190 of them in `tests/lineage/`; 381 before the v12.1 location layer; 374 at commit `490305a`). |
 | `config/risk_policy.yaml` | The payment policy: weights, thresholds, windows, ladder. |
 | `config/copilot_policy.yaml` | Overview and incident display policy (never feeds a tier). |
 | `config/location_policy.yaml` | Location intelligence (v12): which location bases count, impossible-travel / anomaly thresholds, corroboration switch. Never feeds a tier. |
@@ -194,7 +194,7 @@ The runtime is deliberately small. `backend/requirements.txt` starts with the co
 | **PyYAML** 6.0.2 | YAML parser. | Reads `config/risk_policy.yaml` and `config/copilot_policy.yaml` (`yaml.safe_load`, which never executes code). | Human-readable policy files a risk officer can review in a diff. |
 | **httpx** 0.28.1 | HTTP client (sync + async). | FastAPI's `TestClient` in tests; the optional Gemini client of the assistant (section 17). | Async support; already the client FastAPI's test tools use. |
 | **sqlite3** (standard library) | SQLite database engine embedded in Python. | The whole store (`db.py`). No ORM. | Zero install, one file, transactional, fast enough for ~31,000 postings. See section 22 for "why not PostgreSQL". |
-| **pytest** ≥ 8, **hypothesis** ≥ 6 | Test runner; property-based testing (generates many random inputs and checks an invariant). | 397 tests; hypothesis drives the money-conservation property tests in `tests/lineage/`. | Standard Python tooling; property tests are the right tool for "conservation holds for any flow". |
+| **pytest** ≥ 8, **hypothesis** ≥ 6 | Test runner; property-based testing (generates many random inputs and checks an invariant). | 404 tests; hypothesis drives the money-conservation property tests in `tests/lineage/`. | Standard Python tooling; property tests are the right tool for "conservation holds for any flow". |
 
 ### 2.2 Optional machine-learning libraries (`requirements-ml.txt`)
 
@@ -1479,6 +1479,30 @@ Each status has a one-line **reason** and a **since** time, e.g. "Model evidence
 
 ---
 
+### 10.13 The signal map (`intel/signals.py`, `GET /api/intel/signals`, v12.4)
+
+**The idea.** The eight canonical families stay exactly as they are; the signal map makes their inside visible and says honestly how each is validated. It is read-only: nothing in it changes a status, a tier or a score (`tests/test_signal_map.py` compares the status map before and after).
+
+**What it lists**, all computed from the same detector snapshot the live status uses (`live.CACHE.current`), plus the RingWatch scan, the registry table, recent decisions and the location evidence:
+
+| Group | Signals | "Firing" means |
+|---|---|---|
+| RingWatch | 13 network rules (`NET_FAN_IN` … `NET_TAINT_EXPOSURE`) | accounts whose RingWatch evaluation includes the rule |
+| Random Forest, GNN | 1 learned score each (15 features are inputs, not signals) | calibrated probability ≥ the family threshold (the live model-route count at the live threshold is shown too) |
+| Rule engine | 6 windowed rules with points | accounts whose `snap.rules[a].fired` includes the rule |
+| Behavioural drift | 8 aspects (transactions, counterparties, senders, recipients, ₹ in, ₹ out, retention, rails) | among HIGH-drift accounts, those whose aspect changed ≥ 1 scale unit |
+| Early warning | 6 population-relative signals | accounts whose recorded signals include it (recorded only with ≥ 2 signals) |
+| Pattern memory | 10 stored signatures | accounts whose top match is that signature at ≥ the similarity threshold |
+| Registry (simulated) | watchlist, reported, confirmed mule | known accounts listed with that status |
+| Payment-time evidence | 22 PRIMA rules: `EXT_*`, `SEQ_*`, `BEH_*`, `CTX_*` (the network part is RingWatch) | decisions in the last 60 min whose `rules_fired` includes it |
+| Location intelligence | `LOC_IMPOSSIBLE_TRAVEL`, `LOC_UNUSUAL_REGION`, `LOC_MULTI_CITY_BURST`, cash-out cluster | accounts with that high-confidence finding / in a cluster (last 2 h) |
+
+**Validation kind per family** (from the model registry): `benchmarked` (RF, GNN, rules, drift, pattern memory, and early warning from the rule engine's record; the headline shows PR-AUC, recall, precision), `live_graded` (RingWatch: the test worlds have no payment engine), `lookup` (registry), `supporting` (payment-time evidence, location). A single signal never carries a metric (tested).
+
+**Account focus** (`?account=`): each family's flag and value for the account, and every signal that fires for it with its reason — rule reasons, RingWatch reasons, drift baseline → current, pattern similarity, registry source, the latest payment decision's signals, location findings. Cost: about 20 ms for the whole map, 10 ms with a focus, on the live world.
+
+**Why location is not a ninth family.** A family needs a held-out benchmark; the synthetic test worlds carry no locations, so there is nothing honest to measure it against, and adding a family would change every agreement count and incident title. It stays a supporting group whose contribution is visible (section 15.5). The catalogue is data-driven (`FAMILY_META`, `FAMILY_ORDER`), so a future family, once benchmarked, is one entry.
+
 ## 11. Model training and validation
 
 **The idea.** Before a model is allowed to show an opinion next to a payment decision, it must be trained and tested in a way that cannot cheat. Vigil has no real labelled fraud, so it trains on computer-generated "worlds" and tests on *other* worlds it has never seen. Think of a driving test: you practise on some roads, the examiner picks different roads, and nobody tells you the route.
@@ -1915,13 +1939,13 @@ Section 4.5 describes it. Every `VIGIL_AMBIENT_INTERVAL` seconds (default 3) one
 | POST | `/intents/{id}/cancel` | The intent | — |
 | POST | `/intents/{id}/bank-action` | The intent | body `{action: "release" \| "reject", note?}` |
 | POST | `/intents/{id}/pay` | The intent (after settlement) | — |
-| GET | `/decisions` | Decision summaries | `limit` ≤ 300 (50), `min_tier` (0), `include_ambient` |
+| GET | `/decisions` | Decision summaries; each also carries `source` (the intent's origin) and `sources` / `flagged_by` (v12.5, section 14.13) | `limit` ≤ 300 (50), `min_tier` (0), `include_ambient` |
 | GET | `/decisions/{id}` | The full `RiskDecision` | — |
 | GET | `/alerts` | Alert rows | `status`, `limit` ≤ 300 (50) |
 | GET | `/investigate/{decision_id}` | Decision, intent, sender and recipient summaries, registry, neighbourhood graph, 60-min timeline, relevant TaintTrace incidents, hold, CircuitBreaker events | — |
 | GET | `/graph/suspicious` | Evidence graph of suspicious accounts | — |
 | GET | `/graph/neighborhood/{id}` | Evidence graph around one account | `hops` 1–2 |
-| GET | `/ringwatch` | RingWatch population scan | `min_score` (0.3) |
+| GET | `/ringwatch` | RingWatch population scan; each row also carries `families` (detector families flagging it now) and `location_rules` (v12.5; copies, the scan cache is not modified) | `min_score` (0.3) |
 | POST | `/labels` | `{label_id, taint}`; runs TaintTrace and publishes `taint.updated` | body `{transaction_id, grade` (`bank_confirmed` / `reported_unverified`), `label` ≤ 60 chars}`; 404 unknown posting, 409 already labelled |
 | GET | `/taint` | TaintTrace result with exposure list | — |
 | GET | `/scenarios` | Status of every scenario | — |
@@ -1942,7 +1966,7 @@ Section 4.5 describes it. Every `VIGIL_AMBIENT_INTERVAL` seconds (default 3) one
 | GET | `/accounts/{id}/risk-timeline` | Risk points over time for an account | — |
 | GET | `/mode` | `{mode, since, note}` | — |
 | POST | `/mode` | The new mode view; publishes `mode.changed` | body `{mode: "active" \| "shadow"}` |
-| GET | `/interventions` | Alert rows joined with intent state, hold, CircuitBreaker, age, SLA due, decision mode | `status` (`open` / `all`), `limit` 1–500 (100), `min_tier` 0–4 |
+| GET | `/interventions` | Alert rows joined with intent state, hold, CircuitBreaker, age, SLA due, decision mode; v12.5 adds `origin`, `sources`, `flagged_by` | `status` (`open` / `all`), `limit` 1–500 (100), `min_tier` 0–4 |
 | GET | `/governance/summary` | Mode, policy, model registry, decisions by tier, shadow comparison, last 15 human actions | — |
 | GET | `/system/health` | Health + uptime, database size, graph nodes / edges, scene cache, intel availability, p95 latency, mode | — |
 | GET | `/graph/scene` | `GraphScene` (section 8.2) | `cap` 10–400 (60), `focus`, `hops` 1–2, `scenario`; 404 unknown focus / scenario |
@@ -2013,6 +2037,7 @@ None of these routes can hold, release, freeze or approve anything. The only wri
 | GET | `/models` | `ModelInfo[]`: versions, thresholds, synthetic-validation metrics, status |
 | GET | `/overview` | Graph version, per-family flag counts (`detector_agreement`, including RingWatch and the registry), top 25 early warnings, pattern alerts, role counts, models |
 | GET | `/scenarios/{id}/compare` | `ScenarioCompare`: what each family said about the scenario's accounts |
+| GET | `/signals?account=&window_min=` | Signal map (v12.4, `intel/signals.py`): every signal inside the eight families and the supporting signals, with live counts, feeds, validation kind, and per-account hits with reasons (section 10.13) |
 
 ### 13.8 Single-page app fallback (`app.py::spa`)
 
@@ -2046,8 +2071,9 @@ None of these routes can hold, release, freeze or approve anything. The only wri
 | `/guard` | `GuardPage` | Payments: the customer's phone beside the bank's pre-commit assessment. |
 | `/pay` | `PayPage` | Customer-only phone kiosk (`/pay?as=ramesh@vigil`), outside the bank shell. |
 | `/network` | `NetworkPage` | Full 3D universe, lenses, evidence scenes. Lazy-loaded (three.js + Cytoscape). |
-| `/detection` | `DetectionPage` | Detector families, models (SYNTHETIC VALIDATION), SHAP, drift, pattern memory. |
-| `/investigations`, `/investigations/decision/:id`, `/investigations/account/:id` | `InvestigationsPage`, `CasePage`, `AccountPage` | Cases: replay, counterfactuals, provenance; account investigation. |
+| `/detection` | `DetectionPage` | Detector families, models (SYNTHETIC VALIDATION), SHAP, drift, pattern memory; the signal strip under the intro. |
+| `/detection/signals` | `SignalMapPage` | Signal map (v12.4): inside each family, supporting signals, account focus (`?account=`, `?family=`, `?view=all`). |
+| `/investigations`, `/investigations/decision/:id`, `/investigations/account/:id` | `InvestigationsPage`, `CasePage`, `AccountPage` | Cases (v12.5: where-it-sits strip, source badges, PRIMA record links; section 14.13): replay, counterfactuals, provenance; account investigation. |
 | `/interventions` | `InterventionsPage` | Holds and confirmations: release / reject. |
 | `/governance`, `/governance/decision/:id` | `GovernancePage`, `RecordPage` | Mode, policy, models, decision records. |
 | `/lab` | `ScenarioLabPage` | Scenario lab. |
@@ -2154,6 +2180,23 @@ Light "operations centre" theme (v5): field `--bg-0 #eef1f3`, white cards (20 px
 * `npm run build` runs `tsc --noEmit && vite build`, so a type error (for example a backend contract change not mirrored in `types.ts`) fails the build. `tsc --noEmit` passed for this guide (working tree, 2026-10-13).
 * `vite.config.ts`: the dev server on port 5173 proxies `/api` and `/ws` to `VIGIL_BACKEND` (default `http://127.0.0.1:8000`); build output `dist`, no source maps, chunk warning at 900 kB.
 * `node scripts/frontend_checks.mjs` bundles `frontend/tests/v10.checks.tsx` with esbuild and runs it in Node: **20 checks** (safe markdown, UI-action whitelist, carried actions off the Overview, case-page links, incident ordering, selection helper); all 20 passed on 2026-10-13 (working tree).
+
+
+### 14.13 The Cases page: where it sits and why each row is there (v12.5)
+
+**The three places.** Transaction guard is the live PRIMA decision for one payment before money moves; Cases (`InvestigationsPage`) is the analyst work queue after that decision; the account investigation (`AccountPage`) goes deep on one account with or without a payment in flight. The page says so with a subtitle and a three-step strip; nothing about its layout, filters, columns, timers or row clicks changed.
+
+**Where the badges come from** (all additive fields, read from stored data; `views.case_sources`, `views.ring_rows_with_detection`):
+
+| Field | On | Computed from |
+|---|---|---|
+| `origin` | `/interventions` rows | `transaction_intents.source` (`user` / `scenario` / `ambient`) |
+| `source` | `/decisions` rows | the same column (the console type had declared it, but the endpoint never sent it, so customer payments showed as SCN) |
+| `sources` | both | the decision record: `ringwatch` if a `NET_*` rule other than `NET_TAINT_EXPOSURE` fired, `tainttrace` if `NET_TAINT_EXPOSURE` fired, `registry` if an `EXT_*` rule fired, `mule_detection` if `flagged_by` is not empty |
+| `flagged_by` | both | the record's `model_evidence`: families among Random Forest, GNN, rules, drift, early warning, pattern memory with `flagged` and status `ok` at decision time (corroborating evidence, never fused) |
+| `families`, `location_rules` | `/ringwatch` rows | `intel.stream.status_map()`: the families flagging the account now and its high-confidence location rules |
+
+A row with no matching field shows no badge; nothing is inferred from labels or headlines. Tests: `tests/test_case_sources.py`.
 
 ---
 
@@ -2766,7 +2809,7 @@ There are six kinds of check, from fastest to slowest: property tests on the mon
 
 | Gate | How to run it (from the repository root, Windows) | What it proves | Last recorded result |
 |---|---|---|---|
-| Backend test suite | `cd backend; .venv\Scripts\python.exe -m pytest` | Everything in 18.3 and 18.4 | **397 tests collected** on 2026-10-14 (374 at commit `490305a` + 6 in `test_vigilance_procedures.py` + 1 in `test_spa_path_traversal.py` + 16 in `test_location_intel.py`). Last full run (2026-10-14): **396 / 397 passed**; the one failure is `test_intel_stream.py::test_latency_budget_under_ambient` (median 33 ms against a 20 ms budget on the loaded laptop). It fails the same way on the code before the location layer (27.7 ms alone), and alone it read 25.7 ms with the layer: a machine-speed budget, not a regression. 381 / 381 passed on 2026-10-13. The P0 baseline was 337 passed, "≈ 35 min on the dev laptop, server + browser running" (`docs/verification/baseline_v10.md`). |
+| Backend test suite | `cd backend; .venv\Scripts\python.exe -m pytest` | Everything in 18.3 and 18.4 | **404 tests collected** on 2026-10-14 (374 at commit `490305a` + 6 in `test_vigilance_procedures.py` + 1 in `test_spa_path_traversal.py` + 16 in `test_location_intel.py` + 5 in `test_signal_map.py` + 2 in `test_case_sources.py`). Last full run (2026-10-14, after v12.5): **404 / 404 passed**, the latency budget included; an earlier run that day showed an intermittent copilot test failure, fixed in the test fixtures (section 18.9). Before that, 396 / 397: the one failure was `test_intel_stream.py::test_latency_budget_under_ambient` (median 33 ms against a 20 ms budget on the loaded laptop). It fails the same way on the code before the location layer (27.7 ms alone), and alone it read 25.7 ms with the layer: a machine-speed budget, not a regression. 381 / 381 passed on 2026-10-13. The P0 baseline was 337 passed, "≈ 35 min on the dev laptop, server + browser running" (`docs/verification/baseline_v10.md`). |
 | One test file or test | `cd backend; .venv\Scripts\python.exe -m pytest tests/test_copilot.py -k prompt_injection` | Fast feedback while editing | — |
 | Smoke test | `backend\.venv\Scripts\python.exe scripts\smoke_demo.py` | The five demo acts and the ledger invariant (18.6) | 8/8 PASS (`baseline_v10.md`, `STATE.md`) |
 | Frontend checks | `node scripts/frontend_checks.mjs` | Safe markdown, UI-action whitelist, carried actions, case links, incident ordering, selection helper (18.5) | 20/20 on 2026-10-13 (working tree; 18 at commit `490305a`) |
@@ -2813,6 +2856,8 @@ Counts are collected tests (parametrised cases counted separately), from `pytest
 | `test_intel_degrade.py` | 1 | Running without the ML libraries | A subprocess blocks `numpy`, `sklearn`, `shap`, `torch`, `joblib`, `scipy`; the app still starts, RF and GNN report `unavailable`, rules and drift still work, a payment is still decided (Tier 0). |
 | `test_intel_shap_signed.py` | 1 | Honest SHAP charts | Base value + Σ signed category contributions ≈ prediction (within 0.02); a quiet account's net effect is negative. |
 | `test_v10_geo_channels.py` | 12 | Simulated locations, rails, cohort | `geo.stamp` is deterministic and never raises; basis and accuracy rules; every label starts "Simulated location · "; ATMs within the radius; the stored channel is never rewritten; the 40-account cohort is deterministic, tagged, collision-free and **never flagged or warned**. |
+| `test_signal_map.py` | 5 | Signal map (v12.4) | The eight families in their order with 13 / 1 / 1 / 6 / 8 / 6 / 10 / 3 signals and the two supporting groups (22, 4); validation kinds (RingWatch live-world only, registry lookup, payment and location supporting, six benchmarked with a PR-AUC headline) and no metric on any single signal; live counts and Kiran Traders' focus with reasons; the map changes no status; payment-time and location counts after s1 and the cross-channel attack; the API (unknown / external accounts, bad window) |
+| `test_case_sources.py` | 2 | Cases sources (v12.5) | A payment case's sources come only from its decision record (s1: RingWatch + registry, no TaintTrace; after s2 and a confirmed report: TaintTrace; a calm s0 payment names nothing), `mule_detection` only with `flagged_by`; `/interventions` keeps every old field and adds `origin` / `sources` / `flagged_by`, `/decisions` carries `source`, `/ringwatch` rows carry `families` / `location_rules` while the scan cache stays untouched. |
 | `test_location_intel.py` | 16 | Location intelligence (v12) | Genuine impossible travel is high confidence; normal travel (Mumbai → Pune in 3 h, a flight) and GPS jitter never fire; an IP estimate is low confidence and a 60 km / ±15 km borderline stays below the floor; card-POS and KYC are never presence; unusual region needs a baseline and a real displacement; multi-city burst; `classify` without location equals the pre-v12 rule over every combination; location alone never decides; an 18-minute, 3-ATM Mumbai cash-out clusters with its terminals while unrelated withdrawals (other cities, ordinary accounts, hours apart) do not; the seeded world and 40 ambient payments raise no location evidence; with no geo anomaly every live status is identical with corroboration on or off; the cross-channel scenario end to end (evidence, `geo.location_intel` push, possible-account-takeover incident with location quality, `/api/geo/intel` payload and selections, status audit); the three-scenario Mumbai cash-out feeding the existing incident; state flows summing city corridors state to state, risky first |
 | `test_v10_overview.py` | 6 | Overview read models | Map caps (≤ 40 cities, ≤ 200 flows) and `synthetic: true`; tape paging by `since_id`; connections ≤ 36 per direction and ≤ 3 hops; KPI keys and 12-bucket sparklines; the funnel never widens and no cohort account is on the suspicious path; worst of 5 cold calls < 1,500 ms for 7 endpoints (`:73`); impossible travel Delhi → Kolkata > 900 km/h and a 3-withdrawal Mumbai cash-out cluster (`:90`). |
 | `test_copilot.py` | 18 | The incident engine and the assistant | The risk-policy hash is still `2026.10.07-v3.1+9ba3476c1d` and the assistant policy has no risk keys (`:31`); the severity rubric matches the policy for all 9 kinds (`:38`, 9 cases); incidents are not duplicated and a reset leaves none behind (`:56`); the template assessment validates, shows rupees not paise (`:75`); a model reply is validated, the system's severity wins, and a reply naming `ghost@vigil` or invalid JSON falls back to the template (`:108`); tools have no write verbs, strip `seed_*`, wrap notes as `untrusted_text`, cap size (`:141`); the package source contains no `seed_role`, `seed_attack` or `GEMINI_API_KEY=` (`:152`); **prompt injection in a ledger note cannot trigger an action and a key-like string is redacted** (`:158`); SSE event order, a 422 above 2,000 characters and a 429 within 25 rapid messages (`:177`); `/status` never contains the key (`:192`). |
@@ -2910,6 +2955,7 @@ Being clear about gaps is part of the gate.
 * No WebSocket protocol test (the SPA path traversal now has one, `test_spa_path_traversal.py`, section 13.8): no test opens `/ws`; the stream tests read the hub's queues directly.
 * **The ground-truth source scan covers only `vigil/intel/` and `vigil/copilot/`.** `vigil/risk/`, `vigil/engine/`, `vigil/overview/` and `vigil/api/` are not scanned (a grep for this guide found no reads in `risk/`, `engine/` or `overview/`; `api/routes_live.py` reads `seed_attack` for display, Appendix A).
 * **Latency tests depend on the machine.** On 2026-10-13, with the laptop about 2.2 times slower than its own earlier benchmark, `test_latency_budget_under_ambient` failed (median 54 ms against 20 ms; section 12.3). A failure there means "check the machine first", not necessarily a regression.
+* **Tests that drive incidents themselves pause the background pass.** `TestClient(app)` starts the incident engine on the client's own loop thread, and the database is one SQLite connection shared by every thread (`db.tx()` joins a transaction already open). The copilot and Vigilance fixtures therefore call `c.portal.call(incidents.stop)` before their own `incidents.evaluate()` calls; without it the two passes could interleave and intermittently fail a test (seen on 2026-10-14). The running app is not affected: the background pass and `POST /api/copilot/evaluate` both run on the one event loop.
 * **No browser end-to-end test runs automatically.** The functional audits with Playwright (`docs/CHANGELOG.md` v4: 15 routes, 0 console errors) were run by hand.
 * **No load test** (many clients, many payments per second).
 * **Assistant chat answers are not validated** for invented ids (only assessments are, section 17.9), and no test covers the incident kinds that never auto-resolve (section 16.6).
@@ -3685,7 +3731,7 @@ Because the slow part of fraud operations is understanding and deciding, not cli
 | 0.10 | GNN recall on unseen shared-device attacks | 11.5 |
 | 0.85 | Initial live "flagged" model threshold | 10.12 |
 | 11 / 11, 0 FP | Live attack check | 4.8, 18.7 |
-| 397 | Backend tests collected in the working tree (396 pass; the latency budget depends on the machine) | 18.1 |
+| 402 | Backend tests collected in the working tree (396 pass; the latency budget depends on the machine) | 18.1 |
 | 9 kinds, 35–70 base points | Incident engine | 16.2–16.3 |
 | 19 tools, 4 per answer, 20 messages / min | Assistant limits | 17.5, 17.7 |
 
@@ -3898,7 +3944,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 2 | `README.md:24` | "The script creates the venv, installs dependencies…" | `run_demo.ps1` and `run_demo.sh` install **only** `backend/requirements.txt`, and only when the venv is missing. On a fresh machine the Random Forest, GNN and SHAP show `unavailable` until the ML requirements are installed by hand (section 21.2) |
 | 3 | `README.md:24` | Options `-Reset` / `--reset`, `-Port 8001` | `-Port` (and `-SkipBuild`) exist only in `run_demo.ps1`; `run_demo.sh` accepts only `--reset` and always rebuilds the frontend |
 | 4 | `README.md:28, 41–47`; `docs/KNOWN_LIMITATIONS.md` (v10 part); `docs/guide/VIGIL_FUNCTIONAL_GUIDE.md` | "Copilot", "Copilot incident strip", "Copilot dock" | The assistant is being renamed **Vigilance** in the working tree (UI component `components/vigilance/Vigilance.tsx`, `lib/vigilanceActions.ts`); the Python package (`vigil/copilot/`), the routes (`/api/copilot/…`), the event (`copilot.incident`), the tables (`copilot_*`) and the policy block (`copilot:`) keep the old name. Expected during a rename |
-| 5 | `docs/KNOWN_LIMITATIONS.md:15` | "211 automated tests" | 397 collected in the working tree; 374 at commit `490305a` (section 18.1) |
+| 5 | `docs/KNOWN_LIMITATIONS.md:15` | "211 automated tests" | 402 collected in the working tree; 374 at commit `490305a` (section 18.1) |
 | 6 | `docs/KNOWN_LIMITATIONS.md:39` | "All 142 accounts, ~2,050 historical transactions" | A fresh world has **594 accounts and 31,232 postings** (section 4.1); the 142-account world was v1 |
 | 7 | `docs/KNOWN_LIMITATIONS.md:50` | "PatternMemory … roadmap; the old implementation … was not ported" | Pattern memory **is implemented** (`intel/pattern_memory.py`, `pattern-memory-v3.0`), with prototypes built offline from training worlds (section 10.5) |
 | 8 | `docs/KNOWN_LIMITATIONS.md:46` | "the demo API is unauthenticated and LAN-only" | Unauthenticated: yes. "LAN-only" is **not enforced**: uvicorn binds `0.0.0.0` by default (`settings.py:56`), so the server answers on every network the laptop joins (section 20.10) |
@@ -3917,7 +3963,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 21 | `docs/TARGET_ARCHITECTURE.md:200` (§10) | TaintTrace runs "over all journals … only when a label is added" | It runs over the **forward closure** of the labelled postings, and also re-runs when a new posting touches the closure (section 9.5) |
 | 22 | `docs/TARGET_ARCHITECTURE.md:204–206` (§11) | Out of scope: "3D graphs, GNN, LLM explanations or chat" | All three now exist — the 3D universe and evidence scenes, the relational GAT, the optional Gemini assistant — each outside the payment decision |
 | 23 | `docs/DEMO_SCRIPT.md:38` | Money-mule network: "17 real ledger postings over about 20 s" | `s2` has **17 steps but 14 postings** (5 victim payments, 1 pass-through, 2 splits, 4 smurfing transfers, 2 ATM withdrawals) plus 2 information steps and 1 RingWatch scan (`sim/scenarios.py:112–140`); 17 × 1.1 s ≈ 19 s |
-| 24 | The build records (STATE, v7 and v10) | "Backend tests: 330/330" (v7) and "pytest 374/374" (v10) | Correct when written; 397 tests are collected today |
+| 24 | The build records (STATE, v7 and v10) | "Backend tests: 330/330" (v7) and "pytest 374/374" (v10) | Correct when written; 402 tests are collected today |
 | 25 | `backend/vigil/api/routes_overview.py:4` (docstring) | "Push: `overview.tick` on the console topic tells the page which panels to refresh" | `overview.tick` is never published; the Overview refreshes on ordinary events (section 12.2). Likewise `frontend/src/components/Shell.tsx:85` listens for `intel.updated`, which nothing publishes |
 | 26 | `backend/vigil/geo/__init__.py:148` (`nearest_atm` docstring) | "account + 30-minute bucket" | The caller passes `ts[:15]`, a **10-minute** bucket (`geo/__init__.py:194`) |
 | 27 | `backend/vigil/sim/scenarios.py:205` (`s4` description) | "… clean registry → friction guard applies." | The landlord payment scores 0.045, Tier 0 on the ladder, so the friction guard is never needed and no adjustment is recorded (section 6.9) |
@@ -3926,7 +3972,7 @@ Severity in A.2: **High** — exposes data or lets someone act without permissio
 | 30 | `backend/vigil/engine/lifecycle.py:163` (comment) | "SHADOW MODE: record the recommendation, apply nothing (the bank baseline governs)" | The intent is approved whatever the baseline says; a baseline `decline` or `otp_step_up` is recorded, not enforced (A.2 #11) |
 | 31 | `scripts/benchmark_demo.py:5` (docstring) | "Uses an isolated temp database (never touches data/vigil.db)" | It uses `os.environ.setdefault("VIGIL_DB_PATH", …)` (`:25`): if `VIGIL_DB_PATH` is already set in the shell, the benchmark seeds — that is, wipes and rebuilds — **that** database |
 | 32 | `scripts/smoke_demo.py:18`, `scripts/benchmark_demo.py:26`, `backend/ml/eval_live_world.py:49` | `VIGIL_PAYMENT_PROVIDER=mock` | No code reads this variable; the mock provider is the only provider (`payments/providers.py::get_provider`) |
-| 33 | This guide, sections 1.4 and 2.1 | "374 pytest tests" | True at commit `490305a`; the working tree collects 397 (`test_vigilance_procedures.py` adds 6, `test_spa_path_traversal.py` 1, `test_location_intel.py` 16) |
+| 33 | This guide, sections 1.4 and 2.1 | "374 pytest tests" | True at commit `490305a`; the working tree collects 402 (`test_vigilance_procedures.py` adds 6, `test_spa_path_traversal.py` 1, `test_location_intel.py` 16, `test_signal_map.py` 5) |
 | 34 | This guide, section 13.6 | `POST /incidents/{id}/brief` body `{deep: bool}` | The body also accepts `fast: bool` ("never call the model"), `api/routes_copilot.py:54–56` |
 | 35 | This guide, section 17.3 | A model reply naming an id that is "not among the incident's accounts and postings" is rejected | `brief.validate` also accepts ids that appear in the facts bundle's timeline (the counterparties of the listed postings), which the model legitimately sees |
 | 36 | This guide, sections 17.2–17.3 | The "Recipient" key fact shows the sender, and the first red flag of the Act 4 assessment is the customer-facing headline | Both were changed in the working tree after those sections were written: `brief.key_facts` now takes the recipient from the alert behind the incident (`brief._held_alert`), and `brief.red_flags` no longer uses the customer's headline. The procedure step "Check the recipient account" still has the problem (A.2 #4) |

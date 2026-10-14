@@ -4,8 +4,8 @@
 // Every chart carries a plain-language caption: what it shows, how to read it, and what it says right now. Model outputs
 // (RF · GNN · drift · early warning · pattern memory) are corroborating evidence only; the payment tier comes from the
 // transparent policy engine. Traffic volume lives on the Overview and decisions by tier on Governance (not repeated here).
-import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { AccountStatus, IntelOverview, LiveUniverse, ModelInfo, RingRow } from "../api/types";
 import {
@@ -16,6 +16,8 @@ import { RoleIcon } from "../components/intel";
 import { AttackHistory, LastAttackResult } from "../components/live/AttackResults";
 import { ModelCard, ModelComparison, Synthetic } from "../components/ModelCard";
 import { AccountScoring } from "../components/OverviewAnalytics";
+import { SigLink, SignalStrip } from "../components/SignalStrip";
+import { useSignalMap } from "./SignalMapPage";
 import { useConsoleEvents } from "../components/Shell";
 import { Async, Bar, Explain, Metric, PageHead, Panel } from "../components/ui";
 import { handle, pct } from "../lib/format";
@@ -28,8 +30,8 @@ const obj = (v: unknown): Obj => (v && typeof v === "object" && !Array.isArray(v
 const fx = (v: number | null, d: number) => (v === null ? "—" : v.toFixed(d));
 const MODEL_NAME: Record<string, string> = { random_forest: "Random Forest", gnn: "Graph neural network", rules: "Rule engine", drift: "Drift", pattern_memory: "Pattern memory" };
 
-function Sec({ n, title, d }: { n: number; title: string; d: string }) {
-  return <div className="det-sec"><span className="n">{n}</span><h2>{title}</h2><span className="d">{d}</span></div>;
+function Sec({ n, title, d, id }: { n: number; title: string; d: string; id?: string }) {
+  return <div className="det-sec" id={id}><span className="n">{n}</span><h2>{title}</h2><span className="d">{d}</span></div>;
 }
 
 export function DetectionPage() {
@@ -40,6 +42,15 @@ export function DetectionPage() {
   const universe = useLoad<LiveUniverse>(() => api.universe({ history: 0 }));
   const runs = useAttackRuns();
   const stats = useLiveStats(5000);
+  const signals = useSignalMap(null);       // the inside of every family, for the strip and the panel links
+  // deep links (#det-models from the signal map, #attack-history from a toast) scroll once the page has content
+  const loc = useLocation();
+  const loaded = !!models.data;
+  useEffect(() => {
+    if (!loc.hash || !loaded) return;
+    const t = window.setTimeout(() => document.getElementById(loc.hash.slice(1))?.scrollIntoView({ block: "start", behavior: "smooth" }), 300);
+    return () => window.clearTimeout(t);
+  }, [loc.hash, loaded]);
   const [picked, setPicked] = useState<string | null>(null);
   const refresh = useDebounced(() => { overview.reload(); models.reload(); }, 800);
   const refreshRing = useDebounced(() => ring.reload(), 1500);
@@ -103,18 +114,20 @@ export function DetectionPage() {
         status only when independent families agree, and "flagged" also needs money moving onward. <b>Models never decide a payment</b>: the transparent
         policy engine does, and the models corroborate it.
       </div>
+      <SignalStrip data={signals.data} />
 
       {/* ── 1 · right now ─────────────────────────────────────────────── */}
       <Sec n={1} title="What the detectors see right now" d="Live: every chart here updates as payments are scored." />
       <div className="det-grid">
-        <Panel title="Which detectors are flagging accounts?" q={overview.data ? `graph v${overview.data.graph_version}` : undefined}>
+        <Panel title="Which detectors are flagging accounts?" q={overview.data ? `graph v${overview.data.graph_version}` : undefined}
+               actions={<SigLink label="what each family checks" />}>
           <Explain shows="How many accounts each detector family flags at this moment, counting every family on its own."
             read="A longer bar means that detector flags more accounts. The counts overlap: one account can be flagged by several families. What matters is agreement, because an account needs two or more families before it gets a status."
             now={famRows.length ? <>{FAMILY[famRows[0][0] as keyof typeof FAMILY]?.label ?? famRows[0][0]} flags the most accounts ({famRows[0][1]}){famRows[0][0] === "rules" ? ", mostly busy shops and customers, which is why rules alone never set a status" : ""}. {agreeing} account{agreeing === 1 ? " has" : "s have"} two or more families agreeing.</> : undefined} />
           <div className="chart-shell"><FlaggedPerFamilyChart overview={overview.data} /></div>
         </Panel>
 
-        <Panel title="Why does the model think these accounts are mules?" actions={<span className="stamp-sv">SHAP</span>}>
+        <Panel title="Why does the model think these accounts are mules?" actions={<><span className="stamp-sv">SHAP</span><SigLink family="random_forest" label="inputs" /></>}>
           <Explain shows={<>What pushed the Random Forest's score up or down for the {drivers.agg?.n ?? subjects.length} riskiest accounts right now, grouped into plain categories (SHAP values).</>}
             read="Red bar: this behaviour made the accounts look more like mules. Blue bar: it made them look normal. Longer means stronger. Hover a bar to see what the category measures. SHAP explains the model's opinion, not the payment decision."
             now={topUp ? <>The strongest push is <b style={{ minWidth: 0, textTransform: "none", letterSpacing: 0, fontSize: 12.5, color: "var(--ink)" }}>{topUp[0]}</b>: {SHAP_HELP[topUp[0]] ?? "see the account page"}.{topDown ? ` ${topDown[0]} pulls the other way.` : ""}</> : undefined} />
@@ -122,7 +135,7 @@ export function DetectionPage() {
           {drivers.agg && <div className="row wrap tight" style={{ marginTop: 8 }}>{drivers.agg.ids.map((id) => <Link key={id} className="tag mono" to={`/investigations/account/${encodeURIComponent(id)}`}>{handle(id)}</Link>)}</div>}
         </Panel>
 
-        <Panel title="Which network rules are firing?" q="RingWatch · on the payment path">
+        <Panel title="Which network rules are firing?" q="RingWatch · on the payment path" actions={<SigLink family="ringwatch" />}>
           <Explain shows="The transparent money-flow rules the payment engine itself uses (fan-in, pass-through, fast chains, circular flow …) and how many accounts trip each one."
             read="One row per rule; the number is how many accounts trip it now. These rules feed the network part of every payment's risk score, so they directly change what a customer sees."
             now={ring.data ? `${ring.data.length} account${ring.data.length === 1 ? "" : "s"} score 0.30 or more on RingWatch${ruleCounts[0] ? `; the most common rule is "${ruleCounts[0][0]}"` : ""}.` : undefined} />
@@ -137,7 +150,7 @@ export function DetectionPage() {
       </div>
 
       <div className="det-grid">
-        <Panel title="Who is suddenly behaving differently?" q="early warning">
+        <Panel title="Who is suddenly behaving differently?" q="early warning" actions={<SigLink family="early_warning" />}>
           <Explain shows="Accounts whose recent activity changed sharply compared with everyone else: bursts of new payees, inflow spikes, a new account suddenly busy."
             read="The score is relative to the rest of the population, not a probability. Signals say what changed. Behaviour change alone is not mule evidence: a scam victim, or someone who was just paid, shows it too."
             now={overview.data ? `${overview.data.early_warnings.length} account${overview.data.early_warnings.length === 1 ? "" : "s"} raise an early warning.` : undefined} />
@@ -177,7 +190,7 @@ export function DetectionPage() {
           </div>
         </Panel>
 
-        <Panel title="Does anything look like a known mule pattern?" q="pattern memory · not attribution">
+        <Panel title="Does anything look like a known mule pattern?" q="pattern memory · not attribution" actions={<SigLink family="pattern_memory" label="all 10 signatures" />}>
           <Explain shows="How closely an account's money-flow shape matches stored signatures of known mule patterns (fan-in, velocity chain, smurfing …)."
             read="The percentage is structural similarity. It means 'looks like', not proof, and never identifies who is behind it."
             now={overview.data ? `${overview.data.pattern_alerts.length} account${overview.data.pattern_alerts.length === 1 ? "" : "s"} resemble a stored signature closely enough to count.` : undefined} />
@@ -236,13 +249,15 @@ export function DetectionPage() {
         {" "}<b>RF / GNN</b> = the models' probability that the account is a mule (calibrated on synthetic worlds). <b>Drift</b> = how much the account changed
         compared with its own last 45 days. <b>Early warning</b> = sudden behaviour change. <b>Role</b> = its job inside a flagged structure.
         The <b>Rules vs models disagree</b> filter shows accounts where one side says risky and the other does not: worth a second look.
+        {" "}The table shows the scored families; RingWatch, pattern memory, the registry, payment-time evidence and location are on the
+        {" "}<Link to="/detection/signals">signal map</Link>, where <b>Focus an account</b> lights up every check that fires for one account and why.
       </div>
       <div style={{ marginTop: 12 }}>
         <AccountScoring statusOf={statusOf} />
       </div>
 
       {/* ── 4 · model quality ─────────────────────────────────────────── */}
-      <Sec n={4} title="How good are the models?" d="Measured on computer-generated test worlds the models never saw in training. Not real-bank accuracy." />
+      <Sec n={4} id="det-models" title="How good are the models?" d="Measured on computer-generated test worlds the models never saw in training. Not real-bank accuracy." />
       <div className="banner-val" style={{ margin: "12px 0" }}>
         <span className="stamp">SYNTHETIC VALIDATION</span>
         <span>Every number in this section is measured on synthetic, simulator-generated worlds held out from training. It is <b>not</b> real-bank accuracy.</span>
@@ -255,6 +270,9 @@ export function DetectionPage() {
         <Metric k="Rule engine · recall" v={fx(modelHeadline(models.data, "rules", "recall"), 2)} d={`precision ${fx(modelHeadline(models.data, "rules", "precision"), 2)}`} />
       </div>
       <div className="ksub" style={{ marginBottom: 4 }}>ROC-AUC: if you pick one mule and one ordinary account at random, how often the model ranks the mule higher (1.0 = always, 0.5 = coin toss).</div>
+      <div className="ksub" style={{ marginBottom: 4 }}>Benchmarked here: Random Forest, GNN, the rule engine, drift and pattern memory (early warning's numbers sit in the rule engine's record).
+        {" "}RingWatch and the registry exist only in the live world, so there is nothing to measure them against on the test worlds: every graded attack run in section 2 checks them instead.
+        {" "}Single signals (one rule, one drift aspect, one location check) are never given metrics of their own. <Link to="/detection/signals">How each family is validated →</Link></div>
       <div className="det-grid two">
         <Panel title="How accurate is each detector?" actions={<Synthetic />}>
           <Explain shows="Each detector tested on synthetic worlds it never saw in training."

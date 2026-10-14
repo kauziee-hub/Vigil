@@ -397,6 +397,7 @@ Run each the same way. The table above is the expected result; these notes say w
 | 13 | Detection → section 2 | Graded runs, per-family agreement, SYNTHETIC VALIDATION labels | C |
 | 14 | Money map rail → the Impossible travel card (after step 5 add Cross-Channel Burst) | Delhi → Kolkata, high confidence, violet route, "Suspicious geography" | L2 |
 | 15 | Money map rail → **Between states** | "…% of the fraud-linked money crossing state lines ends in Maharashtra", risky state routes first | L3 |
+| 16 | Detection → **Open the signal map** → Focus *Kiran Traders* | 6 of 8 families flag it; the rule engine's three checks fire with their reasons; RingWatch "Live-world only", models "Benchmarked" | C1 |
 
 ## 10. Re-verify every expected result (one command)
 
