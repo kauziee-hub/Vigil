@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v12.3 — same-size network and map, aligned lower rows (2026-10-14, Claude 1)
+
+- The live network and the money map now have the same width (rows 1 and 2 share 2 : 1 columns) and the same height (row 1 takes row 2's measured height); the tape and Needs attention match them.
+- Situation brief | money by channel and close monitoring | mule pipeline stretch to one height each; long lists scroll inside their card (a class-name clash that shifted the monitoring card by 13 px is fixed).
+
 ## v12.2 — aligned Overview, state-to-state view, calm normal run made explicit (2026-10-14, Claude 1)
 
 - **Aligned rows**: the network card and the tape card are both exactly 668 px; the map card and Needs attention share their height; the 3D view fills its card.

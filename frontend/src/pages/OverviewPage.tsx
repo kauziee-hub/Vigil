@@ -82,6 +82,15 @@ function Overview() {
   const mapRef = useRef<HTMLDivElement>(null);
   const attnRef = useRef<HTMLDivElement>(null);
   const pipeRef = useRef<HTMLDivElement>(null);
+  // row 1 takes row 2's height (measured from the map card), so the network and the money map are the same size
+  const [rowH, setRowH] = useState(ROW1_H);
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => { const h = Math.round(el.getBoundingClientRect().height); if (h > 300) setRowH(h); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // selection → network focus
   useEffect(() => {
@@ -149,7 +158,7 @@ function Overview() {
       <KpiStripV10 onTile={onTile} />
 
       <div className="v11-row r1">
-        <section className="stage net-main" ref={netRef} style={{ height: ROW1_H }}>
+        <section className="stage net-main" ref={netRef} style={{ height: rowH }}>
           <div className="stage-h">
             <div><div className="t">Live network</div><div className="net-help">Accounts and the payments between them, live. Selecting anything elsewhere frames it here.</div></div>
             <button className="btn xs on" onClick={() => nav("/network")}>Full view</button>
@@ -163,7 +172,7 @@ function Overview() {
           </div>
           <div className="net-legend"><UniverseLegend /></div>
         </section>
-        <LiveTape height={ROW1_H} onOpen={(r) => setDrawerTx(r.tx_id)} />
+        <LiveTape height={rowH} onOpen={(r) => setDrawerTx(r.tx_id)} />
       </div>
 
       <div className="v11-row r2">
@@ -175,13 +184,13 @@ function Overview() {
         </div>
       </div>
 
-      <div className="v10-row two">
+      <div className="v10-row two eq">
         <SituationBrief onAsk={() => openVigilance({ prompt: "Give me a situation summary and what to look at first." })} />
         <ChannelChart />
       </div>
-      <div className="v10-row two">
+      <div className="v10-row two eq ov-bottom-row">
         <WatchlistCard />
-        <div ref={pipeRef}><MulePipeline /></div>
+        <div ref={pipeRef} className="pipe-col"><MulePipeline /></div>
       </div>
 
       {drawerTx && (

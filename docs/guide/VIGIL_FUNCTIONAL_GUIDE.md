@@ -251,7 +251,7 @@ The drawer shows the status and role, **Network risk** (the RingWatch score the 
 
 ![Row 2: the money map with the location intelligence rail (left) beside Needs attention (right), after the cross-channel, money-mule, velocity-chain and shared-device patterns (v12)](img/v11_04_map_attention.png)
 
-**Where money is moving in India right now, where it turns risky, and whether the geography itself is suspicious.** The line under the title counts it, for example "64 postings · ₹17.30L in the last 1h · 11 cities with fraud-linked money · 1 cash-out cluster · 3 collection points · 3 location signals". The map is bigger since v12 (608 px tall), and the right side of the same card is the **location intelligence** rail.
+**Where money is moving in India right now, where it turns risky, and whether the geography itself is suspicious.** The line under the title counts it, for example "64 postings · ₹17.30L in the last 1h · 11 cities with fraud-linked money · 1 cash-out cluster · 3 collection points · 3 location signals". Since v12.3 the map card and the live network above it are the same size, with the transaction tape and Needs attention matching them; the right side of the map card is the **location intelligence** rail.
 
 **What you see.** India (its boundary as India depicts it, from Natural Earth's India point-of-view data, bundled so it works offline) with its states, glowing on a dark background; neighbouring countries in grey; four international destinations for wires (Dubai, Singapore, London, Hong Kong).
 

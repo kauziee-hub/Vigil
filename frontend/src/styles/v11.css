@@ -383,3 +383,17 @@
 .li-state-bar .fraud { display: block; height: 100%; background: #f05252; }
 .li-state-bar .sus { display: block; height: 100%; background: #f0b040; }
 .li-state-why { grid-column: 1 / -1; font-size: 10px; color: #8f9aa6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* v12.3: rows 1 and 2 share the same columns (network = map width; row 1 takes row 2's measured height);
+   the lower rows stretch both cards to one height, and long lists scroll inside them */
+.v11-row.r1, .v11-row.r2 { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); }
+.v10-row.two.eq { align-items: stretch; }
+.v10-row.two.eq > .kcard, .v10-row.two.eq > .pipe-col > .kcard { height: 100%; }
+.v10-row.ov-bottom-row { height: 640px; }
+.v10-row.ov-bottom-row > * { min-height: 0; display: flex; flex-direction: column; }
+.v10-row.ov-bottom-row .kcard { flex: 1; min-height: 0; overflow: hidden; }
+.v10-row.ov-bottom-row .watch-list, .v10-row.ov-bottom-row .pipe-list { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; padding-right: 2px; }
+@media (max-width: 1100px) {
+  .v10-row.ov-bottom-row { height: auto; }
+  .v10-row.ov-bottom-row .watch-list, .v10-row.ov-bottom-row .pipe-list { max-height: 460px; }
+}
